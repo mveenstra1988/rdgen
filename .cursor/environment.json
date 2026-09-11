@@ -1,0 +1,17 @@
+{
+  "name": "RDGen (Django)",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "django",
+      "command": "cd /workspace && DEBUG=true .venv/bin/python manage.py runserver 0.0.0.0:8000",
+      "description": "RDGen Django development server on http://localhost:8000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web server",
+      "port": 8000
+    }
+  ]
+}
