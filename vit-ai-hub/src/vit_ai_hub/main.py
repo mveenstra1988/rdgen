@@ -185,6 +185,56 @@ async def capabilities(_: None = Depends(_auth)) -> dict[str, Any]:
     return capabilities_manifest()
 
 
+@app.get("/api/accounts")
+async def api_accounts_status(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.pool import pool_status
+
+    _localhost_only(request)
+    return pool_status()
+
+
+@app.post("/api/accounts/{pool}")
+async def api_add_account(pool: str, request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.pool import add_account
+
+    _localhost_only(request)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    out = add_account(pool, body)
+    router_engine.refresh()
+    return out
+
+
+@app.delete("/api/accounts/{pool}/{account_id}")
+async def api_delete_account(
+    pool: str, account_id: str, request: Request, _: None = Depends(_auth)
+) -> dict[str, Any]:
+    from vit_ai_hub.pool import delete_account
+
+    _localhost_only(request)
+    out = delete_account(pool, account_id)
+    router_engine.refresh()
+    return out
+
+
+@app.post("/api/accounts/clear-cooldown")
+async def api_clear_cooldown(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.pool.store import clear_exhaustion
+
+    _localhost_only(request)
+    body: dict[str, Any] = {}
+    try:
+        raw = await request.json()
+        if isinstance(raw, dict):
+            body = raw
+    except Exception:
+        body = {}
+    out = clear_exhaustion(str(body.get("account_id") or "") or None)
+    router_engine.refresh()
+    return out
+
+
 @app.post("/api/orchestrator/plan")
 async def api_orchestrator_plan(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
     """Preview: welk model/team Auto zou kiezen (geen LLM-call)."""

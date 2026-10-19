@@ -529,9 +529,68 @@ els.importUpload?.addEventListener("click", async () => {
   }
 });
 
+async function refreshAccounts() {
+  const box = document.getElementById("accounts-status");
+  const list = document.getElementById("accounts-list");
+  try {
+    const res = await fetch("/api/accounts", { headers: headers() });
+    const data = await res.json();
+    const pools = data.pools || {};
+    const lines = Object.entries(pools).map(([p, info]) => {
+      return `${p}: ${info.healthy || 0}/${info.total || 0} gezond`;
+    });
+    if (box) box.textContent = lines.join(" · ") || "Nog geen abos in pool";
+    if (list) {
+      const detail = [];
+      for (const [p, info] of Object.entries(pools)) {
+        for (const a of info.accounts || []) {
+          const mark = a.healthy ? "✓" : "○";
+          detail.push(
+            `${mark} [${p}] ${a.label || a.id} · ${a.base_url || "?"} · tags=${(a.tags || []).join(",")}` +
+              (a.exhausted_reason ? ` · ${a.exhausted_reason}` : "")
+          );
+        }
+      }
+      list.textContent = detail.join("\n") || "(leeg — voeg bridge/cursor abos toe)";
+    }
+  } catch (e) {
+    if (box) box.textContent = String(e);
+  }
+}
+
+document.getElementById("acc-refresh")?.addEventListener("click", () => refreshAccounts());
+document.getElementById("acc-clear-cd")?.addEventListener("click", async () => {
+  await fetch("/api/accounts/clear-cooldown", { method: "POST", headers: headers(), body: "{}" });
+  addBubble("system", "Abo-cooldowns gereset.");
+  refreshAccounts();
+});
+document.getElementById("acc-add")?.addEventListener("click", async () => {
+  const pool = document.getElementById("acc-pool")?.value || "bridge";
+  const label = document.getElementById("acc-label")?.value || "";
+  const base_url = document.getElementById("acc-url")?.value || "";
+  const api_key = document.getElementById("acc-key")?.value || "";
+  const tags = (document.getElementById("acc-tags")?.value || "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (!base_url.trim()) {
+    addBubble("system", "Base URL verplicht voor een abo.");
+    return;
+  }
+  const res = await fetch(`/api/accounts/${pool}`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ label, base_url, api_key, tags: tags.length ? tags : undefined }),
+  });
+  const data = await res.json();
+  addBubble("system", data.ok ? `Abo toegevoegd aan pool ${pool}` : JSON.stringify(data));
+  refreshAccounts();
+});
+
 addBubble("system", "VIT AI Hub klaar. Kies een model, of importeer ChatGPT/Claude/Cursor-kennis met 1 klik.");
 ensureLocalToken().then(() => {
   ping();
   refreshImportStatus();
+  refreshAccounts();
   loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
 });

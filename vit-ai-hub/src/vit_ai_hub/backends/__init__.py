@@ -9,7 +9,7 @@ from vit_ai_hub.config import backend_overrides, load_yaml_config
 def build_backends() -> dict[str, OpenAICompatBackend]:
     cfg = load_yaml_config().get("backends", {})
     overrides = backend_overrides()
-    backends: dict[str, OpenAICompatBackend] = {}
+    backends: dict[str, Any] = {}
     for name, raw in cfg.items():
         if not raw.get("enabled", True):
             continue
@@ -20,13 +20,28 @@ def build_backends() -> dict[str, OpenAICompatBackend]:
         if name == "openrouter" and not over.get("api_key"):
             # still register for pinned catalog; calls fail until key set
             pass
-        backends[name] = OpenAICompatBackend(
+        single = OpenAICompatBackend(
             name=name,
             base_url=base_url,
             api_key=over.get("api_key", ""),
             local=bool(raw.get("local")),
             label=str(raw.get("label") or name),
         )
+        # Multi-abo pool for cloud/subscription backends
+        if name in {"bridge", "cursor", "openrouter", "deepseek", "grok", "omniroute"}:
+            try:
+                from vit_ai_hub.pool.backend import wrap_pooled
+
+                backends[name] = wrap_pooled(
+                    name,
+                    single,
+                    local=bool(raw.get("local")),
+                    label=str(raw.get("label") or name),
+                )
+                continue
+            except Exception:
+                pass
+        backends[name] = single
     return backends
 
 

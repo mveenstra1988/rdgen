@@ -193,9 +193,49 @@
   overlay.querySelector("#wiz-save-omni")?.addEventListener("click", () =>
     saveSecrets(overlay.querySelector("#wiz-omni-msg"))
   );
-  overlay.querySelector("#wiz-save-bridge")?.addEventListener("click", () =>
-    saveSecrets(overlay.querySelector("#wiz-bridge-msg"))
-  );
+  overlay.querySelector("#wiz-save-bridge")?.addEventListener("click", async () => {
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    await saveSecrets(msg);
+    // Multi-abo pool: tot 3 bridges
+    const slots = [
+      {
+        url: overlay.querySelector("#wiz-bridge-url-1")?.value || "http://127.0.0.1:8317/v1",
+        key: overlay.querySelector("#wiz-bridge")?.value || "",
+        label: "Bridge #1",
+      },
+      {
+        url: overlay.querySelector("#wiz-bridge-url-2")?.value || "",
+        key: overlay.querySelector("#wiz-bridge-key-2")?.value || "",
+        label: "Bridge #2",
+      },
+      {
+        url: overlay.querySelector("#wiz-bridge-url-3")?.value || "",
+        key: overlay.querySelector("#wiz-bridge-key-3")?.value || "",
+        label: "Bridge #3",
+      },
+    ];
+    let n = 0;
+    for (const s of slots) {
+      if (!s.url.trim()) continue;
+      try {
+        const res = await fetch("/api/accounts/bridge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: s.label,
+            base_url: s.url.trim(),
+            api_key: s.key,
+            tags: ["claude", "chatgpt"],
+            enabled: true,
+          }),
+        });
+        if (res.ok) n += 1;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (msg) msg.textContent = `${n} bridge-abo(s) in pool. Bij uitputting → volgende automatisch.`;
+  });
 
   overlay.querySelector("#wiz-copy-url")?.addEventListener("click", async () => {
     const url = overlay.querySelector("#wiz-cursor-url")?.textContent || "";

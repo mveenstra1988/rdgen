@@ -78,22 +78,32 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>4 · Claude + ChatGPT abo (inloggen)</h3>
-        <p>Je abonnementen blijven van jou. De hub praat via een lokale <strong>bridge</strong> (:8317), niet rechtstreeks met hun websites.</p>
+        <h3>4 · Claude + ChatGPT abo’s (meerdere mag)</h3>
+        <p>Je abonnementen blijven van jou. Meerdere bridges/abos → hub <strong>bundelt</strong> ze; is er één op, pakt hij automatisch de volgende.</p>
         <ol class="wiz-list">
-          <li>Installeer/start CLIProxyAPI (bridge) — knop hieronder</li>
-          <li>Log daar één keer in met Claude / ChatGPT (OAuth)</li>
-          <li>Plak eventueel de bridge API key hier</li>
+          <li>Start CLIProxyAPI per abo (bijv. :8317, :8318, :8319) en log OAuth in</li>
+          <li>Voeg elke bridge toe hieronder (URL + key + tag claude/chatgpt)</li>
+          <li>Zelfde voor Cursor-abos later in de GUI (pool <code>cursor</code>)</li>
         </ol>
-        <label class="field"><span>Bridge API key</span>
+        <label class="field"><span>Bridge #1 URL</span>
+          <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
+        <label class="field"><span>Bridge #1 API key</span>
           <input id="wiz-bridge" type="password" autocomplete="off" placeholder="vaak leeg of uit bridge-config" /></label>
+        <label class="field"><span>Bridge #2 URL (optioneel 2e Claude/GPT)</span>
+          <input id="wiz-bridge-url-2" type="text" placeholder="http://127.0.0.1:8318/v1" autocomplete="off" /></label>
+        <label class="field"><span>Bridge #2 API key</span>
+          <input id="wiz-bridge-key-2" type="password" autocomplete="off" /></label>
+        <label class="field"><span>Bridge #3 URL (optioneel)</span>
+          <input id="wiz-bridge-url-3" type="text" placeholder="http://127.0.0.1:8319/v1" autocomplete="off" /></label>
+        <label class="field"><span>Bridge #3 API key</span>
+          <input id="wiz-bridge-key-3" type="password" autocomplete="off" /></label>
         <div class="wiz-actions">
           <button type="button" class="ghost" data-guide="bridge_docs">Bridge installeren / inloggen</button>
           <button type="button" class="ghost" data-guide="chatgpt">Open ChatGPT-app</button>
           <button type="button" class="ghost" data-guide="claude">Open Claude-app</button>
-          <button type="button" id="wiz-save-bridge" class="primary">Opslaan</button>
+          <button type="button" id="wiz-save-bridge" class="primary">Abos opslaan in pool</button>
         </div>
-        <p class="muted tiny" id="wiz-bridge-msg">Na OAuth in de bridge staan Claude/GPT-modellen in de picker.</p>
+        <p class="muted tiny" id="wiz-bridge-msg">Na OAuth: Claude/GPT via pool. Meer abos kun je altijd bijzetten in de sidebar.</p>
       </section>
 
       <section data-step class="wiz-step">
@@ -210,6 +220,34 @@
         <button type="button" id="refresh-models" class="ghost">Vernieuw modellen</button>
         <button type="button" id="new-chat" class="ghost">Nieuwe chat</button>
       </div>
+
+      <section class="import-panel">
+        <h3>Abo-pools</h3>
+        <p class="muted tiny" id="accounts-status">Laden…</p>
+        <label class="field"><span>Pool</span>
+          <select id="acc-pool">
+            <option value="bridge">bridge (Claude/ChatGPT)</option>
+            <option value="cursor">cursor</option>
+            <option value="openrouter">openrouter</option>
+            <option value="deepseek">deepseek</option>
+            <option value="grok">grok</option>
+          </select>
+        </label>
+        <label class="field"><span>Label</span>
+          <input id="acc-label" type="text" placeholder="Claude abo 2" autocomplete="off" /></label>
+        <label class="field"><span>Base URL</span>
+          <input id="acc-url" type="text" placeholder="http://127.0.0.1:8318/v1" autocomplete="off" /></label>
+        <label class="field"><span>API key</span>
+          <input id="acc-key" type="password" autocomplete="off" /></label>
+        <label class="field"><span>Tags (komma)</span>
+          <input id="acc-tags" type="text" placeholder="claude,chatgpt" autocomplete="off" /></label>
+        <div class="side-actions">
+          <button type="button" id="acc-add" class="primary">Abo toevoegen</button>
+          <button type="button" id="acc-refresh" class="ghost">Vernieuw</button>
+          <button type="button" id="acc-clear-cd" class="ghost">Reset cooldowns</button>
+        </div>
+        <pre id="accounts-list" class="meta tiny muted"></pre>
+      </section>
 
       <section class="import-panel">
         <h3>Kennis & geheugen</h3>

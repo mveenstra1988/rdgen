@@ -17,11 +17,11 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.3.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.4.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES**
-4. Kies model **vit/auto** — intent → model + fallbacks + critic + auto-team
-5. Tab **Agent teams** · studio **Ops / Infra** of **Self-improve** · MCP + ops-tools
+4. Voeg meerdere Claude/ChatGPT/Cursor-abos toe (sidebar **Abo-pools** of wizard stap 4)
+5. Model **vit/auto** — intent + pool-failover + critic + auto-team
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 

@@ -379,9 +379,11 @@ def capabilities_manifest() -> dict[str, Any]:
             "vit_backup",
         ],
         "orchestrator": True,
+        "account_pools": True,
+        "account_pool_names": ["bridge", "cursor", "openrouter", "deepseek", "grok", "omniroute"],
         "vit_auto": (
             "intent → strong/weak + tradeoff + fallback cascade + critic + auto multi-agent "
-            "(lokaal/bridge/OpenRouter/DeepSeek)"
+            "+ multi-abo pool failover (lokaal/bridge/OpenRouter/DeepSeek)"
         ),
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
