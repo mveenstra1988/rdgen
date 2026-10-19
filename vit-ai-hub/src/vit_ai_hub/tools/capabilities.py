@@ -347,9 +347,11 @@ def capabilities_manifest() -> dict[str, Any]:
             "live_sync",
         ],
         "studios": ["chat", "software", "webdesign", "apps", "design"],
+        "agent_teams": True,
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [
+            "Visuele agent-teams (webdesign, apps) — zelf bouwen en runnen.",
             "Studio-modi: software/webdesign/apps/design vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
             "Workspace read/write/run in allowlisted projectmappen.",
             "Cursor-exit: Continue/VS Code of Zed op dezelfde gateway.",

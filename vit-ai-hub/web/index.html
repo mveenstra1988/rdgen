@@ -231,18 +231,114 @@
           <h2 id="chat-title">Chat</h2>
           <p class="muted" id="route-info">Kies een model en start.</p>
         </div>
-        <div class="pill" id="privacy-pill">Privacyfilter aan</div>
+        <div class="top-right">
+          <div class="view-tabs" role="tablist">
+            <button type="button" class="view-tab on" data-view="chat">Chat</button>
+            <button type="button" class="view-tab" data-view="teams">Agent teams</button>
+          </div>
+          <div class="pill" id="privacy-pill">Privacyfilter aan</div>
+        </div>
       </header>
 
-      <section id="messages" class="messages" aria-live="polite"></section>
+      <div id="view-chat" class="view-pane on">
+        <section id="messages" class="messages" aria-live="polite"></section>
+        <form id="composer" class="composer">
+          <textarea id="prompt" rows="3" placeholder="Bericht… (klantgegevens worden gefilterd vóór cloud)"></textarea>
+          <button type="submit" id="send">Stuur</button>
+        </form>
+      </div>
 
-      <form id="composer" class="composer">
-        <textarea id="prompt" rows="3" placeholder="Bericht… (klantgegevens worden gefilterd vóór cloud)"></textarea>
-        <button type="submit" id="send">Stuur</button>
-      </form>
+      <div id="view-teams" class="view-pane teams-view">
+        <div class="teams-layout">
+          <section class="teams-col">
+            <div class="teams-head">
+              <h3>Teams</h3>
+              <button type="button" id="team-new" class="primary">+ Team</button>
+            </div>
+            <div id="teams-list" class="teams-list"></div>
+            <div class="teams-head" style="margin-top:1rem">
+              <h3>Agents</h3>
+              <button type="button" id="agent-new" class="ghost">+ Agent</button>
+            </div>
+            <div id="agents-list" class="agents-list"></div>
+          </section>
+          <section class="teams-col teams-editor">
+            <h3 id="editor-title">Selecteer of maak een team</h3>
+            <p class="muted tiny" id="editor-blurb">Sleep volgorde met ↑↓. Pipeline = na elkaar; Board = allen + lead-synthese.</p>
+            <div id="team-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="tf-name" type="text" /></label>
+              <label class="field"><span>Korte omschrijving</span><input id="tf-blurb" type="text" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="tf-color" type="color" value="#c4f04d" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="tf-studio">
+                    <option value="webdesign">Webdesign</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Software</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                  </select>
+                </label>
+                <label class="field"><span>Mode</span>
+                  <select id="tf-mode">
+                    <option value="pipeline">Pipeline</option>
+                    <option value="board">Board + synthese</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field"><span>Lead agent</span><select id="tf-lead"></select></label>
+              <div class="teams-head"><h4>Leden</h4></div>
+              <div id="tf-members" class="member-chips"></div>
+              <label class="field"><span>Agent toevoegen</span>
+                <div class="field-row">
+                  <select id="tf-add-agent"></select>
+                  <button type="button" id="tf-add-btn" class="ghost">Voeg toe</button>
+                </div>
+              </label>
+              <div class="wiz-actions">
+                <button type="button" id="tf-save" class="primary">Team opslaan</button>
+                <button type="button" id="tf-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div id="agent-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="af-name" type="text" /></label>
+              <label class="field"><span>Rol</span><input id="af-role" type="text" placeholder="bijv. Frontend" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="af-color" type="color" value="#7ec8ff" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="af-studio">
+                    <option value="webdesign">Webdesign</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Software</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                  </select>
+                </label>
+                <label class="field"><span>Model</span><input id="af-model" type="text" value="vit/auto" /></label>
+              </div>
+              <label class="field checkbox"><input id="af-tools" type="checkbox" checked /><span>Tools aan</span></label>
+              <label class="field"><span>Systeemprompt</span><textarea id="af-system" rows="5"></textarea></label>
+              <div class="wiz-actions">
+                <button type="button" id="af-save" class="primary">Agent opslaan</button>
+                <button type="button" id="af-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div class="run-box">
+              <h4>Team starten</h4>
+              <label class="field"><span>Taak</span>
+                <textarea id="team-task" rows="3" placeholder="bijv. Bouw landing voor VIT Backup, donker groen, sterke CTA"></textarea>
+              </label>
+              <button type="button" id="team-run" class="primary wiz-hero">Run team</button>
+              <p class="muted tiny" id="team-run-msg">Gebruikt workspace uit de sidebar indien gezet.</p>
+            </div>
+            <div id="team-run-out" class="team-run-out"></div>
+          </section>
+        </div>
+      </div>
     </main>
   </div>
   <script src="/static/app.js"></script>
+  <script src="/static/teams.js"></script>
   <script src="/static/wizard.js"></script>
 </body>
 </html>

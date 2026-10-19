@@ -188,6 +188,90 @@ async def api_studios() -> dict[str, Any]:
     return {"studios": list_studios()}
 
 
+@app.get("/api/agents")
+async def api_list_agents(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import list_agents
+
+    return {"agents": list_agents()}
+
+
+@app.post("/api/agents")
+async def api_save_agent(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import save_agent
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    return save_agent(body)
+
+
+@app.delete("/api/agents/{agent_id}")
+async def api_delete_agent(agent_id: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import delete_agent
+
+    return delete_agent(agent_id)
+
+
+@app.get("/api/teams")
+async def api_list_teams(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import list_agents, list_teams
+
+    return {"teams": list_teams(), "agents": list_agents()}
+
+
+@app.post("/api/teams")
+async def api_save_team(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import save_team
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    return save_team(body)
+
+
+@app.delete("/api/teams/{team_id}")
+async def api_delete_team(team_id: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import delete_team
+
+    return delete_team(team_id)
+
+
+@app.post("/api/teams/{team_id}/run")
+async def api_run_team(team_id: str, request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.agents import run_team
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    task = str(body.get("task") or "").strip()
+    workspace = str(body.get("workspace") or "").strip() or None
+    model_override = str(body.get("model") or "").strip() or None
+
+    async def chat_fn(*, messages, model, studio, workspace, tools):
+        fake = ChatCompletionRequest(
+            model=model,
+            messages=[ChatMessage(**m) for m in messages],
+            vit_enable_tools=bool(tools),
+            studio=studio,
+            workspace=workspace,
+            stream=False,
+        )
+        result = await _handle_chat(fake)
+        if isinstance(result, JSONResponse):
+            return json.loads(result.body.decode())
+        if isinstance(result, dict):
+            return result
+        raise RuntimeError("onverwacht chat-antwoord")
+
+    return await run_team(
+        team_id,
+        task=task,
+        workspace=workspace,
+        model_override=model_override,
+        chat_fn=chat_fn,
+    )
+
+
 @app.get("/api/workspace/status")
 async def api_workspace_status(_: None = Depends(_auth)) -> dict[str, Any]:
     from vit_ai_hub.workspace import workspace_status

@@ -1,4 +1,4 @@
-# Roadmap status (0.7)
+# Roadmap status (0.8)
 
 ## Ingebouwd
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
@@ -15,6 +15,7 @@
 - [x] Workspace read/write/run (allowlist) — Cursor-achtig in de hub
 - [x] Continue.dev export (Cursor-exit pad)
 - [x] Penpot open + install-script (Figma-alt)
+- [x] Visuele agent-teams (webdesign / apps presets + custom builder + run)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
@@ -23,3 +24,4 @@
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
 - [ ] Inline diff-viewer in GUI (nog dichter bij Cursor)
+- [ ] Parallel board-runs (asyncio.gather) i.p.v. sequentieel

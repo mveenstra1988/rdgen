@@ -129,8 +129,9 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 
 .main {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   min-width: 0;
+  min-height: 0;
 }
 .top {
   display: flex;
@@ -138,8 +139,25 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
   align-items: center;
   padding: 1.1rem 1.4rem;
   border-bottom: 1px solid var(--line);
+  gap: 1rem;
 }
 .top h2 { margin: 0; font-size: 1.2rem; }
+.top-right { display: flex; align-items: center; gap: 0.75rem; }
+.view-tabs {
+  display: flex; gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(15, 20, 18, 0.55);
+}
+.view-tab {
+  border: 0; background: transparent; border-radius: 999px;
+  padding: 0.4rem 0.85rem; font-size: 0.82rem; color: var(--muted);
+}
+.view-tab.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.view-pane { display: none; min-height: 0; }
+.view-pane.on { display: grid; grid-template-rows: 1fr auto; min-height: 0; height: 100%; }
+#view-teams.on { display: block; overflow: auto; }
 .pill {
   border: 1px solid rgba(196, 240, 77, 0.35);
   color: var(--accent);
@@ -294,4 +312,82 @@ textarea { resize: vertical; min-height: 84px; }
   color: var(--accent);
   flex: 1;
   word-break: break-all;
+}
+
+.teams-view { padding: 1rem 1.25rem 1.5rem; }
+.teams-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 1rem;
+  min-height: 0;
+}
+.teams-col {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.9rem;
+  background: rgba(15, 20, 18, 0.45);
+}
+.teams-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 0.5rem; margin-bottom: 0.65rem;
+}
+.teams-head h3, .teams-head h4 { margin: 0; font-size: 0.95rem; }
+.teams-list, .agents-list { display: flex; flex-direction: column; gap: 0.45rem; }
+.team-card, .agent-chip {
+  text-align: left; width: 100%;
+  border-left: 3px solid var(--c, var(--accent));
+  background: rgba(33, 48, 41, 0.4);
+  padding: 0.65rem 0.75rem;
+  display: flex; flex-direction: column; gap: 0.15rem;
+  animation: rise 0.25s ease;
+}
+.team-card strong, .agent-chip span { font-size: 0.9rem; }
+.team-card span, .team-card em, .agent-chip small { color: var(--muted); font-size: 0.75rem; font-style: normal; }
+.team-card.on, .agent-chip.on { border-color: var(--c); background: rgba(196, 240, 77, 0.08); }
+.agent-chip { flex-direction: row; align-items: center; gap: 0.5rem; }
+.agent-chip i, .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--c, var(--accent)); display: inline-block;
+}
+.team-form { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1rem; }
+.team-form.hidden { display: none; }
+.field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.member-chips { display: flex; flex-direction: column; gap: 0.35rem; }
+.member-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1.2fr auto auto auto;
+  gap: 0.35rem; align-items: center;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.member-row input { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+.tiny-btn { padding: 0.35rem 0.55rem !important; min-width: 0; }
+.run-box {
+  margin-top: 1rem; padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.team-run-out { margin-top: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem; }
+.run-step {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c, var(--accent));
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  background: rgba(33, 48, 41, 0.35);
+  animation: rise 0.3s ease;
+}
+.run-step header {
+  display: flex; align-items: center; gap: 0.45rem;
+  margin-bottom: 0.4rem; font-size: 0.85rem;
+}
+.run-step header small { color: var(--muted); margin-left: auto; }
+.run-step pre {
+  margin: 0; white-space: pre-wrap; font-family: var(--font);
+  font-size: 0.88rem; line-height: 1.45; color: var(--ink);
+}
+.run-step.final { border-left-color: var(--accent); }
+.run-step.err { border-left-color: var(--danger); }
+@media (max-width: 980px) {
+  .teams-layout { grid-template-columns: 1fr; }
+  .field-row { grid-template-columns: 1fr; }
 }
