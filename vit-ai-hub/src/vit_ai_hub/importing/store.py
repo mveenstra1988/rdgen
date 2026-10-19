@@ -13,6 +13,7 @@ CONVERSATIONS = DATA / "conversations.jsonl"
 MEMORIES = DATA / "memories.jsonl"
 PROJECTS = DATA / "projects.jsonl"
 SKILLS = DATA / "skills.jsonl"
+SETTINGS_BUNDLE = DATA / "settings_bundles.jsonl"
 IMPORT_LOG = DATA / "imports.jsonl"
 
 
@@ -155,6 +156,17 @@ def save_skills(items: list[dict[str, Any]]) -> dict[str, int]:
     return {"written": _append_jsonl(SKILLS, rows), "skipped": skipped}
 
 
+def save_settings_bundle(bundle: dict[str, Any]) -> dict[str, int]:
+    _ensure()
+    row = {
+        "id": _hash_id("settings", str(time.time())),
+        "source": "full_migrate",
+        "files": bundle.get("files") or [],
+        "imported_at": time.time(),
+    }
+    return {"written": _append_jsonl(SETTINGS_BUNDLE, [row]), "skipped": 0}
+
+
 def list_skills(*, limit: int = 200) -> list[dict[str, Any]]:
     if not SKILLS.is_file():
         return []
@@ -196,12 +208,14 @@ def stats() -> dict[str, Any]:
         "memories": count(MEMORIES),
         "projects": count(PROJECTS),
         "skills": count(SKILLS),
+        "settings_bundles": count(SETTINGS_BUNDLE),
         "imports": count(IMPORT_LOG),
         "paths": {
             "conversations": str(CONVERSATIONS),
             "memories": str(MEMORIES),
             "projects": str(PROJECTS),
             "skills": str(SKILLS),
+            "settings": str(SETTINGS_BUNDLE),
         },
     }
 

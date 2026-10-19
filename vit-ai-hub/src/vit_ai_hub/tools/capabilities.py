@@ -346,8 +346,10 @@ def capabilities_manifest() -> dict[str, Any]:
             "claude_live_ax",
             "live_sync",
         ],
-        "studios": ["chat", "software", "webdesign", "apps", "design"],
+        "studios": ["chat", "software", "webdesign", "apps", "design", "self"],
         "agent_teams": True,
+        "full_migrate": True,
+        "self_improve": True,
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [

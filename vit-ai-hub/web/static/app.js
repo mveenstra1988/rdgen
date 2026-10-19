@@ -22,6 +22,7 @@ const els = {
   openPenpot: document.getElementById("open-penpot"),
   importAll: document.getElementById("import-all"),
   importSkills: document.getElementById("import-skills"),
+  importFull: document.getElementById("import-full"),
   importStatus: document.getElementById("import-status"),
   importFile: document.getElementById("import-file"),
   importSource: document.getElementById("import-source"),
@@ -305,7 +306,31 @@ els.importAll?.addEventListener("click", async () => {
     addBubble("system", `Import mislukt: ${err}`);
   } finally {
     els.importAll.disabled = false;
-    els.importAll.textContent = "Importeer alles van deze Mac";
+    els.importAll.textContent = "Migreer ALLES (Claude/GPT/Cursor)";
+  }
+});
+
+els.importFull?.addEventListener("click", async () => {
+  els.importFull.disabled = true;
+  els.importFull.textContent = "Mirror…";
+  try {
+    const res = await fetch("/api/import/full", { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    const src = data.profile?.sources || {};
+    addBubble(
+      "system",
+      `Volledige migratie (${data.elapsed_sec}s): ${src.mirrored_files || 0} files · ` +
+        `MCP [${(data.profile?.mcp_servers || []).join(", ") || "geen"}] · ` +
+        `skills ${data.skills?.found || 0}. Rules/prompts actief in chats.` +
+        (data.honest_limits?.length ? `\n\nLimits:\n- ${data.honest_limits.join("\n- ")}` : "")
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Full migrate mislukt: ${err}`);
+  } finally {
+    els.importFull.disabled = false;
+    els.importFull.textContent = "Volledige mirror + MCP/rules";
   }
 });
 

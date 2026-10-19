@@ -373,6 +373,14 @@ async def _handle_chat(body: ChatCompletionRequest):
     studio_prompt = studio_system_prompt(body.studio)
     if studio_prompt:
         prefix.append({"role": "system", "content": studio_prompt})
+    try:
+        from vit_ai_hub.importing.full_migrate import runtime_system_addons
+
+        migrated = runtime_system_addons()
+        if migrated:
+            prefix.append({"role": "system", "content": migrated})
+    except Exception:
+        pass
     if body.workspace:
         prefix.append(
             {
@@ -381,6 +389,18 @@ async def _handle_chat(body: ChatCompletionRequest):
                     f"Actieve workspace: {body.workspace}. "
                     "Gebruik list_workspace / read_workspace_file / write_workspace_file / run_in_workspace "
                     "met workspace= dit pad."
+                ),
+            }
+        )
+    # Self-improve: altijd hub-root noemen als studio self of user daarom vraagt
+    if (body.studio or "") == "self" or "verbeter" in last_user.lower() or "pas jezelf" in last_user.lower():
+        prefix.append(
+            {
+                "role": "system",
+                "content": (
+                    f"Self-improve actief. Hub-root: {ROOT}. "
+                    "Je mag hub-bestanden lezen/schrijven/testen via workspace-tools. "
+                    "Wijzig gericht, run pytest waar nuttig, vat daarna samen wat er veranderde."
                 ),
             }
         )
@@ -588,6 +608,21 @@ async def api_import_skills(_: None = Depends(_auth)) -> dict[str, Any]:
     from vit_ai_hub.importing.skills import harvest_skills
 
     return harvest_skills(promote_agents=True)
+
+
+@app.post("/api/import/full")
+async def api_import_full(_: None = Depends(_auth)) -> dict[str, Any]:
+    """Alles van Claude/ChatGPT/Cursor: mirror + settings/MCP/rules/prompts/skills/chats."""
+    from vit_ai_hub.importing.full_migrate import migrate_everything
+
+    return migrate_everything(promote_skills=True)
+
+
+@app.get("/api/migrate/profile")
+async def api_migrate_profile(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.full_migrate import load_active_profile
+
+    return {"profile": load_active_profile()}
 
 
 @app.post("/api/import/cursor")

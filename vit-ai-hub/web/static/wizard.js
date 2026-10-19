@@ -143,13 +143,17 @@
       });
       const data = await res.json();
       const k = data.knowledge || {};
-      const skillsBlock = data.import?.skills || data.skills || {};
+      const mig = data.migration || {};
+      const skillsBlock = mig.skills || data.import?.skills || {};
       const sk = skillsBlock.found ?? k.skills ?? 0;
+      const mirrored = mig.profile?.sources?.mirrored_files ?? 0;
+      const mcpN = (mig.profile?.mcp_servers || []).length;
       if (msg) {
         msg.textContent =
-          `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects · ${sk} skills` +
+          `${k.conversations || 0} chats · ${k.memories || 0} mem · ${sk} skills · ` +
+          `${mirrored} files gespiegeld · ${mcpN} MCP` +
           (skillsBlock.agents_promoted
-            ? ` · ${skillsBlock.agents_promoted.written || 0} als agent/bot`
+            ? ` · ${skillsBlock.agents_promoted.written || 0} agents`
             : "");
       }
       return data;
@@ -159,7 +163,7 @@
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = "Importeer alles nu";
+        btn.textContent = "Migreer ALLES nu";
       }
     }
   }

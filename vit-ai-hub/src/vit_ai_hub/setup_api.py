@@ -115,11 +115,12 @@ def setup_status(*, include_token: bool = False) -> dict[str, Any]:
 
 
 def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
-    """Één call: import + sync + setup-complete (voor wizard / one-shot)."""
-    from vit_ai_hub.importing import import_all_one_click
+    """Één call: VOLLEDIGE migratie + sync + setup-complete."""
+    from vit_ai_hub.importing.full_migrate import migrate_everything
     from vit_ai_hub.importing.sync import start_sync, sync_once
 
-    knowledge = import_all_one_click()
+    migration = migrate_everything(promote_skills=True)
+    knowledge = (migration.get("knowledge_import") or {}).get("knowledge") or {}
     sync_result = sync_once(include_ax=False)
     sync_ctl = start_sync(interval_sec=300, include_ax=False)
     if open_a11y:
@@ -127,11 +128,13 @@ def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
     done = mark_setup_complete()
     return {
         "ok": True,
-        "knowledge": knowledge.get("knowledge") if isinstance(knowledge, dict) else knowledge,
-        "import": knowledge,
+        "knowledge": knowledge,
+        "import": migration.get("knowledge_import") or {},
+        "migration": migration,
         "sync": sync_result,
         "sync_ctl": sync_ctl,
         "setup": done,
+        "profile": migration.get("profile"),
     }
 
 

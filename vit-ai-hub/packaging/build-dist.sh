@@ -2,7 +2,7 @@
 # Bouwt een zip die je op de Mac uitpakt en start (START.command of .app).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-0.8.1}"
+VERSION="${VIT_PKG_VERSION:-0.9.0}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 

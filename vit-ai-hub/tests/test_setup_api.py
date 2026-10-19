@@ -53,18 +53,17 @@ def test_bootstrap_all(tmp_path, monkeypatch):
     marker = tmp_path / ".setup-complete"
     monkeypatch.setattr(setup, "SETUP_MARKER", marker)
 
-    def fake_import():
-        return {"knowledge": {"conversations": 1, "memories": 0, "projects": 0}}
+    def fake_migrate(**_kwargs):
+        return {
+            "ok": True,
+            "knowledge_import": {"knowledge": {"conversations": 1, "memories": 0, "projects": 0}},
+            "profile": {"mcp_servers": []},
+        }
 
     monkeypatch.setattr(
-        "vit_ai_hub.importing.import_all_one_click",
-        fake_import,
-        raising=False,
+        "vit_ai_hub.importing.full_migrate.migrate_everything",
+        fake_migrate,
     )
-    # patch via module used inside bootstrap_all
-    import vit_ai_hub.importing as importing
-
-    monkeypatch.setattr(importing, "import_all_one_click", fake_import)
 
     class SyncMod:
         @staticmethod

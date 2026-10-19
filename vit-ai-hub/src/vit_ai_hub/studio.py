@@ -62,6 +62,18 @@ STUDIOS: dict[str, dict[str, Any]] = {
             "Anders: design tokens + HTML-proto als sneller pad."
         ),
     },
+    "self": {
+        "id": "self",
+        "name": "Self-improve",
+        "blurb": "Hub past zichzelf aan op verzoek.",
+        "system": (
+            "Je bent VIT AI Hub in self-improve modus. De user vraagt om verbeteringen aan DEZE app.\n"
+            "- Lees relevante bestanden onder de hub-root, wijzig gericht, run pytest als dat past.\n"
+            "- Raak secrets/.env niet aan. Geen breaking changes zonder uitleg.\n"
+            "- Na wijzigingen: korte diff-samenvatting + hoe te herstarten indien nodig.\n"
+            "- Gemigreerde Claude/Cursor/ChatGPT rules/skills blijven leidend tenzij de user anders vraagt."
+        ),
+    },
 }
 
 

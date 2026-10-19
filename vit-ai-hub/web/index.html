@@ -112,13 +112,13 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>6 · Alles overzetten (chats + skills + bots)</h3>
-        <p>Importeert Cursor, Claude Code/Cowork, <strong>Claude/Cursor skills (SKILL.md)</strong>, ChatGPT-cache en export-zips. Skills worden ook agents (bots) die je in <em>Agent teams</em> kunt zetten.</p>
+        <h3>6 · ALLES overzetten (niets overslaan)</h3>
+        <p>Spiegel + activeer: chats, memories, <strong>skills</strong>, <strong>MCP</strong>, <strong>rules</strong>, <strong>prompts</strong>, settings, hooks, Cursor/Claude/ChatGPT lokale mappen. Skills → agents. Rules/prompts blijven injecen in elke chat.</p>
         <div class="wiz-actions">
           <button type="button" id="wiz-a11y" class="ghost">Open Toegankelijkheid</button>
-          <button type="button" id="wiz-import" class="primary">Importeer alles nu</button>
+          <button type="button" id="wiz-import" class="primary">Migreer ALLES nu</button>
         </div>
-        <p class="muted tiny" id="wiz-import-msg">Zoekt o.a. ~/.claude/skills en project/.claude/skills.</p>
+        <p class="muted tiny" id="wiz-import-msg">Encrypted ChatGPT-history en pure cloud-bots: alsnog export-zip. Rest lokaal → hub.</p>
       </section>
 
       <section data-step class="wiz-step">
@@ -159,6 +159,7 @@
           <option value="webdesign">Webdesign</option>
           <option value="apps">Apps</option>
           <option value="design">Design (Penpot / Figma-alt)</option>
+          <option value="self">Self-improve (hub aanpassen)</option>
         </select>
       </label>
 
@@ -199,8 +200,9 @@
         <h3>Kennis & geheugen</h3>
         <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
         <p class="muted tiny" id="local-detect">Mac-apps: …</p>
-        <button type="button" id="import-all" class="primary">Importeer alles van deze Mac</button>
-        <button type="button" id="import-skills" class="ghost">Importeer Claude/Cursor skills</button>
+        <button type="button" id="import-all" class="primary">Migreer ALLES (Claude/GPT/Cursor)</button>
+        <button type="button" id="import-skills" class="ghost">Alleen skills</button>
+        <button type="button" id="import-full" class="ghost">Volledige mirror + MCP/rules</button>
         <button type="button" id="chatgpt-live" class="primary">Lees ChatGPT (app open)</button>
         <button type="button" id="claude-live" class="primary">Lees Claude (app open)</button>
         <button type="button" id="sync-start" class="ghost">Live sync aan</button>

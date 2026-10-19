@@ -44,6 +44,9 @@ _DENIED_WRITE = re.compile(
 def default_roots() -> list[Path]:
     env = os.environ.get("VIT_WORKSPACE_ROOTS", "").strip()
     roots: list[Path] = [ROOT.resolve()]
+    # self-improve + migratie-spiegel altijd bereikbaar
+    migrated = (ROOT / "data" / "migrated").resolve()
+    roots.append(migrated)
     if env:
         for part in env.split(":"):
             part = part.strip()
@@ -51,12 +54,19 @@ def default_roots() -> list[Path]:
                 roots.append(Path(part).expanduser().resolve())
     else:
         home = Path.home()
-        for name in ("Developer", "Projects", "code", "src", "werk", "VIT"):
+        for name in ("Developer", "Projects", "code", "src", "werk", "VIT", ".claude", ".cursor"):
             p = (home / name).resolve()
-            if p.is_dir():
+            if p.exists():
                 roots.append(p)
-        # always allow creating under ~/Projects even if missing yet
         roots.append((home / "Projects").resolve())
+        # Cursor/Claude app support (read/write allowlist for migrate repairs)
+        for p in (
+            home / "Library/Application Support/Cursor",
+            home / "Library/Application Support/Claude",
+            home / "Library/Application Support/com.openai.chat",
+        ):
+            if p.exists():
+                roots.append(p.resolve())
     # unique, preserve order
     seen: set[str] = set()
     out: list[Path] = []
