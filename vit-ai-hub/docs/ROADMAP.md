@@ -1,4 +1,4 @@
-# Roadmap status (1.4)
+# Roadmap status (1.5)
 
 ## Ingebouwd
 - [x] vit/auto orchestrator: intent → beste model + auto-team + per-rol models (incl. lokaal)
@@ -7,6 +7,7 @@
 - [x] Maker-checker critic loop (bounded)
 - [x] Route-telemetrie (`data/orchestrator.jsonl`)
 - [x] Multi-abo pools (bridge/cursor/…) met auto-failover bij rate-limit/quota
+- [x] GUI: chat-first, inklapbare Abonnementen/Kennis, kortere sidebar
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
 - [x] Claude live AX + ChatGPT live AX
 - [x] FTS5 knowledge index (`/api/knowledge/reindex`)

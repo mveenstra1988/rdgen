@@ -17,11 +17,11 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.4.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.5.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
-3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES**
-4. Voeg meerdere Claude/ChatGPT/Cursor-abos toe (sidebar **Abo-pools** of wizard stap 4)
-5. Model **vit/auto** — intent + pool-failover + critic + auto-team
+3. Dubbelklik **VIT AI Hub.app** → korte setup (of overslaan)
+4. Chat: **vit/auto** + studio · Abonnementen/Kennis zitten ingeklapt links
+5. Teams-tab voor agent-teams
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 
@@ -37,6 +37,17 @@ Met model **vit/auto** (default):
 7. Telemetrie in `data/orchestrator.jsonl` · PII fail-closed blijft
 
 Preview: `POST /api/orchestrator/plan` met `{"text":"…","tradeoff":"cost"}`.
+
+## Multi-abo pools (3× Claude / 3× ChatGPT / 3× Cursor)
+
+Pools: `bridge`, `cursor`, `openrouter`, `deepseek`, `grok`.  
+Opslaan in `~/.config/vit/geheimen/accounts.json` (of env `BRIDGE_BASE_URL_1` … `_3`).
+
+- Round-robin over gezonde abos (least-recently-used)
+- Tags: `claude` / `chatgpt` / `cursor` — Claude-modellen prefereren Claude-tags
+- Bij 429/rate-limit → soft cooldown (~5 min) → volgende abo
+- Bij quota/billing → hard cooldown (~6 u) → volgende abo
+- GUI: sidebar **Abo-pools** · API: `GET/POST /api/accounts/{pool}`
 
 ## Ops / Infra
 

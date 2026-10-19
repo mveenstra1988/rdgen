@@ -536,25 +536,24 @@ async function refreshAccounts() {
     const res = await fetch("/api/accounts", { headers: headers() });
     const data = await res.json();
     const pools = data.pools || {};
-    const lines = Object.entries(pools).map(([p, info]) => {
-      return `${p}: ${info.healthy || 0}/${info.total || 0} gezond`;
-    });
-    if (box) box.textContent = lines.join(" · ") || "Nog geen abos in pool";
-    if (list) {
-      const detail = [];
-      for (const [p, info] of Object.entries(pools)) {
-        for (const a of info.accounts || []) {
-          const mark = a.healthy ? "✓" : "○";
-          detail.push(
-            `${mark} [${p}] ${a.label || a.id} · ${a.base_url || "?"} · tags=${(a.tags || []).join(",")}` +
-              (a.exhausted_reason ? ` · ${a.exhausted_reason}` : "")
-          );
-        }
+    let healthy = 0;
+    let total = 0;
+    const detail = [];
+    for (const [p, info] of Object.entries(pools)) {
+      healthy += info.healthy || 0;
+      total += info.total || 0;
+      for (const a of info.accounts || []) {
+        const mark = a.healthy ? "✓" : "○";
+        detail.push(
+          `${mark} ${a.label || a.id} · ${p}` +
+            (a.exhausted_reason ? ` · ${a.exhausted_reason}` : "")
+        );
       }
-      list.textContent = detail.join("\n") || "(leeg — voeg bridge/cursor abos toe)";
     }
+    if (box) box.textContent = total ? `${healthy}/${total}` : "0";
+    if (list) list.textContent = detail.join("\n") || "Nog geen abos — voeg hieronder toe.";
   } catch (e) {
-    if (box) box.textContent = String(e);
+    if (box) box.textContent = "!";
   }
 }
 
@@ -587,7 +586,11 @@ document.getElementById("acc-add")?.addEventListener("click", async () => {
   refreshAccounts();
 });
 
-addBubble("system", "VIT AI Hub klaar. Kies een model, of importeer ChatGPT/Claude/Cursor-kennis met 1 klik.");
+addBubble(
+  "system",
+  "Welkom. Laat model op vit/auto staan, kies een studio, en typ je vraag.\n" +
+    "Abonnementen & migratie zitten ingeklapt links — open alleen als je ze nodig hebt."
+);
 ensureLocalToken().then(() => {
   ping();
   refreshImportStatus();
