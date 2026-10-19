@@ -1,0 +1,88 @@
+gateway:
+  host: 127.0.0.1
+  port: 8787
+  bind_localhost_only: true
+
+memory_budget:
+  reserve_apps_gb: 48
+  light_model_hint: "Qwen3.6-35B-A3B or similar MoE ~20GB"
+  heavy_unload: true
+
+pii:
+  mode: fail_closed
+  cloud_action: block  # block | redact
+  local_action: allow  # allow | redact
+  patterns:
+    - name: email
+      regex: '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b'
+    - name: ipv4
+      regex: '\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'
+    - name: iban
+      regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b'
+    - name: phone_nl
+      regex: '(?:\+31|0031|0)[\s\-]?[1-9](?:[\s\-]?\d){8}\b'
+    - name: api_keyish
+      regex: '(?i)\b(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})\b'
+    - name: password_assignment
+      regex: '(?i)\b(?:password|wachtwoord|passwd|pwd)\s*[:=]\s*\S+'
+    - name: ticket_vit
+      regex: '\b(?:TKT|TICKET|INC|SR)[-_]?\d{4,}\b'
+
+backends:
+  lmstudio:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:1234/v1
+    local: true
+    label: Lokaal (LM Studio)
+  ollama:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:11434/v1
+    local: true
+    label: Lokaal (Ollama)
+  bridge:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:8317/v1
+    local: false
+    label: Claude/ChatGPT (abo bridge)
+    prefix_hints: ["claude", "gpt-", "o1", "o3", "o4", "chatgpt"]
+  openrouter:
+    enabled: true
+    kind: openai
+    base_url: https://openrouter.ai/api/v1
+    local: false
+    label: OpenRouter
+    pinned_models:
+      - id: stealth/ox-alpha
+        name: Ox Alpha (stealth)
+      - id: z-ai/glm-5.3-flash
+        name: GLM-5.3-Flash (ex Ox Alpha)
+  omniroute:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:20128/v1
+    local: false
+    label: OmniRoute
+  cursor:
+    enabled: true
+    kind: openai
+    base_url: ""
+    local: false
+    label: Cursor
+
+virtual_models:
+  - id: vit/auto
+    name: Auto (lokaal-first + cloud indien veilig)
+  - id: vit/local-light
+    name: Lokaal light
+  - id: vit/local-heavy
+    name: Lokaal heavy (on-demand)
+
+tools:
+  web_search: true
+  fetch_url: true
+  memory: true
+  files: true
+  code_sandbox: false

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VIT AI Hub</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">VIT</div>
+        <div>
+          <h1>AI Hub</h1>
+          <p class="muted">Lokaal · Claude · GPT · Cursor · OpenRouter · OmniRoute</p>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Model</span>
+        <input id="model-filter" type="search" placeholder="Zoek model…" />
+        <select id="model-select" size="16"></select>
+      </label>
+
+      <div class="meta" id="model-meta"></div>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="tools-toggle" checked />
+        <span>Tools (web, memory, files)</span>
+      </label>
+
+      <label class="field">
+        <span>Gateway token (optioneel)</span>
+        <input id="token" type="password" placeholder="VIT_GATEWAY_TOKEN" autocomplete="off" />
+      </label>
+
+      <div class="side-actions">
+        <button type="button" id="refresh-models" class="ghost">Vernieuw modellen</button>
+        <button type="button" id="new-chat" class="ghost">Nieuwe chat</button>
+      </div>
+
+      <footer class="side-foot">
+        <span id="health">…</span>
+        <a href="/api/capabilities" target="_blank" rel="noreferrer">Capabilities</a>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <header class="top">
+        <div>
+          <h2 id="chat-title">Chat</h2>
+          <p class="muted" id="route-info">Kies een model en start.</p>
+        </div>
+        <div class="pill" id="privacy-pill">Privacyfilter aan</div>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite"></section>
+
+      <form id="composer" class="composer">
+        <textarea id="prompt" rows="3" placeholder="Bericht… (klantgegevens worden gefilterd vóór cloud)"></textarea>
+        <button type="submit" id="send">Stuur</button>
+      </form>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
