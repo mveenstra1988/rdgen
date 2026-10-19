@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from vit_ai_hub.backends import build_backends, pinned_openrouter_models
+from vit_ai_hub.backends import build_backends, pinned_grok_models, pinned_openrouter_models
 from vit_ai_hub.config import get_settings, load_yaml_config
 
 
@@ -27,7 +27,7 @@ async def collect_models() -> list[dict[str, Any]]:
     tasks = [backend.list_models() for backend in backends.values() if backend.base_url]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     merged: dict[str, dict[str, Any]] = {m["id"]: m for m in virtual}
-    for pinned in pinned_openrouter_models():
+    for pinned in pinned_openrouter_models() + pinned_grok_models():
         merged[pinned["id"]] = pinned
     for result in results:
         if isinstance(result, Exception):

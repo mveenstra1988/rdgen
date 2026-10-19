@@ -71,6 +71,21 @@ backends:
     base_url: ""
     local: false
     label: Cursor
+  grok:
+    enabled: true
+    kind: openai
+    base_url: https://api.x.ai/v1
+    local: false
+    label: Grok (xAI)
+    pinned_models:
+      - id: grok-4
+        name: Grok 4
+      - id: grok-3
+        name: Grok 3
+      - id: grok-3-mini
+        name: Grok 3 Mini
+      - id: grok-2-vision-1212
+        name: Grok 2 Vision
 
 virtual_models:
   - id: vit/auto
@@ -85,4 +100,9 @@ tools:
   fetch_url: true
   memory: true
   files: true
+  desktop: true
   code_sandbox: false
+
+sync:
+  interval_sec: 300
+  include_ax: false

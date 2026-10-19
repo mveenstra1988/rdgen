@@ -109,6 +109,10 @@ def tool_specs() -> list[dict[str, Any]]:
                 },
             }
         )
+    if cfg.get("desktop", True):
+        from vit_ai_hub.tools.desktop import desktop_tool_specs
+
+        tools.extend(desktop_tool_specs())
     return tools
 
 
@@ -170,6 +174,21 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
             return json.dumps({"error": "Bestand niet gevonden."})
         text = path.read_text(encoding="utf-8", errors="replace")[:80_000]
         return json.dumps({"path": rel, "content": text}, ensure_ascii=False)
+    desktop_names = {
+        "open_app",
+        "open_url",
+        "chrome_open_url",
+        "chrome_list_tabs",
+        "mail_compose",
+        "vit_mail_open",
+        "spotlight_search",
+        "list_running_apps",
+        "run_shell_safe",
+    }
+    if name in desktop_names:
+        from vit_ai_hub.tools.desktop import run_desktop_tool
+
+        return await run_desktop_tool(name, arguments)
     return json.dumps({"error": f"Onbekende tool: {name}"})
 
 
@@ -222,15 +241,24 @@ def capabilities_manifest() -> dict[str, Any]:
             "cursor",
             "openrouter",
             "omniroute",
+            "grok",
         ],
         "tools": [t["function"]["name"] for t in tool_specs()],
         "privacy_filter": True,
-        "import": ["chatgpt_export", "claude_export", "cursor_local", "one_click_all"],
+        "desktop": True,
+        "import": [
+            "chatgpt_export",
+            "claude_export",
+            "cursor_local",
+            "one_click_all",
+            "chatgpt_live_ax",
+            "claude_live_ax",
+            "live_sync",
+        ],
         "parity_notes": [
-            "Claude/ChatGPT kennis via die modellen (abo/bridge/OpenRouter).",
-            "Geïmporteerde chats/memory via /api/import/all of upload.",
-            "Actuele kennis via web_search/fetch_url tools.",
-            "Memory/files lokaal op de Mac.",
-            "Vision: afhankelijk van gekozen multimodaal model + image parts in messages.",
+            "Claude/ChatGPT/Grok via abo/bridge/OpenRouter/xAI.",
+            "Desktop: Chrome, Mail, VIT Mail, apps, Spotlight.",
+            "Geïmporteerde chats/memory + FTS-index.",
+            "Live sync op de achtergrond.",
         ],
     }

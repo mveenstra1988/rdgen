@@ -1,38 +1,19 @@
-# Sneller & beter (volgende stappen)
+# Roadmap status (0.5)
 
-## Nu gedaan
-- Accessibility-import: lees ChatGPT terwijl de app open is (zelfde tekst als jij ziet)
-- Keychain-decrypt best-effort voor oudere/v2 keys
-- Claude Code/Cowork + Cursor lokale harvest
-- Export-automatisering + zip-watcher
+## Ingebouwd
+- [x] Live sync (`/api/sync/*`, GUI knoppen)
+- [x] Claude live AX + ChatGPT live AX
+- [x] FTS5 knowledge index (`/api/knowledge/reindex`)
+- [x] Incremental-ish imports (hash skip in store)
+- [x] Menubar helper (`scripts/menubar_mac.py`, optioneel rumps)
+- [x] Grok / xAI backend + pinned models
+- [x] Desktop tools: Chrome, Mail, VIT Mail, apps, Spotlight, allowlist shell
+- [x] OpenRouter / OmniRoute / Ox Alpha
+- [x] PII fail-closed
 
-## High impact next
-1. **Continuïteit / live sync**  
-   File-watcher + periodieke AX-snapshot terwijl ChatGPT/Claude/Cursor open zijn (delta, niet full rescan).
-
-2. **Betere AX-navigatie**  
-   Sidebar-rijen betrouwbaar aanklikken (Swift/AX API i.p.v. pijltjestoetsen), per chat volledige scroll-capture.
-
-3. **Embeddings-index**  
-   Lokale vectorsearch (mlx-embeddings / sqlite-vec) over geïmporteerde chats → sneller “weet je nog…” zonder hele JSONL te scannen.
-
-4. **Incremental import**  
-   Hash per chat; alleen nieuwe/gewijzigde berichten bijschrijven.
-
-5. **Menu-bar app**  
-   `vit-ai-hub` als menubar: één knop Sync, status lampje, geen browser-tab nodig.
-
-6. **Claude live AX**  
-   Zelfde Accessibility-pad voor Claude Desktop-venster.
-
-7. **Background agents-koppeling**  
-   Cursor Agent transcripts realtime tailen naar knowledge store.
-
-8. **PII-profielen per project**  
-   Strenger voor klantrepos, losser voor interne notes.
-
-9. **Model warm-pool**  
-   Light model resident; heavy preload op aangesloten stroom; unload bij batterij.
-
-10. **Eval-set**  
-   20 vaste VIT-prompts (ServiceHub, mail, VPN) om lokaal vs Claude vs GPT te vergelijken.
+## Later (nog scherper)
+- [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
+- [ ] Echte embeddings (mlx) i.p.v. alleen FTS
+- [ ] VIT Mail deep IPC (niet alleen openen) als app dat expose’t
+- [ ] Chrome extension bridge voor volledige tab/DOM
+- [ ] Warm-pool light/heavy model op stroom/batterij

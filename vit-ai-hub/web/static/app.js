@@ -25,6 +25,9 @@ const els = {
   requestExports: document.getElementById("request-exports"),
   waitExports: document.getElementById("wait-exports"),
   chatgptLive: document.getElementById("chatgpt-live"),
+  claudeLive: document.getElementById("claude-live"),
+  syncStart: document.getElementById("sync-start"),
+  syncOnce: document.getElementById("sync-once"),
 };
 
 function headers() {
@@ -233,6 +236,55 @@ els.chatgptLive?.addEventListener("click", async () => {
   } finally {
     els.chatgptLive.disabled = false;
     els.chatgptLive.textContent = "Lees ChatGPT (app open)";
+  }
+});
+
+els.claudeLive?.addEventListener("click", async () => {
+  els.claudeLive.disabled = true;
+  els.claudeLive.textContent = "Claude lezen…";
+  try {
+    const res = await fetch("/api/import/claude-live", { method: "POST", headers: headers() });
+    const data = await res.json();
+    addBubble(
+      "system",
+      `Claude live: ${data.ok ? "ok" : "nee"} · ${data.conversations?.written || 0} chats` +
+        (data.error ? `\n${data.error}` : "") +
+        (data.hint ? `\n${data.hint}` : "")
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Claude live mislukt: ${err}`);
+  } finally {
+    els.claudeLive.disabled = false;
+    els.claudeLive.textContent = "Lees Claude (app open)";
+  }
+});
+
+els.syncStart?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/sync/start?interval_sec=300", { method: "POST", headers: headers() });
+    const data = await res.json();
+    addBubble("system", `Live sync: ${data.ok ? "aan" : "fout"} (elke ${data.interval_sec || 300}s)`);
+  } catch (err) {
+    addBubble("system", `Sync start mislukt: ${err}`);
+  }
+});
+
+els.syncOnce?.addEventListener("click", async () => {
+  els.syncOnce.disabled = true;
+  try {
+    const res = await fetch("/api/sync/once", { method: "POST", headers: headers() });
+    const data = await res.json();
+    const k = data.knowledge || {};
+    addBubble(
+      "system",
+      `Sync klaar: ${k.conversations || 0} chats · ${k.memories || 0} memories · FTS ${data.fts?.docs ?? "?"}`
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Sync mislukt: ${err}`);
+  } finally {
+    els.syncOnce.disabled = false;
   }
 });
 

@@ -6,12 +6,14 @@ Lokale GUI + privacy gateway voor je Mac (M5 Max 128GB-ready).
 
 - Lokale modellen (LM Studio / Ollama, MLX)
 - Claude + ChatGPT via subscription bridge (OAuth/abo)
+- **Grok / xAI** (`XAI_API_KEY`)
 - Cursor (zelfde gateway als OpenAI-compat provider)
 - OpenRouter (incl. **Ox Alpha** `stealth/ox-alpha` en `z-ai/glm-5.3-flash`)
 - OmniRoute
 
-Plus: privacyfilter (fail-closed), tools (web/memory/files), OpenAI- én Anthropic-compat endpoints,
-en **1-klik import** van ChatGPT + Claude + Cursor kennis/geheugen.
+Plus: privacyfilter, desktop-tools (Chrome, Mail, **VIT Mail**, apps, Spotlight),
+live sync, FTS-kennisindex, ChatGPT/Claude live-lees (Accessibility),
+OpenAI- én Anthropic-compat endpoints.
 
 ## Snel starten (Mac)
 

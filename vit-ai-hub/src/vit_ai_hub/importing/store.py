@@ -151,9 +151,19 @@ def stats() -> dict[str, Any]:
 
 
 def search_knowledge(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
-    q = (query or "").strip().lower()
+    q = (query or "").strip()
     if not q:
         return []
+    try:
+        from vit_ai_hub.importing.index_fts import fts_search
+
+        fts_hits = fts_search(q, limit=limit)
+        if fts_hits:
+            return fts_hits
+    except Exception:
+        pass
+
+    q_lower = q.lower()
     hits: list[dict[str, Any]] = []
 
     def scan(path: Path, kind: str) -> None:
@@ -166,7 +176,7 @@ def search_knowledge(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
                 except json.JSONDecodeError:
                     continue
                 blob = json.dumps(row, ensure_ascii=False).lower()
-                if q in blob:
+                if q_lower in blob:
                     snippet = ""
                     if kind == "conversation":
                         msgs = row.get("messages") or []

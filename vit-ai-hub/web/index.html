@@ -16,7 +16,7 @@
         <div class="brand-mark">VIT</div>
         <div>
           <h1>AI Hub</h1>
-          <p class="muted">Lokaal · Claude · GPT · Cursor · OpenRouter · OmniRoute</p>
+          <p class="muted">Lokaal · Claude · GPT · Grok · Cursor · OpenRouter · OmniRoute · Desktop</p>
         </div>
       </div>
 
@@ -49,9 +49,12 @@
         <p class="muted tiny" id="local-detect">Mac-apps: …</p>
         <button type="button" id="import-all" class="primary">Importeer alles van deze Mac</button>
         <button type="button" id="chatgpt-live" class="primary">Lees ChatGPT (app open)</button>
+        <button type="button" id="claude-live" class="primary">Lees Claude (app open)</button>
+        <button type="button" id="sync-start" class="ghost">Live sync aan</button>
+        <button type="button" id="sync-once" class="ghost">Sync nu</button>
         <button type="button" id="request-exports" class="ghost">Start export vanuit apps</button>
         <button type="button" id="wait-exports" class="ghost">Wacht op zips & importeer</button>
-        <p class="muted tiny">“Lees ChatGPT” gebruikt Accessibility (wat jij op het scherm ziet) + Keychain-decrypt indien macOS de sleutel deelt. Geef VIT/Terminal Toegankelijkheid-rechten. Export-zips blijven backup voor 100% history.</p>
+        <p class="muted tiny">Desktop-tools (Chrome, Mail, VIT Mail, apps) zitten in de chat (tools aan). Grok-modellen in de picker met XAI_API_KEY. Toegankelijkheid aan voor live-lees.</p>
         <label class="field">
           <span>Of upload export (zip/json)</span>
           <input id="import-file" type="file" accept=".zip,.json,application/zip,application/json" />

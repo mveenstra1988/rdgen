@@ -41,11 +41,25 @@ class ModelRouter:
                 # prefer openrouter for provider/model slugs
                 if any(
                     lower.startswith(p)
-                    for p in ("stealth/", "z-ai/", "anthropic/", "openai/", "google/", "meta-llama/")
+                    for p in (
+                        "stealth/",
+                        "z-ai/",
+                        "anthropic/",
+                        "openai/",
+                        "google/",
+                        "meta-llama/",
+                        "x-ai/",
+                    )
                 ):
                     return self.backends.get("openrouter")
         if lower.startswith("omniroute:"):
             return self.backends.get("omniroute")
+        if lower.startswith("grok") or lower.startswith("xai/") or lower.startswith("x-ai/"):
+            if self.backends.get("grok") and self.backends["grok"].api_key:
+                return self.backends.get("grok")
+            if self.backends.get("openrouter") and self.backends["openrouter"].api_key:
+                return self.backends.get("openrouter")
+            return self.backends.get("grok")
         if lower.startswith("cursor:") or "composer" in lower or lower.startswith("cursor-"):
             return self.backends.get("cursor") or self.backends.get("bridge")
         bridge = self.backends.get("bridge")

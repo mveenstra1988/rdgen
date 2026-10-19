@@ -123,6 +123,13 @@ def import_all_one_click() -> dict[str, Any]:
         except Exception as exc:
             results["errors"].append({"source": "claude", "file": str(path), "error": str(exc)})
 
+    try:
+        from vit_ai_hub.importing.index_fts import rebuild_index
+
+        results["fts"] = rebuild_index()
+    except Exception as exc:
+        results["errors"].append({"source": "fts", "error": str(exc)})
+
     results["knowledge"] = stats()
     results["elapsed_sec"] = round(time.time() - started, 2)
     results["hints"] = []

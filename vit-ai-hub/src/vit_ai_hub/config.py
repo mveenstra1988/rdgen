@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     omniroute_api_key: str = ""
     cursor_base_url: str = ""
     cursor_api_key: str = ""
+    xai_api_key: str = ""
+    grok_base_url: str = "https://api.x.ai/v1"
 
     vit_pii_mode: str = "fail_closed"
     vit_pii_cloud_action: str = "block"
@@ -93,5 +95,9 @@ def backend_overrides() -> dict[str, dict[str, Any]]:
         "cursor": {
             "base_url": (s.cursor_base_url or s.bridge_base_url).rstrip("/"),
             "api_key": s.cursor_api_key or s.bridge_api_key or "cursor",
+        },
+        "grok": {
+            "base_url": s.grok_base_url.rstrip("/"),
+            "api_key": s.xai_api_key,
         },
     }

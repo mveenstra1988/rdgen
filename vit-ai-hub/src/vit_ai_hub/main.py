@@ -359,6 +359,48 @@ async def import_chatgpt_live(_: None = Depends(_auth)) -> dict[str, Any]:
     return harvest_chatgpt_readable()
 
 
+@app.post("/api/import/claude-live")
+async def import_claude_live(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.claude_live import harvest_via_accessibility
+
+    return harvest_via_accessibility()
+
+
+@app.post("/api/sync/once")
+async def sync_once_api(include_ax: bool = False, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.sync import sync_once
+
+    return sync_once(include_ax=include_ax)
+
+
+@app.post("/api/sync/start")
+async def sync_start(interval_sec: int = 300, include_ax: bool = False, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.sync import start_sync
+
+    return start_sync(interval_sec=interval_sec, include_ax=include_ax)
+
+
+@app.post("/api/sync/stop")
+async def sync_stop(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.sync import stop_sync
+
+    return stop_sync()
+
+
+@app.get("/api/sync/status")
+async def sync_status(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.sync import get_sync_status
+
+    return get_sync_status()
+
+
+@app.post("/api/knowledge/reindex")
+async def knowledge_reindex(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.index_fts import rebuild_index
+
+    return rebuild_index()
+
+
 @app.post("/api/import/upload")
 async def import_upload(
     file: UploadFile = File(...),

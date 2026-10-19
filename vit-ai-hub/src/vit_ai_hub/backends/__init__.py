@@ -30,20 +30,28 @@ def build_backends() -> dict[str, OpenAICompatBackend]:
     return backends
 
 
-def pinned_openrouter_models() -> list[dict[str, Any]]:
-    cfg = load_yaml_config().get("backends", {}).get("openrouter", {})
+def pinned_models_for(backend_name: str, label: str | None = None) -> list[dict[str, Any]]:
+    cfg = load_yaml_config().get("backends", {}).get(backend_name, {})
     out = []
     for item in cfg.get("pinned_models", []):
         out.append(
             {
                 "id": item["id"],
                 "object": "model",
-                "owned_by": "openrouter",
-                "backend": "openrouter",
+                "owned_by": backend_name,
+                "backend": backend_name,
                 "local": False,
-                "label": "OpenRouter",
+                "label": label or cfg.get("label") or backend_name,
                 "name": item.get("name") or item["id"],
                 "pinned": True,
             }
         )
     return out
+
+
+def pinned_openrouter_models() -> list[dict[str, Any]]:
+    return pinned_models_for("openrouter", "OpenRouter")
+
+
+def pinned_grok_models() -> list[dict[str, Any]]:
+    return pinned_models_for("grok", "Grok (xAI)")
