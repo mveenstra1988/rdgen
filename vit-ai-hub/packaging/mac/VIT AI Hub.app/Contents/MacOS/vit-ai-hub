@@ -2,11 +2,13 @@
 # Launcher inside .app — resolves hub root next to the app or installed location.
 set -euo pipefail
 
-APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-# Prefer sibling hub payload shipped with the package
+# Contents/MacOS -> Contents -> .app
+APP_BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
+PARENT="$(cd "$APP_BUNDLE/.." && pwd)"
+# Prefer hub nested in the .app, then sibling hub from the zip, then install paths
 CANDIDATES=(
-  "$APP_DIR/../hub"
-  "$APP_DIR/hub"
+  "$APP_BUNDLE/hub"
+  "$PARENT/hub"
   "$HOME/Applications/VIT-AI-Hub/hub"
   "$HOME/VIT-AI-Hub"
   "/Applications/VIT-AI-Hub/hub"
@@ -21,13 +23,21 @@ for c in "${CANDIDATES[@]}"; do
 done
 
 if [[ -z "$ROOT" ]]; then
-  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nZet de map hub naast deze app of in ~/Applications/VIT-AI-Hub/hub" buttons {"OK"} default button 1' || true
+  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nHoud de map hub bij deze app (zip-inhoud), of installeer naar /Applications/VIT-AI-Hub/hub" buttons {"OK"} default button 1' || true
   exit 1
 fi
 
-# If already healthy, just open UI
+# Clear quarantine so double-click works after download
+xattr -dr com.apple.quarantine "$APP_BUNDLE" 2>/dev/null || true
+xattr -dr com.apple.quarantine "$ROOT" 2>/dev/null || true
+
+# If already healthy, just open UI (wizard only on first setup)
 if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
-  open "http://127.0.0.1:8787/"
+  if [[ -f "$ROOT/data/.setup-complete" ]]; then
+    open "http://127.0.0.1:8787/"
+  else
+    open "http://127.0.0.1:8787/?wizard=1"
+  fi
   exit 0
 fi
 

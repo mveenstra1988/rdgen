@@ -32,9 +32,33 @@ const els = {
 
 function headers() {
   const h = { "Content-Type": "application/json" };
-  const token = els.token.value.trim();
+  let token = els.token.value.trim();
+  if (!token) {
+    try {
+      token = sessionStorage.getItem("vit_gateway_token") || "";
+    } catch (_) {
+      token = "";
+    }
+  }
   if (token) h.Authorization = `Bearer ${token}`;
   return h;
+}
+
+async function ensureLocalToken() {
+  try {
+    const res = await fetch("/api/setup/status");
+    const data = await res.json();
+    if (data.gateway_token) {
+      if (els.token && !els.token.value) els.token.value = data.gateway_token;
+      try {
+        sessionStorage.setItem("vit_gateway_token", data.gateway_token);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function selectedModel() {
@@ -357,6 +381,8 @@ els.importUpload?.addEventListener("click", async () => {
 });
 
 addBubble("system", "VIT AI Hub klaar. Kies een model, of importeer ChatGPT/Claude/Cursor-kennis met 1 klik.");
-ping();
-refreshImportStatus();
-loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
+ensureLocalToken().then(() => {
+  ping();
+  refreshImportStatus();
+  loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
+});

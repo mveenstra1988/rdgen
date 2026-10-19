@@ -30,15 +30,25 @@ ALLOWED_KEYS = {
 }
 
 
-def setup_status() -> dict[str, Any]:
+def _read_secret_map() -> dict[str, str]:
+    out: dict[str, str] = {}
+    if not SECRET_FILE.is_file():
+        return out
+    for line in SECRET_FILE.read_text(encoding="utf-8").splitlines():
+        if "=" in line and not line.strip().startswith("#"):
+            k, _, v = line.partition("=")
+            out[k.strip()] = v.strip()
+    return out
+
+
+def setup_status(*, include_token: bool = False) -> dict[str, Any]:
     secret_exists = SECRET_FILE.is_file()
-    keys_present = []
-    if secret_exists:
-        for line in SECRET_FILE.read_text(encoding="utf-8").splitlines():
-            if "=" in line and not line.strip().startswith("#"):
-                k, _, v = line.partition("=")
-                if k.strip() in ALLOWED_KEYS and v.strip() and "change-me" not in v:
-                    keys_present.append(k.strip())
+    secrets = _read_secret_map()
+    keys_present = [
+        k
+        for k, v in secrets.items()
+        if k in ALLOWED_KEYS and v and "change-me" not in v
+    ]
     lmstudio = False
     ollama = False
     try:
@@ -55,7 +65,7 @@ def setup_status() -> dict[str, Any]:
     except Exception:
         pass
 
-    return {
+    out: dict[str, Any] = {
         "version": __version__,
         "setup_complete": SETUP_MARKER.is_file(),
         "secret_file": str(SECRET_FILE),
@@ -65,6 +75,32 @@ def setup_status() -> dict[str, Any]:
         "ollama_up": ollama,
         "darwin": os.uname().sysname == "Darwin",
         "hub_root": str(ROOT),
+    }
+    if include_token:
+        tok = secrets.get("VIT_GATEWAY_TOKEN", "")
+        if tok and "change-me" not in tok:
+            out["gateway_token"] = tok
+    return out
+
+
+def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
+    """Één call: import + sync + setup-complete (voor wizard / one-shot)."""
+    from vit_ai_hub.importing import import_all_one_click
+    from vit_ai_hub.importing.sync import start_sync, sync_once
+
+    knowledge = import_all_one_click()
+    sync_result = sync_once(include_ax=False)
+    sync_ctl = start_sync(interval_sec=300, include_ax=False)
+    if open_a11y:
+        open_accessibility_settings()
+    done = mark_setup_complete()
+    return {
+        "ok": True,
+        "knowledge": knowledge.get("knowledge") if isinstance(knowledge, dict) else knowledge,
+        "import": knowledge,
+        "sync": sync_result,
+        "sync_ctl": sync_ctl,
+        "setup": done,
     }
 
 

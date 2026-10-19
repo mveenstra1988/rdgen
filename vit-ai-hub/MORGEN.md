@@ -1,18 +1,15 @@
 # Morgen: 1 pakket, klaar
 
 ## Wat je draait
-Unzip `dist/VIT-AI-Hub-0.6.0-mac.zip` op je MacBook.
+1. Unzip `dist/VIT-AI-Hub-0.6.1-mac.zip` (of de artifact)
+2. Eventueel: `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
+3. Dubbelklik **VIT AI Hub.app**
+4. Klik **Alles nu regelen**
 
-Dubbelklik **VIT AI Hub.app** (of `START.command`).
-
-De wizard regelt:
-1. Secrets-bestand + token  
-2. Dependencies / gateway  
-3. Import + live sync  
-4. GUI open
+Klaar: GUI op http://127.0.0.1:8787 met import + sync.
 
 ## Optioneel daarna
-- Keys invullen in wizard (OpenRouter, Grok, bridge)
-- LM Studio starten met light model
+- Keys in wizard (OpenRouter, Grok, bridge)
+- LM Studio met light model
 - Cursor → OpenAI Base URL `http://127.0.0.1:8787/v1`
 - Echte installer: `bash hub/packaging/build-mac-pkg.sh` → `.pkg`

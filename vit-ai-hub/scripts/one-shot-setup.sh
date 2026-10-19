@@ -93,14 +93,31 @@ fi
 
 if curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
   echo "    gateway online → http://${HOST}:${PORT}"
-  # kick first sync (no AX)
-  curl -sf -X POST "http://${HOST}:${PORT}/api/sync/once" >/dev/null 2>&1 || true
-  curl -sf -X POST "http://${HOST}:${PORT}/api/sync/start?interval_sec=300" >/dev/null 2>&1 || true
+  FIRST_RUN=0
+  if [[ ! -f "$DATA_MARKER" ]]; then
+    FIRST_RUN=1
+    echo "    eerste bootstrap (import + sync)…"
+    curl -sf -X POST "http://${HOST}:${PORT}/api/setup/bootstrap" \
+      -H "Content-Type: application/json" \
+      -d '{"open_a11y":false}' >/dev/null 2>&1 || true
+  else
+    TOKEN="$(grep -E '^VIT_GATEWAY_TOKEN=' "$SECRET_FILE" 2>/dev/null | head -1 | cut -d= -f2- || true)"
+    AUTH=()
+    if [[ -n "${TOKEN}" && "${TOKEN}" != *"change-me"* ]]; then
+      AUTH=(-H "Authorization: Bearer ${TOKEN}")
+    fi
+    curl -sf -X POST "http://${HOST}:${PORT}/api/sync/once" "${AUTH[@]}" >/dev/null 2>&1 || true
+    curl -sf -X POST "http://${HOST}:${PORT}/api/sync/start?interval_sec=300" "${AUTH[@]}" >/dev/null 2>&1 || true
+  fi
   date >"$DATA_MARKER"
   if [[ "$(uname -s)" == "Darwin" ]]; then
-    open "http://${HOST}:${PORT}/?wizard=1"
+    if [[ "$FIRST_RUN" == "1" ]]; then
+      open "http://${HOST}:${PORT}/?wizard=1"
+    else
+      open "http://${HOST}:${PORT}/"
+    fi
   fi
-  echo "==> Klaar. Wizard opent in de browser."
+  echo "==> Klaar. Wizard/GUI opent in de browser."
 else
   echo "==> Gateway startte niet. Logs: $LOG_DIR/oneshot.log" >&2
   exit 1

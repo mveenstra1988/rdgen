@@ -78,21 +78,26 @@ async def health() -> dict[str, Any]:
     return {"ok": True, "version": __version__, "ts": time.time()}
 
 
+def _localhost_only(request: Request) -> None:
+    client = request.client.host if request.client else ""
+    if client not in {"127.0.0.1", "::1", "testclient"}:
+        raise HTTPException(status_code=403, detail="Alleen localhost")
+
+
 @app.get("/api/setup/status")
-async def api_setup_status() -> dict[str, Any]:
+async def api_setup_status(request: Request) -> dict[str, Any]:
     from vit_ai_hub.setup_api import setup_status
 
-    return setup_status()
+    client = request.client.host if request.client else ""
+    local = client in {"127.0.0.1", "::1", "testclient"}
+    return setup_status(include_token=local)
 
 
 @app.post("/api/setup/secrets")
 async def api_setup_secrets(request: Request) -> dict[str, Any]:
     from vit_ai_hub.setup_api import save_secrets
 
-    # only localhost
-    client = request.client.host if request.client else ""
-    if client not in {"127.0.0.1", "::1", "testclient"}:
-        raise HTTPException(status_code=403, detail="Alleen localhost mag secrets zetten")
+    _localhost_only(request)
     body = await request.json()
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="JSON object verwacht")
@@ -103,10 +108,31 @@ async def api_setup_secrets(request: Request) -> dict[str, Any]:
 async def api_setup_complete(request: Request) -> dict[str, Any]:
     from vit_ai_hub.setup_api import mark_setup_complete
 
-    client = request.client.host if request.client else ""
-    if client not in {"127.0.0.1", "::1", "testclient"}:
-        raise HTTPException(status_code=403, detail="Alleen localhost")
+    _localhost_only(request)
     return mark_setup_complete()
+
+
+@app.post("/api/setup/bootstrap")
+async def api_setup_bootstrap(request: Request) -> dict[str, Any]:
+    """Alles in één keer: optionele keys + import + sync + klaar."""
+    from vit_ai_hub.setup_api import bootstrap_all, save_secrets
+
+    _localhost_only(request)
+    body: dict[str, Any] = {}
+    try:
+        raw = await request.json()
+        if isinstance(raw, dict):
+            body = raw
+    except Exception:
+        body = {}
+    secrets = {str(k): str(v) for k, v in body.get("secrets", {}).items()} if isinstance(body.get("secrets"), dict) else {}
+    # also accept flat keys
+    for k in ("OPENROUTER_API_KEY", "XAI_API_KEY", "BRIDGE_API_KEY", "VIT_LOCAL_LIGHT_MODEL"):
+        if body.get(k):
+            secrets[k] = str(body[k])
+    if secrets:
+        save_secrets(secrets)
+    return bootstrap_all(open_a11y=bool(body.get("open_a11y")))
 
 
 @app.post("/api/setup/open-accessibility")

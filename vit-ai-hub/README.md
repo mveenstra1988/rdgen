@@ -17,9 +17,9 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-0.6.0-mac.zip` (of uit de PR-artifacts)
-2. Unzip → dubbelklik **VIT AI Hub.app** (of `START.command`)
-3. Wizard regelt venv, secrets, import, sync, browser
+1. Download `dist/VIT-AI-Hub-0.6.1-mac.zip` (of uit de PR-artifacts)
+2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
+3. Dubbelklik **VIT AI Hub.app** → knop **Alles nu regelen**
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 

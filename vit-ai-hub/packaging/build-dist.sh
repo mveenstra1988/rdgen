@@ -2,7 +2,7 @@
 # Bouwt een zip die je op de Mac uitpakt en start (START.command of .app).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-0.6.0}"
+VERSION="${VIT_PKG_VERSION:-0.6.1}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 
@@ -37,24 +37,24 @@ cat >"$STAGE/LEESMIJ.txt" <<EOF
 VIT AI Hub ${VERSION}
 ====================
 
-Morgen / op je Mac:
+Op je Mac (één keer):
 
-Optie A (snelst):
-  1. Dubbelklik "VIT AI Hub.app"
-  2. Volg de wizard in de browser
+1. Unzip deze map ergens (bijv. ~/Applications)
+2. Als macOS "onbekende ontwikkelaar" zegt:
+     xattr -dr com.apple.quarantine "VIT AI Hub.app" hub
+3. Dubbelklik "VIT AI Hub.app" (of START.command)
+4. Klik in de wizard op "Alles nu regelen"
+   (optioneel: keys invullen vóór die knop)
 
-Optie B:
-  1. Dubbelklik START.command
-  2. Volg de wizard
+Dat zet venv, secrets, import, live sync en de GUI klaar.
 
-Optie C (echte .pkg):
-  Op de Mac: open Terminal in deze map/hub en run:
-    bash packaging/build-mac-pkg.sh
-  Installeer daarna dist/VIT_AI_Hub-${VERSION}.pkg
+Daarna:
+  http://127.0.0.1:8787
+  Cursor → OpenAI Base URL: http://127.0.0.1:8787/v1
+  Secrets: ~/.config/vit/geheimen/ai-gateway.env
 
-Daarna: http://127.0.0.1:8787
-Cursor base URL: http://127.0.0.1:8787/v1
-Secrets: ~/.config/vit/geheimen/ai-gateway.env
+Echte .pkg (optioneel, op de Mac):
+  bash hub/packaging/build-mac-pkg.sh
 EOF
 
 (
