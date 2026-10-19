@@ -160,6 +160,20 @@ def delete_team(team_id: str) -> dict[str, Any]:
 def _preset_agents() -> list[dict[str, Any]]:
     return [
         {
+            "id": "agent-self-improve",
+            "name": "Hub Improver",
+            "role": "Self-improve",
+            "color": "#c4f04d",
+            "model": "vit/auto",
+            "studio": "self",
+            "system": (
+                "Je past VIT AI Hub zelf aan op verzoek. Lees hub-bestanden, wijzig gericht, "
+                "run pytest, vat samen. Geen secrets aanpassen."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
             "id": "agent-design-lead",
             "name": "Design Lead",
             "role": "Art direction",
@@ -248,6 +262,19 @@ def _preset_agents() -> list[dict[str, Any]]:
 
 def _preset_teams() -> list[dict[str, Any]]:
     return [
+        {
+            "id": "team-self",
+            "name": "Self-improve team",
+            "blurb": "Hub Improver — pas de app aan als je dat vraagt.",
+            "color": "#c4f04d",
+            "studio": "self",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-self-improve",
+            "members": [
+                {"agent_id": "agent-self-improve", "order": 0, "label": "Improve"},
+            ],
+            "preset": True,
+        },
         {
             "id": "team-webdesign",
             "name": "Webdesign team",

@@ -625,6 +625,13 @@ async def api_migrate_profile(_: None = Depends(_auth)) -> dict[str, Any]:
     return {"profile": load_active_profile()}
 
 
+@app.get("/api/mcp/servers")
+async def api_mcp_servers(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.tools.mcp_runtime import list_servers
+
+    return list_servers()
+
+
 @app.post("/api/import/cursor")
 async def import_cursor(_: None = Depends(_auth)) -> dict[str, Any]:
     return cursor_import.import_local()

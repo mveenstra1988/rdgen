@@ -168,6 +168,10 @@ def tool_specs() -> list[dict[str, Any]]:
         from vit_ai_hub.tools.desktop import desktop_tool_specs
 
         tools.extend(desktop_tool_specs())
+    if cfg.get("mcp", True):
+        from vit_ai_hub.tools.mcp_runtime import mcp_tool_specs
+
+        tools.extend(mcp_tool_specs())
     return tools
 
 
@@ -279,6 +283,10 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         from vit_ai_hub.tools.desktop import run_desktop_tool
 
         return await run_desktop_tool(name, arguments)
+    if name in {"mcp_list_servers", "mcp_list_tools", "mcp_call_tool"}:
+        from vit_ai_hub.tools.mcp_runtime import run_mcp_tool
+
+        return await run_mcp_tool(name, arguments)
     return json.dumps({"error": f"Onbekende tool: {name}"})
 
 
@@ -350,6 +358,7 @@ def capabilities_manifest() -> dict[str, Any]:
         "agent_teams": True,
         "full_migrate": True,
         "self_improve": True,
+        "mcp_runtime": True,
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [

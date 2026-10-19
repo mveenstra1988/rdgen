@@ -116,6 +116,28 @@ def _collect_named(paths: list[Path], kind: str) -> list[dict[str, Any]]:
     return out
 
 
+def _project_glob_files(pattern_names: tuple[str, ...], max_hits: int = 80) -> list[Path]:
+    hits: list[Path] = []
+    h = _home()
+    for base_name in ("Developer", "Projects", "code", "werk", "VIT", "src"):
+        base = h / base_name
+        if not base.is_dir():
+            continue
+        try:
+            for p in base.rglob("*"):
+                if not p.is_file():
+                    continue
+                if p.name in pattern_names or (
+                    p.suffix == ".mdc" and ".cursor" in p.parts
+                ):
+                    hits.append(p)
+                if len(hits) >= max_hits:
+                    return hits
+        except OSError:
+            continue
+    return hits
+
+
 def cursor_sources() -> dict[str, list[Path]]:
     h = _home()
     return {
@@ -130,11 +152,13 @@ def cursor_sources() -> dict[str, list[Path]]:
             h / ".cursor" / "mcp",
             h / "Library/Application Support/Cursor/User/globalStorage",
             Path("/home/ubuntu/.cursor/projects/workspace/mcps"),
+            *_project_glob_files(("mcp.json", ".mcp.json"), max_hits=40),
         ],
         "rules": [
             h / ".cursor" / "rules",
             h / ".cursorrules",
             h / ".cursor" / "rules.md",
+            *_project_glob_files(("AGENTS.md", ".cursorrules", "CLAUDE.md"), max_hits=60),
         ],
         "skills": [
             h / ".cursor" / "skills-cursor",

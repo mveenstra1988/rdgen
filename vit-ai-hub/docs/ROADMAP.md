@@ -1,4 +1,4 @@
-# Roadmap status (0.8)
+# Roadmap status (1.0)
 
 ## Ingebouwd
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
@@ -16,6 +16,9 @@
 - [x] Continue.dev export (Cursor-exit pad)
 - [x] Penpot open + install-script (Figma-alt)
 - [x] Visuele agent-teams (webdesign / apps presets + custom builder + run)
+- [x] Full migrate (settings/MCP/rules/prompts/skills mirror + actief profiel)
+- [x] Self-improve studio + team
+- [x] MCP stdio runtime tools in chat
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)

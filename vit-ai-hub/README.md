@@ -17,10 +17,10 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-0.9.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.0.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
-3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES** (settings/MCP/rules/prompts/skills/chats)
-4. Tab **Agent teams** · studio **Self-improve** om de hub zelf te laten aanpassen
+3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES**
+4. Tab **Agent teams** · studio **Self-improve** · MCP-tools in chat
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 

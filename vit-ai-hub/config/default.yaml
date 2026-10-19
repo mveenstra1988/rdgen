@@ -127,6 +127,7 @@ tools:
   memory: true
   files: true
   desktop: true
+  mcp: true
   code_sandbox: false
 
 sync:
