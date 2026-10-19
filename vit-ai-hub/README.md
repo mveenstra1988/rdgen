@@ -17,16 +17,29 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.0.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.1.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES**
-4. Tab **Agent teams** · studio **Self-improve** · MCP-tools in chat
+4. Tab **Agent teams** · studio **Ops / Infra** of **Self-improve** · MCP + ops-tools in chat
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 
+## Ops / Infra
+
+Studio **Ops / Infra** + team **Infra**. Secrets: `~/.config/vit/geheimen/ops.env` (template via knop **Ops status** of `ops_ensure_env`).
+VPN voor Proxmox/UniFi. Tools zijn read-first; VM start/stop/reboot alleen met `confirm=true`.
+
+| Service | Tools |
+|---------|--------|
+| Proxmox | `proxmox_status`, `proxmox_vms`, `proxmox_vm_action` |
+| Nextcloud / Gromox / Mailcow | `*_status` / `gromox_health` |
+| ServiceHub / UniFi / Backup / automation-hub | status + disk SSH (allowlist) |
+
+API (localhost): `GET /api/ops/status`, `POST /api/ops/action`.
+
 ## Agent teams
 
-In de GUI: **Agent teams**. Presets: Webdesign team (design → frontend → copy) en Applicatie team (architect → engineer → QA). Zelf agents/teams maken, volgorde zetten, pipeline of board+synthese, daarna **Run team**.
+In de GUI: **Agent teams**. Presets: Webdesign, Applicatie, Infra, Self-improve. Zelf agents/teams maken, volgorde zetten, pipeline of board+synthese, daarna **Run team**.
 
 ## Claude / ChatGPT / Cursor eruit?
 

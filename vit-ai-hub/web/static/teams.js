@@ -36,7 +36,7 @@
       const info = document.getElementById("route-info");
       if (view === "teams") {
         if (title) title.textContent = "Agent teams";
-        if (info) info.textContent = "Bouw visueel teams (webdesign, apps, …) en run ze.";
+        if (info) info.textContent = "Bouw visueel teams (webdesign, apps, infra, …) en run ze.";
         refresh();
       } else {
         if (title) title.textContent = "Chat";

@@ -1,4 +1,4 @@
-# Roadmap status (1.0)
+# Roadmap status (1.1)
 
 ## Ingebouwd
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
@@ -11,14 +11,15 @@
 - [x] OpenRouter / OmniRoute / Ox Alpha
 - [x] PII fail-closed
 - [x] One-click Mac package + wizard (0.6+)
-- [x] Studio-modi: chat / software / webdesign / apps / design
+- [x] Studio-modi: chat / software / webdesign / apps / design / ops
 - [x] Workspace read/write/run (allowlist) — Cursor-achtig in de hub
 - [x] Continue.dev export (Cursor-exit pad)
 - [x] Penpot open + install-script (Figma-alt)
-- [x] Visuele agent-teams (webdesign / apps presets + custom builder + run)
+- [x] Visuele agent-teams (webdesign / apps / infra presets + custom builder + run)
 - [x] Full migrate (settings/MCP/rules/prompts/skills mirror + actief profiel)
 - [x] Self-improve studio + team
 - [x] MCP stdio runtime tools in chat
+- [x] Ops layer: Proxmox / Nextcloud / Gromox / Mailcow / ServiceHub / UniFi / Backup / automation-hub
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)

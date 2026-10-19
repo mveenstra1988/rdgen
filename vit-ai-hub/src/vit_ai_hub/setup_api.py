@@ -96,6 +96,16 @@ def setup_status(*, include_token: bool = False) -> dict[str, Any]:
     except Exception:
         pass
 
+    ops_env = Path.home() / ".config/vit/geheimen/ops.env"
+    ops_configured: dict[str, bool] = {}
+    try:
+        from vit_ai_hub.ops.client import configured_services, ensure_ops_env_template
+
+        ensure_ops_env_template()
+        ops_configured = configured_services()
+    except Exception:
+        ops_configured = {}
+
     out: dict[str, Any] = {
         "version": __version__,
         "setup_complete": SETUP_MARKER.is_file(),
@@ -106,6 +116,10 @@ def setup_status(*, include_token: bool = False) -> dict[str, Any]:
         "ollama_up": ollama,
         "darwin": os.uname().sysname == "Darwin",
         "hub_root": str(ROOT),
+        "ops_env": str(ops_env),
+        "ops_env_exists": ops_env.is_file(),
+        "ops_configured": ops_configured,
+        "ops_ready": any(ops_configured.values()) if ops_configured else False,
     }
     if include_token:
         tok = secrets.get("VIT_GATEWAY_TOKEN", "")

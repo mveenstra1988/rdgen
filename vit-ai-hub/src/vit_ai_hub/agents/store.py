@@ -257,6 +257,48 @@ def _preset_agents() -> list[dict[str, Any]]:
             "tools": True,
             "preset": True,
         },
+        {
+            "id": "agent-infra-lead",
+            "name": "Infra Lead",
+            "role": "Ops triage",
+            "color": "#7ec8ff",
+            "model": "vit/auto",
+            "studio": "ops",
+            "system": (
+                "Je bent infra lead voor VIT. Start met ops_status/ops_overview. "
+                "Prioriteer: cluster health, mail, cloud, backup. Read-first; geen mutaties zonder bevestiging."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-proxmox",
+            "name": "Proxmox",
+            "role": "Hypervisor",
+            "color": "#c4f04d",
+            "model": "vit/auto",
+            "studio": "ops",
+            "system": (
+                "Je bewaakt Proxmox: nodes, VMs/LXC, storage. Gebruik proxmox_* tools. "
+                "VM start/stop alleen met confirm=true na expliciete user-OK."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-mail-cloud",
+            "name": "Mail & Cloud",
+            "role": "Mailcow / Nextcloud / Gromox",
+            "color": "#ffb454",
+            "model": "vit/auto",
+            "studio": "ops",
+            "system": (
+                "Je checkt Mailcow, Nextcloud en Gromox via ops-tools. "
+                "Rapporteer versie/domains/health; geen mailbox-mutaties."
+            ),
+            "tools": True,
+            "preset": True,
+        },
     ]
 
 
@@ -302,6 +344,21 @@ def _preset_teams() -> list[dict[str, Any]]:
                 {"agent_id": "agent-app-architect", "order": 0, "label": "Plan"},
                 {"agent_id": "agent-app-engineer", "order": 1, "label": "Bouwen"},
                 {"agent_id": "agent-qa", "order": 2, "label": "Review"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-infra",
+            "name": "Infra team",
+            "blurb": "Ops triage → Proxmox → Mail/Cloud. Read-first health.",
+            "color": "#7ec8ff",
+            "studio": "ops",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-infra-lead",
+            "members": [
+                {"agent_id": "agent-infra-lead", "order": 0, "label": "Triage"},
+                {"agent_id": "agent-proxmox", "order": 1, "label": "PVE"},
+                {"agent_id": "agent-mail-cloud", "order": 2, "label": "Mail/Cloud"},
             ],
             "preset": True,
         },

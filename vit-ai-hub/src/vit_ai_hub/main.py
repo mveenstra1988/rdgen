@@ -574,6 +574,39 @@ async def api_tool(name: str, request: Request, _: None = Depends(_auth)):
     return JSONResponse(json.loads(await run_tool(name, args)))
 
 
+@app.get("/api/ops/status")
+async def api_ops_status(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.ops import ops_status
+
+    _localhost_only(request)
+    return ops_status()
+
+
+@app.post("/api/ops/ensure-env")
+async def api_ops_ensure_env(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.ops.client import ensure_ops_env_template
+
+    _localhost_only(request)
+    return ensure_ops_env_template()
+
+
+@app.post("/api/ops/action")
+async def api_ops_action(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.ops import run_ops_action
+
+    _localhost_only(request)
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    action = str(body.get("action") or "").strip()
+    if not action:
+        raise HTTPException(status_code=400, detail="action verplicht")
+    args = body.get("arguments") if isinstance(body.get("arguments"), dict) else {
+        k: v for k, v in body.items() if k != "action"
+    }
+    return run_ops_action(action, args)
+
+
 @app.get("/api/import/status")
 async def import_status(_: None = Depends(_auth)) -> dict[str, Any]:
     from vit_ai_hub.importing.local_mac import detect_local_apps

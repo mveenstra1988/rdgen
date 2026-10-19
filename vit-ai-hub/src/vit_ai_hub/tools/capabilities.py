@@ -172,6 +172,10 @@ def tool_specs() -> list[dict[str, Any]]:
         from vit_ai_hub.tools.mcp_runtime import mcp_tool_specs
 
         tools.extend(mcp_tool_specs())
+    if cfg.get("ops", True):
+        from vit_ai_hub.tools.ops import ops_tool_specs
+
+        tools.extend(ops_tool_specs())
     return tools
 
 
@@ -287,6 +291,10 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         from vit_ai_hub.tools.mcp_runtime import run_mcp_tool
 
         return await run_mcp_tool(name, arguments)
+    from vit_ai_hub.tools.ops import OPS_TOOL_NAMES, run_ops_tool
+
+    if name in OPS_TOOL_NAMES:
+        return await run_ops_tool(name, arguments)
     return json.dumps({"error": f"Onbekende tool: {name}"})
 
 
@@ -354,19 +362,31 @@ def capabilities_manifest() -> dict[str, Any]:
             "claude_live_ax",
             "live_sync",
         ],
-        "studios": ["chat", "software", "webdesign", "apps", "design", "self"],
+        "studios": ["chat", "software", "webdesign", "apps", "design", "self", "ops"],
         "agent_teams": True,
         "full_migrate": True,
         "self_improve": True,
         "mcp_runtime": True,
+        "ops": True,
+        "ops_services": [
+            "proxmox",
+            "nextcloud",
+            "gromox",
+            "mailcow",
+            "servicehub",
+            "unifi",
+            "automation_hub",
+            "vit_backup",
+        ],
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [
-            "Visuele agent-teams (webdesign, apps) — zelf bouwen en runnen.",
-            "Studio-modi: software/webdesign/apps/design vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
+            "Visuele agent-teams (webdesign, apps, infra) — zelf bouwen en runnen.",
+            "Studio-modi: software/webdesign/apps/design/ops vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
             "Workspace read/write/run in allowlisted projectmappen.",
             "Cursor-exit: Continue/VS Code of Zed op dezelfde gateway.",
             "Figma-alt: Penpot lokaal of design-in-code (webdesign studio).",
             "Desktop: Chrome, Mail, VIT Mail, Penpot, Spotlight.",
+            "Ops: Proxmox/Nextcloud/Mailcow/UniFi/Backup via ops.env (VPN, read-first).",
         ],
     }

@@ -7,7 +7,7 @@ DIST="$ROOT/dist"
 STAGE="$DIST/stage"
 APP_NAME="VIT AI Hub"
 PKG_ID="nl.veenstra-it.aihub"
-VERSION="${VIT_PKG_VERSION:-1.0.0}"
+VERSION="${VIT_PKG_VERSION:-1.1.0}"
 
 rm -rf "$STAGE" "$DIST/${APP_NAME// /_}-${VERSION}.pkg"
 mkdir -p "$STAGE/Applications/VIT-AI-Hub" "$DIST"

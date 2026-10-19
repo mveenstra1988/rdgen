@@ -20,6 +20,8 @@ const els = {
   newChat: document.getElementById("new-chat"),
   exportContinue: document.getElementById("export-continue"),
   openPenpot: document.getElementById("open-penpot"),
+  opsStatusBtn: document.getElementById("ops-status-btn"),
+  opsStatusBox: document.getElementById("ops-status-box"),
   importAll: document.getElementById("import-all"),
   importSkills: document.getElementById("import-skills"),
   importFull: document.getElementById("import-full"),
@@ -218,6 +220,27 @@ els.openPenpot?.addEventListener("click", async () => {
     });
     const data = await res.json();
     addBubble("system", typeof data === "string" ? data : JSON.stringify(data, null, 2));
+  } catch (err) {
+    addBubble("system", String(err));
+  }
+});
+
+els.opsStatusBtn?.addEventListener("click", async () => {
+  try {
+    await fetch("/api/ops/ensure-env", { method: "POST", headers: headers() });
+    const res = await fetch("/api/ops/status", { headers: headers() });
+    const data = await res.json();
+    const cfg = data.configured || {};
+    const lines = Object.entries(cfg).map(([k, v]) => `${v ? "✓" : "○"} ${k}`);
+    const text = [`Ops · ${data.env_file || ""}`, ...lines, data.hint || ""].join("\n");
+    if (els.opsStatusBox) {
+      els.opsStatusBox.hidden = false;
+      els.opsStatusBox.textContent = text;
+    }
+    addBubble("system", text);
+    if (els.studioSelect && els.studioSelect.value !== "ops") {
+      /* hint only */
+    }
   } catch (err) {
     addBubble("system", String(err));
   }

@@ -83,11 +83,15 @@
     applyToken(data);
     const box = overlay.querySelector("#wiz-status");
     if (box) {
+      const opsN = Object.values(data.ops_configured || {}).filter(Boolean).length;
       box.textContent = [
         `Versie ${data.version}`,
         data.secret_exists ? "Secrets OK" : "Secrets worden aangemaakt",
         data.lmstudio_up ? "✓ LM Studio" : "○ LM Studio nog uit",
         data.ollama_up ? "✓ Ollama" : "○ Ollama optioneel",
+        data.ops_env_exists
+          ? `Ops.env · ${opsN} service(s) geconfigureerd`
+          : "Ops.env template wordt aangemaakt",
         `Keys: ${(data.keys_present || []).filter((k) => k !== "VIT_GATEWAY_TOKEN").join(", ") || "nog geen cloud keys"}`,
       ].join("\n");
     }
