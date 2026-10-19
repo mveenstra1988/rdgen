@@ -17,7 +17,7 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-0.8.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-0.8.1-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → volg de wizard
 4. Tab **Agent teams** → webdesign-/applicatie-team of zelf bouwen
@@ -88,6 +88,8 @@ In de GUI:
 |------|-----------|
 | Cursor / Agent Store | Ja |
 | Claude Code (`~/.claude`) | Ja (JSONL + memory) |
+| Claude/Cursor **skills** (`SKILL.md`) | Ja → kennis + agents/bots |
+| Custom GPTs / Claude.ai “bots” (server) | Nee (niet lokaal) → maak agent teams |
 | Claude Cowork / local-agent | Ja (waar aanwezig) |
 | Claude.ai webchats in Desktop-app | Meestal **niet** (server-side) → export |
 | ChatGPT Mac-app (open op scherm) | **Ja via Accessibility** (knop “Lees ChatGPT”) + Keychain-decrypt best-effort |

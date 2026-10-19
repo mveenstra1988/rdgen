@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from vit_ai_hub.config import ROOT
-from vit_ai_hub.importing.store import CONVERSATIONS, MEMORIES, PROJECTS
+from vit_ai_hub.importing.store import CONVERSATIONS, MEMORIES, PROJECTS, SKILLS
 
 DB_PATH = ROOT / "data" / "knowledge" / "index.sqlite"
 
@@ -42,6 +42,7 @@ def rebuild_index() -> dict[str, Any]:
         n += 1
 
     for path, kind in (
+        (SKILLS, "skill"),
         (MEMORIES, "memory"),
         (PROJECTS, "project"),
         (CONVERSATIONS, "conversation"),
@@ -53,6 +54,10 @@ def rebuild_index() -> dict[str, Any]:
                 try:
                     row = json.loads(line)
                 except json.JSONDecodeError:
+                    continue
+                if kind == "skill":
+                    body = f"{row.get('description') or ''}\n{row.get('content') or ''}"
+                    add(str(row.get("id")), kind, str(row.get("source") or ""), str(row.get("name") or ""), body[:20000])
                     continue
                 if kind == "conversation":
                     body = "\n".join(

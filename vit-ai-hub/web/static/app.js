@@ -21,6 +21,7 @@ const els = {
   exportContinue: document.getElementById("export-continue"),
   openPenpot: document.getElementById("open-penpot"),
   importAll: document.getElementById("import-all"),
+  importSkills: document.getElementById("import-skills"),
   importStatus: document.getElementById("import-status"),
   importFile: document.getElementById("import-file"),
   importSource: document.getElementById("import-source"),
@@ -265,7 +266,7 @@ async function refreshImportStatus() {
     const data = await res.json();
     const k = data.knowledge || {};
     els.importStatus.textContent =
-      `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects` +
+      `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects · ${k.skills || 0} skills` +
       (data.export_zips?.chatgpt?.length || data.export_zips?.claude?.length
         ? ` · zips klaar: GPT ${data.export_zips.chatgpt?.length || 0} / Claude ${data.export_zips.claude?.length || 0}`
         : "");
@@ -293,7 +294,10 @@ els.importAll?.addEventListener("click", async () => {
     const k = data.knowledge || {};
     addBubble(
       "system",
-      `Import klaar (${data.elapsed_sec}s): ${k.conversations || 0} chats, ${k.memories || 0} memories, ${k.projects || 0} projects.` +
+      `Import klaar (${data.elapsed_sec}s): ${k.conversations || 0} chats, ${k.memories || 0} memories, ${k.projects || 0} projects, ${k.skills || 0} skills` +
+        (data.skills?.agents_promoted
+          ? ` · ${data.skills.agents_promoted.written || 0} skills → agents/bots`
+          : "") +
         (data.hints?.length ? `\n${data.hints.join("\n")}` : "")
     );
     await refreshImportStatus();
@@ -302,6 +306,27 @@ els.importAll?.addEventListener("click", async () => {
   } finally {
     els.importAll.disabled = false;
     els.importAll.textContent = "Importeer alles van deze Mac";
+  }
+});
+
+els.importSkills?.addEventListener("click", async () => {
+  els.importSkills.disabled = true;
+  els.importSkills.textContent = "Skills zoeken…";
+  try {
+    const res = await fetch("/api/import/skills", { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    addBubble(
+      "system",
+      `Skills: ${data.found || 0} gevonden · ${data.skills?.written || 0} nieuw · ` +
+        `${data.agents_promoted?.written || 0} als agent/bot. Zie tab Agent teams.`
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Skills-import mislukt: ${err}`);
+  } finally {
+    els.importSkills.disabled = false;
+    els.importSkills.textContent = "Importeer Claude/Cursor skills";
   }
 });
 

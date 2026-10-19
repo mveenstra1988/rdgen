@@ -450,4 +450,10 @@ def harvest_all_local() -> dict[str, Any]:
         out["chatgpt_readable"] = harvest_chatgpt_readable()
     except Exception as exc:
         out["chatgpt_readable"] = {"ok": False, "error": str(exc)}
+    try:
+        from vit_ai_hub.importing.skills import harvest_skills
+
+        out["skills"] = harvest_skills(promote_agents=True)
+    except Exception as exc:
+        out["skills"] = {"ok": False, "error": str(exc)}
     return out

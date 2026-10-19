@@ -143,8 +143,14 @@
       });
       const data = await res.json();
       const k = data.knowledge || {};
+      const skillsBlock = data.import?.skills || data.skills || {};
+      const sk = skillsBlock.found ?? k.skills ?? 0;
       if (msg) {
-        msg.textContent = `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects`;
+        msg.textContent =
+          `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects · ${sk} skills` +
+          (skillsBlock.agents_promoted
+            ? ` · ${skillsBlock.agents_promoted.written || 0} als agent/bot`
+            : "");
       }
       return data;
     } catch (e) {

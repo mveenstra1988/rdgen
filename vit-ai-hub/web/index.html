@@ -112,13 +112,13 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>6 · Alles overzetten</h3>
-        <p>Importeert Cursor, Claude Code/Cowork, ChatGPT-cache/fragmenten en export-zips uit Downloads. Live-lees van open apps vraagt Toegankelijkheid.</p>
+        <h3>6 · Alles overzetten (chats + skills + bots)</h3>
+        <p>Importeert Cursor, Claude Code/Cowork, <strong>Claude/Cursor skills (SKILL.md)</strong>, ChatGPT-cache en export-zips. Skills worden ook agents (bots) die je in <em>Agent teams</em> kunt zetten.</p>
         <div class="wiz-actions">
           <button type="button" id="wiz-a11y" class="ghost">Open Toegankelijkheid</button>
           <button type="button" id="wiz-import" class="primary">Importeer alles nu</button>
         </div>
-        <p class="muted tiny" id="wiz-import-msg">Dit kan even duren bij veel chats.</p>
+        <p class="muted tiny" id="wiz-import-msg">Zoekt o.a. ~/.claude/skills en project/.claude/skills.</p>
       </section>
 
       <section data-step class="wiz-step">
@@ -200,6 +200,7 @@
         <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
         <p class="muted tiny" id="local-detect">Mac-apps: …</p>
         <button type="button" id="import-all" class="primary">Importeer alles van deze Mac</button>
+        <button type="button" id="import-skills" class="ghost">Importeer Claude/Cursor skills</button>
         <button type="button" id="chatgpt-live" class="primary">Lees ChatGPT (app open)</button>
         <button type="button" id="claude-live" class="primary">Lees Claude (app open)</button>
         <button type="button" id="sync-start" class="ghost">Live sync aan</button>

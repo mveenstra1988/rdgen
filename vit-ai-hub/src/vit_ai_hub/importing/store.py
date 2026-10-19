@@ -12,6 +12,7 @@ DATA = ROOT / "data" / "knowledge"
 CONVERSATIONS = DATA / "conversations.jsonl"
 MEMORIES = DATA / "memories.jsonl"
 PROJECTS = DATA / "projects.jsonl"
+SKILLS = DATA / "skills.jsonl"
 IMPORT_LOG = DATA / "imports.jsonl"
 
 
@@ -126,6 +127,59 @@ def save_projects(items: list[dict[str, Any]], *, source: str) -> dict[str, int]
     return {"written": _append_jsonl(PROJECTS, rows), "skipped": skipped}
 
 
+def save_skills(items: list[dict[str, Any]]) -> dict[str, int]:
+    existing = _existing_ids(SKILLS)
+    rows = []
+    skipped = 0
+    for item in items:
+        source = str(item.get("source") or "skill")
+        native = str(item.get("native_id") or item.get("path") or item.get("name") or "")
+        sid = _hash_id(source, native)
+        if sid in existing:
+            skipped += 1
+            continue
+        rows.append(
+            {
+                "id": sid,
+                "source": source,
+                "name": item.get("name") or "skill",
+                "description": item.get("description") or "",
+                "content": item.get("content") or "",
+                "path": item.get("path") or "",
+                "kind": item.get("kind") or "skill",
+                "meta": item.get("meta") or {},
+                "imported_at": time.time(),
+            }
+        )
+        existing.add(sid)
+    return {"written": _append_jsonl(SKILLS, rows), "skipped": skipped}
+
+
+def list_skills(*, limit: int = 200) -> list[dict[str, Any]]:
+    if not SKILLS.is_file():
+        return []
+    out: list[dict[str, Any]] = []
+    with SKILLS.open(encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            out.append(
+                {
+                    "id": row.get("id"),
+                    "name": row.get("name"),
+                    "description": row.get("description"),
+                    "source": row.get("source"),
+                    "path": row.get("path"),
+                    "content_preview": str(row.get("content") or "")[:280],
+                }
+            )
+            if len(out) >= limit:
+                break
+    return out
+
+
 def log_import(summary: dict[str, Any]) -> None:
     _append_jsonl(IMPORT_LOG, [{**summary, "ts": time.time()}])
 
@@ -141,11 +195,13 @@ def stats() -> dict[str, Any]:
         "conversations": count(CONVERSATIONS),
         "memories": count(MEMORIES),
         "projects": count(PROJECTS),
+        "skills": count(SKILLS),
         "imports": count(IMPORT_LOG),
         "paths": {
             "conversations": str(CONVERSATIONS),
             "memories": str(MEMORIES),
             "projects": str(PROJECTS),
+            "skills": str(SKILLS),
         },
     }
 
@@ -184,6 +240,8 @@ def search_knowledge(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
                             snippet += f"{m.get('role')}: {str(m.get('content') or '')[:240]}\n"
                     elif kind == "memory":
                         snippet = str(row.get("content") or "")[:800]
+                    elif kind == "skill":
+                        snippet = str(row.get("description") or "") + "\n" + str(row.get("content") or "")[:700]
                     else:
                         snippet = str(row.get("instructions") or row.get("name") or "")[:800]
                     hits.append(
@@ -198,7 +256,9 @@ def search_knowledge(query: str, *, limit: int = 12) -> list[dict[str, Any]]:
                     if len(hits) >= limit:
                         return
 
-    scan(MEMORIES, "memory")
+    scan(SKILLS, "skill")
+    if len(hits) < limit:
+        scan(MEMORIES, "memory")
     if len(hits) < limit:
         scan(PROJECTS, "project")
     if len(hits) < limit:

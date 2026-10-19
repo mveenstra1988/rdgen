@@ -124,6 +124,14 @@ def import_all_one_click() -> dict[str, Any]:
             results["errors"].append({"source": "claude", "file": str(path), "error": str(exc)})
 
     try:
+        from vit_ai_hub.importing.skills import harvest_skills
+
+        # extra pass (ook als local_mac al deed — idempotent via hashes)
+        results["skills"] = harvest_skills(promote_agents=True)
+    except Exception as exc:
+        results["errors"].append({"source": "skills", "error": str(exc)})
+
+    try:
         from vit_ai_hub.importing.index_fts import rebuild_index
 
         results["fts"] = rebuild_index()
@@ -152,12 +160,19 @@ def import_all_one_click() -> dict[str, Any]:
         )
     if not (results.get("cursor") or {}).get("files_scanned"):
         results["hints"].append("Geen Cursor-mappen gevonden op deze machine (normaal in deze cloud-VM).")
+    skills_found = (results.get("skills") or {}).get("found") or (
+        (results.get("local_mac") or {}).get("skills") or {}
+    ).get("found")
+    if not skills_found:
+        results["hints"].append(
+            "Geen Claude/Cursor SKILL.md gevonden. Skills staan vaak in ~/.claude/skills of project/.claude/skills."
+        )
     log_import(
         {
             "source": "all",
             "summary": {
                 k: results[k]
-                for k in ("cursor", "local_mac", "chatgpt", "claude", "knowledge")
+                for k in ("cursor", "local_mac", "chatgpt", "claude", "skills", "knowledge")
             },
         }
     )

@@ -572,8 +572,22 @@ async def import_status(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.post("/api/import/all")
 async def import_all(_: None = Depends(_auth)) -> dict[str, Any]:
-    """Één klik: Cursor + lokale Mac-apps + nieuwste ChatGPT/Claude zips."""
+    """Één klik: Cursor + lokale Mac-apps + skills + nieuwste ChatGPT/Claude zips."""
     return import_all_one_click()
+
+
+@app.get("/api/skills")
+async def api_list_skills(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.store import list_skills, stats
+
+    return {"skills": list_skills(), "knowledge": stats()}
+
+
+@app.post("/api/import/skills")
+async def api_import_skills(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.skills import harvest_skills
+
+    return harvest_skills(promote_agents=True)
 
 
 @app.post("/api/import/cursor")
