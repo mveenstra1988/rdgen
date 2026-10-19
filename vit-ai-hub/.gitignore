@@ -6,6 +6,8 @@ __pycache__/
 data/
 *.jsonl
 .DS_Store
-dist/
+dist/*
+!dist/*.zip
+!dist/*.pkg
 node_modules/
 .ruff_cache/
