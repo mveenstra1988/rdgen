@@ -59,6 +59,32 @@ backends:
         name: Ox Alpha (stealth)
       - id: z-ai/glm-5.3-flash
         name: GLM-5.3-Flash (ex Ox Alpha)
+      - id: deepseek/deepseek-chat
+        name: DeepSeek Chat (via OpenRouter)
+      - id: deepseek/deepseek-r1
+        name: DeepSeek R1 (via OpenRouter)
+      - id: deepseek/deepseek-chat-v3-0324:free
+        name: DeepSeek Chat v3 (free)
+      - id: meta-llama/llama-3.3-70b-instruct:free
+        name: Llama 3.3 70B (free)
+      - id: google/gemma-3-27b-it:free
+        name: Gemma 3 27B (free)
+      - id: qwen/qwen3-32b:free
+        name: Qwen3 32B (free)
+      - id: mistralai/mistral-small-3.1-24b-instruct:free
+        name: Mistral Small 3.1 (free)
+  deepseek:
+    enabled: true
+    kind: openai
+    base_url: https://api.deepseek.com/v1
+    local: false
+    label: DeepSeek
+    pinned_models:
+      - id: deepseek-chat
+        name: DeepSeek Chat
+      - id: deepseek-reasoner
+        name: DeepSeek Reasoner (R1)
+    prefix_hints: ["deepseek"]
   omniroute:
     enabled: true
     kind: openai

@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     bridge_api_key: str = ""
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
     omniroute_base_url: str = "http://127.0.0.1:20128/v1"
     omniroute_api_key: str = ""
     cursor_base_url: str = ""
@@ -87,6 +89,10 @@ def backend_overrides() -> dict[str, dict[str, Any]]:
         "openrouter": {
             "base_url": s.openrouter_base_url.rstrip("/"),
             "api_key": s.openrouter_api_key,
+        },
+        "deepseek": {
+            "base_url": s.deepseek_base_url.rstrip("/"),
+            "api_key": s.deepseek_api_key,
         },
         "omniroute": {
             "base_url": s.omniroute_base_url.rstrip("/"),

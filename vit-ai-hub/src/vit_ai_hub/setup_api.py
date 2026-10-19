@@ -18,6 +18,7 @@ SETUP_MARKER = ROOT / "data" / ".setup-complete"
 ALLOWED_KEYS = {
     "VIT_GATEWAY_TOKEN",
     "OPENROUTER_API_KEY",
+    "DEEPSEEK_API_KEY",
     "XAI_API_KEY",
     "BRIDGE_API_KEY",
     "BRIDGE_BASE_URL",
@@ -27,6 +28,36 @@ ALLOWED_KEYS = {
     "OLLAMA_BASE_URL",
     "VIT_LOCAL_LIGHT_MODEL",
     "VIT_LOCAL_HEAVY_MODEL",
+}
+
+# Guided wizard: open these URLs/apps for login & keys
+GUIDE_TARGETS: dict[str, dict[str, str]] = {
+    "openrouter_keys": {
+        "url": "https://openrouter.ai/keys",
+        "label": "OpenRouter API keys",
+    },
+    "deepseek_keys": {
+        "url": "https://platform.deepseek.com/api_keys",
+        "label": "DeepSeek API keys",
+    },
+    "omniroute_docs": {
+        "url": "https://github.com/router-for-me/OmniRoute",
+        "label": "OmniRoute",
+    },
+    "bridge_docs": {
+        "url": "https://github.com/router-for-me/CLIProxyAPI",
+        "label": "Claude/ChatGPT abo-bridge (CLIProxyAPI)",
+    },
+    "lmstudio": {
+        "app": "LM Studio",
+        "label": "LM Studio",
+    },
+    "cursor_settings": {
+        "app": "Cursor",
+        "label": "Cursor",
+    },
+    "chatgpt": {"app": "ChatGPT", "label": "ChatGPT"},
+    "claude": {"app": "Claude", "label": "Claude"},
 }
 
 
@@ -152,3 +183,56 @@ def open_accessibility_settings() -> dict[str, Any]:
         check=False,
     )
     return {"ok": True}
+
+
+def open_guide(target: str) -> dict[str, Any]:
+    """Open login/key/docs voor de wizard (localhost guided setup)."""
+    key = (target or "").strip().lower()
+    info = GUIDE_TARGETS.get(key)
+    if not info:
+        return {"ok": False, "error": f"onbekend target: {target}", "known": sorted(GUIDE_TARGETS)}
+    if os.uname().sysname != "Darwin":
+        return {"ok": False, "error": "alleen macOS", "hint": info}
+    if info.get("url"):
+        subprocess.run(["open", info["url"]], check=False)
+        return {"ok": True, "opened": info["url"], "label": info.get("label")}
+    if info.get("app"):
+        r = subprocess.run(["open", "-a", info["app"]], capture_output=True, text=True)
+        return {
+            "ok": r.returncode == 0,
+            "app": info["app"],
+            "label": info.get("label"),
+            "error": (r.stderr or "").strip() or None,
+        }
+    return {"ok": False, "error": "geen actie"}
+
+
+def probe_providers() -> dict[str, Any]:
+    """Snelle status voor wizard-checklist."""
+    status = setup_status(include_token=False)
+    secrets = _read_secret_map()
+    bridge_up = False
+    omni_up = False
+    try:
+        import httpx
+
+        try:
+            bridge_up = httpx.get("http://127.0.0.1:8317/v1/models", timeout=1.2).status_code < 500
+        except Exception:
+            bridge_up = False
+        try:
+            omni_up = httpx.get("http://127.0.0.1:20128/v1/models", timeout=1.2).status_code < 500
+        except Exception:
+            omni_up = False
+    except Exception:
+        pass
+    return {
+        **status,
+        "bridge_up": bridge_up,
+        "omniroute_up": omni_up,
+        "openrouter_key": bool(secrets.get("OPENROUTER_API_KEY")),
+        "deepseek_key": bool(secrets.get("DEEPSEEK_API_KEY")),
+        "xai_key": bool(secrets.get("XAI_API_KEY")),
+        "bridge_key": bool(secrets.get("BRIDGE_API_KEY")),
+        "cursor_base_url": "http://127.0.0.1:8787/v1",
+    }

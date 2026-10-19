@@ -250,6 +250,7 @@ textarea { resize: vertical; min-height: 84px; }
   border-top: 1px solid var(--line);
 }
 .wizard-nav .primary { margin-left: auto; }
+.wizard-card-wide { width: min(640px, 100%); }
 .wiz-hero {
   margin-top: 0.35rem;
   font-size: 1.05rem;
@@ -257,3 +258,40 @@ textarea { resize: vertical; min-height: 84px; }
   letter-spacing: 0.01em;
 }
 .wiz-hero:active { transform: scale(0.99); }
+.wiz-rail {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.wiz-rail li.on { color: var(--accent); font-weight: 600; }
+.wiz-rail li.done { color: var(--ink); opacity: 0.75; }
+.wiz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+.wiz-actions .primary { width: auto; flex: 1 1 auto; min-width: 8rem; }
+.wiz-actions .ghost { flex: 0 1 auto; }
+.wiz-copy {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  margin: 0.5rem 0;
+}
+.wiz-copy code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  flex: 1;
+  word-break: break-all;
+}

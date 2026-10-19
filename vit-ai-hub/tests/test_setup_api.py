@@ -8,6 +8,16 @@ def test_setup_status_shape():
     assert "gateway_token" not in s
 
 
+def test_open_guide_known_targets():
+    from vit_ai_hub.setup_api import GUIDE_TARGETS, open_guide
+
+    assert "openrouter_keys" in GUIDE_TARGETS
+    assert "bridge_docs" in GUIDE_TARGETS
+    # non-darwin returns structured error, not crash
+    out = open_guide("openrouter_keys")
+    assert "ok" in out
+
+
 def test_setup_status_can_include_token(tmp_path, monkeypatch):
     import vit_ai_hub.setup_api as setup
 

@@ -330,6 +330,7 @@ def capabilities_manifest() -> dict[str, Any]:
             "claude_chatgpt_bridge",
             "cursor",
             "openrouter",
+            "deepseek",
             "omniroute",
             "grok",
         ],

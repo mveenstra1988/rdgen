@@ -129,7 +129,15 @@ async def api_setup_bootstrap(request: Request) -> dict[str, Any]:
         body = {}
     secrets = {str(k): str(v) for k, v in body.get("secrets", {}).items()} if isinstance(body.get("secrets"), dict) else {}
     # also accept flat keys
-    for k in ("OPENROUTER_API_KEY", "XAI_API_KEY", "BRIDGE_API_KEY", "VIT_LOCAL_LIGHT_MODEL"):
+    for k in (
+        "OPENROUTER_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "XAI_API_KEY",
+        "BRIDGE_API_KEY",
+        "OMNIROUTE_API_KEY",
+        "VIT_LOCAL_LIGHT_MODEL",
+        "VIT_LOCAL_HEAVY_MODEL",
+    ):
         if body.get(k):
             secrets[k] = str(body[k])
     if secrets:
@@ -142,6 +150,30 @@ async def api_setup_a11y() -> dict[str, Any]:
     from vit_ai_hub.setup_api import open_accessibility_settings
 
     return open_accessibility_settings()
+
+
+@app.post("/api/setup/open-guide")
+async def api_setup_open_guide(request: Request) -> dict[str, Any]:
+    from vit_ai_hub.setup_api import open_guide
+
+    _localhost_only(request)
+    body: dict[str, Any] = {}
+    try:
+        raw = await request.json()
+        if isinstance(raw, dict):
+            body = raw
+    except Exception:
+        body = {}
+    target = str(body.get("target") or request.query_params.get("target") or "")
+    return open_guide(target)
+
+
+@app.get("/api/setup/probe")
+async def api_setup_probe(request: Request) -> dict[str, Any]:
+    from vit_ai_hub.setup_api import probe_providers
+
+    _localhost_only(request)
+    return probe_providers()
 
 
 @app.get("/api/capabilities")

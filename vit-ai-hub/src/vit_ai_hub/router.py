@@ -49,11 +49,21 @@ class ModelRouter:
                         "google/",
                         "meta-llama/",
                         "x-ai/",
+                        "deepseek/",
+                        "qwen/",
+                        "mistralai/",
                     )
                 ):
                     return self.backends.get("openrouter")
         if lower.startswith("omniroute:"):
             return self.backends.get("omniroute")
+        if lower.startswith("deepseek"):
+            ds = self.backends.get("deepseek")
+            if ds and ds.api_key:
+                return ds
+            if self.backends.get("openrouter") and self.backends["openrouter"].api_key:
+                return self.backends.get("openrouter")
+            return ds
         if lower.startswith("grok") or lower.startswith("xai/") or lower.startswith("x-ai/"):
             if self.backends.get("grok") and self.backends["grok"].api_key:
                 return self.backends.get("grok")
@@ -129,7 +139,20 @@ class ModelRouter:
                 cloud = self._pick_cloud_for_model(upstream)
                 if cloud and any(
                     upstream.lower().startswith(h)
-                    for h in ["claude", "gpt-", "o1", "o3", "o4", "stealth/", "z-ai/"]
+                    for h in [
+                        "claude",
+                        "gpt-",
+                        "o1",
+                        "o3",
+                        "o4",
+                        "stealth/",
+                        "z-ai/",
+                        "deepseek",
+                        "meta-llama/",
+                        "qwen/",
+                        "mistralai/",
+                        "google/",
+                    ]
                 ):
                     chosen = cloud
             else:
@@ -137,6 +160,12 @@ class ModelRouter:
 
         if chosen is None:
             raise RuntimeError(f"Geen backend voor model {requested}")
+
+        # Native DeepSeek API expects bare ids (deepseek-chat), not openrouter slugs
+        if chosen.name == "deepseek" and "/" in upstream:
+            upstream = upstream.rsplit("/", 1)[-1]
+            if upstream.endswith(":free"):
+                upstream = upstream[: -len(":free")]
 
         return RouteDecision(backend=chosen, model=upstream, local=chosen.local)
 

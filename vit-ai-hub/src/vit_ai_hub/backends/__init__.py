@@ -53,5 +53,9 @@ def pinned_openrouter_models() -> list[dict[str, Any]]:
     return pinned_models_for("openrouter", "OpenRouter")
 
 
+def pinned_deepseek_models() -> list[dict[str, Any]]:
+    return pinned_models_for("deepseek", "DeepSeek")
+
+
 def pinned_grok_models() -> list[dict[str, Any]]:
     return pinned_models_for("grok", "Grok (xAI)")
