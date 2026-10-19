@@ -64,7 +64,8 @@ In de GUI:
 | Claude Code (`~/.claude`) | Ja (JSONL + memory) |
 | Claude Cowork / local-agent | Ja (waar aanwezig) |
 | Claude.ai webchats in Desktop-app | Meestal **niet** (server-side) → export |
-| ChatGPT Mac-app `conversations-v3/*.data` | Lokaal maar **encrypted** → export of cache-fragmenten |
+| ChatGPT Mac-app (open op scherm) | **Ja via Accessibility** (knop “Lees ChatGPT”) + Keychain-decrypt best-effort |
+| ChatGPT `*.data` at rest | Encrypted; volledige offline dump nog steeds via officiële export |
 
 Dus: zelfde Mac, ja. Maar ChatGPT encrypt zijn app-history; daarvoor is de officiële export de betrouwbare volledige dump. De hub automatiseert dat pad zoveel mogelijk.
 

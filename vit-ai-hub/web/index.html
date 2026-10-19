@@ -48,9 +48,10 @@
         <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
         <p class="muted tiny" id="local-detect">Mac-apps: …</p>
         <button type="button" id="import-all" class="primary">Importeer alles van deze Mac</button>
+        <button type="button" id="chatgpt-live" class="primary">Lees ChatGPT (app open)</button>
         <button type="button" id="request-exports" class="ghost">Start export vanuit apps</button>
         <button type="button" id="wait-exports" class="ghost">Wacht op zips & importeer</button>
-        <p class="muted tiny">Leest Cursor + Claude Code/Cowork + ChatGPT-cache. ChatGPT-appchats zijn encrypted; daarvoor opent “Start export” de officiële export (1 bevestiging), daarna auto-import.</p>
+        <p class="muted tiny">“Lees ChatGPT” gebruikt Accessibility (wat jij op het scherm ziet) + Keychain-decrypt indien macOS de sleutel deelt. Geef VIT/Terminal Toegankelijkheid-rechten. Export-zips blijven backup voor 100% history.</p>
         <label class="field">
           <span>Of upload export (zip/json)</span>
           <input id="import-file" type="file" accept=".zip,.json,application/zip,application/json" />

@@ -24,6 +24,7 @@ const els = {
   localDetect: document.getElementById("local-detect"),
   requestExports: document.getElementById("request-exports"),
   waitExports: document.getElementById("wait-exports"),
+  chatgptLive: document.getElementById("chatgpt-live"),
 };
 
 function headers() {
@@ -207,6 +208,31 @@ els.importAll?.addEventListener("click", async () => {
   } finally {
     els.importAll.disabled = false;
     els.importAll.textContent = "Importeer alles van deze Mac";
+  }
+});
+
+els.chatgptLive?.addEventListener("click", async () => {
+  els.chatgptLive.disabled = true;
+  els.chatgptLive.textContent = "ChatGPT lezen…";
+  addBubble("system", "ChatGPT openen/lezen via Accessibility. Sta Toegankelijkheid toe als macOS dat vraagt.");
+  try {
+    const res = await fetch("/api/import/chatgpt-live", { method: "POST", headers: headers() });
+    const data = await res.json();
+    const ax = data.accessibility || {};
+    const kc = data.keychain || {};
+    addBubble(
+      "system",
+      `ChatGPT live: AX ${ax.ok ? "ok" : "nee"} (${ax.conversations?.written || 0} chats)` +
+        ` · Keychain ${kc.ok ? "ok" : "nee"} (${kc.decrypted_files || 0} files)` +
+        (ax.error || kc.error ? `\n${ax.error || kc.error}` : "") +
+        (ax.hint ? `\n${ax.hint}` : "")
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `ChatGPT live mislukt: ${err}`);
+  } finally {
+    els.chatgptLive.disabled = false;
+    els.chatgptLive.textContent = "Lees ChatGPT (app open)";
   }
 });
 

@@ -351,6 +351,14 @@ async def import_wait_exports(
     return wait_and_import_exports(timeout_sec=timeout_sec, poll_sec=3)
 
 
+@app.post("/api/import/chatgpt-live")
+async def import_chatgpt_live(_: None = Depends(_auth)) -> dict[str, Any]:
+    """Lees ChatGPT zoals jij hem ziet (Accessibility + optionele Keychain-decrypt)."""
+    from vit_ai_hub.importing.chatgpt_live import harvest_chatgpt_readable
+
+    return harvest_chatgpt_readable()
+
+
 @app.post("/api/import/upload")
 async def import_upload(
     file: UploadFile = File(...),

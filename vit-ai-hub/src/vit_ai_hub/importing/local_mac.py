@@ -437,9 +437,17 @@ def wait_and_import_exports(*, timeout_sec: int = 600, poll_sec: int = 5) -> dic
 
 def harvest_all_local() -> dict[str, Any]:
     detection = detect_local_apps()
-    return {
+    out: dict[str, Any] = {
         "detection": detection,
         "claude_code": harvest_claude_code(),
         "claude_desktop": harvest_claude_desktop(),
         "chatgpt_local": harvest_chatgpt_cache(),
     }
+    # Als ChatGPT op deze Mac staat: lees wat de app toont / keychain kan geven
+    try:
+        from vit_ai_hub.importing.chatgpt_live import harvest_chatgpt_readable
+
+        out["chatgpt_readable"] = harvest_chatgpt_readable()
+    except Exception as exc:
+        out["chatgpt_readable"] = {"ok": False, "error": str(exc)}
+    return out
