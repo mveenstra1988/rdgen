@@ -14,6 +14,7 @@ const els = {
   form: document.getElementById("composer"),
   token: document.getElementById("token"),
   tools: document.getElementById("tools-toggle"),
+  autoTeam: document.getElementById("auto-team-toggle"),
   health: document.getElementById("health"),
   routeInfo: document.getElementById("route-info"),
   refresh: document.getElementById("refresh-models"),
@@ -119,7 +120,7 @@ function updateMeta() {
     `scope: ${m.local ? "lokaal" : m.virtual ? "virtueel" : "cloud"}`,
   ].join("\n");
   els.routeInfo.textContent = m.virtual
-    ? "Auto/virtueel model: gateway kiest backend (PII kan forceren naar lokaal)."
+    ? "vit/auto: intent → beste model (lokaal/Claude/DeepSeek/…) + auto-team bij complexe taken."
     : `Direct: ${m.label || m.backend} · ${m.local ? "blijft op deze Mac" : "via privacyfilter"}`;
 }
 
@@ -130,13 +131,15 @@ function addBubble(role, text, meta = null) {
     const tag = document.createElement("div");
     tag.className = `tag ${meta.local ? "local" : "cloud"}`;
     if (meta.pii_forced_local) tag.classList.add("warn");
-    tag.textContent = [
-      meta.backend,
+    const orch = meta.orchestrator;
+    const bits = [
+      meta.auto_team ? "auto-team" : meta.backend,
       meta.model,
+      orch?.intent?.kind ? `intent:${orch.intent.kind}` : null,
+      orch?.model_reason || null,
       meta.pii_forced_local ? "PII→lokaal" : meta.pii_action,
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    ];
+    tag.textContent = bits.filter(Boolean).join(" · ");
     div.appendChild(tag);
   }
   const body = document.createElement("div");
@@ -263,6 +266,7 @@ els.form.addEventListener("submit", async (ev) => {
         model: selectedModel(),
         messages: state.messages,
         vit_enable_tools: els.tools.checked,
+        vit_auto_team: els.autoTeam ? els.autoTeam.checked : true,
         stream: false,
         studio: els.studioSelect?.value || "chat",
         workspace: els.workspace?.value.trim() || null,
@@ -277,6 +281,9 @@ els.form.addEventListener("submit", async (ev) => {
     const content = data.choices?.[0]?.message?.content || "(leeg antwoord)";
     state.messages.push({ role: "assistant", content });
     addBubble("assistant", content, data.vit || null);
+    if (data.vit?.orchestrator?.summary && els.routeInfo) {
+      els.routeInfo.textContent = data.vit.orchestrator.summary;
+    }
   } catch (err) {
     addBubble("system", String(err));
   } finally {

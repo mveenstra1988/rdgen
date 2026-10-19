@@ -53,6 +53,8 @@ class ChatCompletionRequest(BaseModel):
     vit_enable_tools: bool = False
     studio: str | None = None
     workspace: str | None = None
+    vit_auto_team: bool | None = None  # None = config default; False = nooit auto-team
+    vit_skip_orchestrator: bool = False  # True = geen intent/team (interne team-stappen)
 
 
 def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
@@ -181,6 +183,24 @@ async def capabilities(_: None = Depends(_auth)) -> dict[str, Any]:
     return capabilities_manifest()
 
 
+@app.post("/api/orchestrator/plan")
+async def api_orchestrator_plan(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    """Preview: welk model/team Auto zou kiezen (geen LLM-call)."""
+    from vit_ai_hub.orchestrator import plan_request
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    plan = plan_request(
+        str(body.get("text") or body.get("task") or ""),
+        studio=str(body.get("studio") or "") or None,
+        workspace=str(body.get("workspace") or "") or None,
+        force_local=bool(body.get("force_local")),
+        allow_team=body.get("allow_team"),
+    )
+    return {"ok": True, "plan": plan.to_dict()}
+
+
 @app.get("/api/studios")
 async def api_studios() -> dict[str, Any]:
     from vit_ai_hub.studio import list_studios
@@ -255,6 +275,8 @@ async def api_run_team(team_id: str, request: Request, _: None = Depends(_auth))
             studio=studio,
             workspace=workspace,
             stream=False,
+            vit_skip_orchestrator=True,
+            vit_auto_team=False,
         )
         result = await _handle_chat(fake)
         if isinstance(result, JSONResponse):
@@ -268,6 +290,7 @@ async def api_run_team(team_id: str, request: Request, _: None = Depends(_auth))
         task=task,
         workspace=workspace,
         model_override=model_override,
+        smart_models=not bool(model_override),
         chat_fn=chat_fn,
     )
 
@@ -356,16 +379,36 @@ async def _handle_chat(body: ChatCompletionRequest):
     settings = get_settings()
     requested_model = body.model or settings.vit_default_model
 
-    # First pass: assume possibly cloud; if PII blocks, force local
-    provisional = router_engine.resolve(requested_model, force_local=False)
     messages = [m.model_dump() for m in body.messages]
-    # Inject imported knowledge/memory so ChatGPT/Claude/Cursor context meekomt
     last_user = ""
     for m in reversed(messages):
         if m.get("role") == "user":
             content = m.get("content")
             last_user = content if isinstance(content, str) else str(content)
             break
+
+    auto_plan = None
+    is_auto = (requested_model or "").strip().lower() in {"vit/auto", "auto", "vit/smart", ""}
+    if is_auto and not body.vit_skip_orchestrator:
+        try:
+            _, auto_plan = router_engine.resolve_smart(
+                text=last_user,
+                studio=body.studio,
+                workspace=body.workspace,
+                force_local=False,
+                allow_team=body.vit_auto_team,
+            )
+            # Auto multi-agent: complexe taken → team met per-rol model
+            if auto_plan.use_team and auto_plan.team_id and not body.stream:
+                return await _handle_auto_team(body, last_user, auto_plan)
+            requested_model = auto_plan.model
+            if auto_plan.studio and not body.studio:
+                body.studio = auto_plan.studio
+        except Exception:
+            auto_plan = None
+
+    # First pass: assume possibly cloud; if PII blocks, force local
+    provisional = router_engine.resolve(requested_model, force_local=False)
     knowledge = knowledge_context_block(last_user, limit=8)
     prefix: list[dict[str, Any]] = []
     from vit_ai_hub.studio import studio_system_prompt
@@ -373,6 +416,17 @@ async def _handle_chat(body: ChatCompletionRequest):
     studio_prompt = studio_system_prompt(body.studio)
     if studio_prompt:
         prefix.append({"role": "system", "content": studio_prompt})
+    if auto_plan and not body.vit_skip_orchestrator:
+        prefix.append(
+            {
+                "role": "system",
+                "content": (
+                    "VIT Auto-orchestrator actief. "
+                    f"Plan: {auto_plan.summary}. "
+                    "Gebruik tools waar dat sneller/accurater is. Geen klant-PII naar cloud."
+                ),
+            }
+        )
     try:
         from vit_ai_hub.importing.full_migrate import runtime_system_addons
 
@@ -414,7 +468,16 @@ async def _handle_chat(body: ChatCompletionRequest):
     if pii_result.blocked:
         # fail-closed: reroute to local instead of hard error when local exists
         try:
-            decision = router_engine.resolve(requested_model, force_local=True)
+            if is_auto and not body.vit_skip_orchestrator:
+                decision, auto_plan = router_engine.resolve_smart(
+                    text=last_user,
+                    studio=body.studio,
+                    workspace=body.workspace,
+                    force_local=True,
+                    allow_team=False,
+                )
+            else:
+                decision = router_engine.resolve(requested_model, force_local=True)
             force_local = True
             safe_messages, pii_result = pii.process_messages(messages, destination_local=True)
         except RuntimeError as exc:
@@ -466,13 +529,99 @@ async def _handle_chat(body: ChatCompletionRequest):
     data["vit"] = {
         "backend": decision.backend.name,
         "model": decision.model,
-        "requested_model": requested_model,
+        "requested_model": body.model or settings.vit_default_model,
         "local": decision.local,
         "pii_action": pii_result.action,
         "pii_forced_local": force_local,
         "pii_finding_types": sorted({f.name for f in pii_result.findings}),
         "studio": body.studio,
         "workspace": body.workspace,
+        "orchestrator": auto_plan.to_dict() if auto_plan else None,
+    }
+    return JSONResponse(data)
+
+
+async def _handle_auto_team(body: ChatCompletionRequest, task: str, auto_plan) -> JSONResponse:
+    """Voer orchestrator-team uit en verpak als chat-completion."""
+    from vit_ai_hub.agents import run_team
+
+    async def chat_fn(*, messages, model, studio, workspace, tools):
+        fake = ChatCompletionRequest(
+            model=model,
+            messages=[ChatMessage(**m) for m in messages],
+            vit_enable_tools=bool(tools),
+            studio=studio,
+            workspace=workspace,
+            stream=False,
+            vit_skip_orchestrator=True,
+            vit_auto_team=False,
+        )
+        result = await _handle_chat(fake)
+        if isinstance(result, JSONResponse):
+            return json.loads(result.body.decode())
+        if isinstance(result, dict):
+            return result
+        raise RuntimeError("onverwacht chat-antwoord")
+
+    team_result = await run_team(
+        auto_plan.team_id,
+        task=task,
+        workspace=body.workspace,
+        role_models=auto_plan.role_models or None,
+        smart_models=True,
+        chat_fn=chat_fn,
+    )
+    final = team_result.get("final") or ""
+    if not final and team_result.get("steps"):
+        parts = [
+            f"### {s.get('agent_name') or s.get('label')}\n{s.get('content')}"
+            for s in team_result["steps"]
+            if s.get("ok") and s.get("content")
+        ]
+        final = "\n\n".join(parts)
+    header = (
+        f"_VIT Auto · team `{auto_plan.team_id}` · {auto_plan.summary}_\n\n"
+        if auto_plan.summary
+        else ""
+    )
+    content = header + (final or "(geen team-output)")
+    data = {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
+        "object": "chat.completion",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "model": "vit/auto",
+        "vit": {
+            "backend": "orchestrator",
+            "model": "vit/auto",
+            "requested_model": body.model or "vit/auto",
+            "local": False,
+            "studio": auto_plan.studio or body.studio,
+            "workspace": body.workspace,
+            "auto_team": True,
+            "team": {
+                "id": team_result.get("team_id"),
+                "name": team_result.get("team_name"),
+                "steps": [
+                    {
+                        "agent": s.get("agent_name"),
+                        "role": s.get("role"),
+                        "model": s.get("model"),
+                        "model_reason": s.get("model_reason"),
+                        "ok": s.get("ok"),
+                        "error": s.get("error"),
+                    }
+                    for s in (team_result.get("steps") or [])
+                ],
+                "elapsed_sec": team_result.get("elapsed_sec"),
+            },
+            "orchestrator": auto_plan.to_dict(),
+        },
     }
     return JSONResponse(data)
 

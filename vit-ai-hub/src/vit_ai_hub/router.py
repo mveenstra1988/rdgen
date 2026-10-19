@@ -91,13 +91,13 @@ class ModelRouter:
         requested = (model or settings.vit_default_model or "vit/auto").strip()
         local = self._first_local()
 
-        if requested in {"vit/auto", "auto"}:
+        if requested in {"vit/auto", "auto", "vit/smart"}:
+            # Zonder prompt-context: lokaal-first. Met orchestrator wordt dit in main overschreven.
             if force_local:
                 if not local:
                     raise RuntimeError("Geen lokale backend beschikbaar voor fail-closed route")
                 target = settings.vit_local_light_model or "local-model"
                 return RouteDecision(backend=local, model=target, local=True, virtual="vit/auto")
-            # default: local light if configured/available, else bridge/openrouter
             if local:
                 target = settings.vit_local_light_model or "local-model"
                 return RouteDecision(backend=local, model=target, local=True, virtual="vit/auto")
@@ -168,6 +168,29 @@ class ModelRouter:
                 upstream = upstream[: -len(":free")]
 
         return RouteDecision(backend=chosen, model=upstream, local=chosen.local)
+
+    def resolve_smart(
+        self,
+        *,
+        text: str,
+        studio: str | None = None,
+        workspace: str | None = None,
+        force_local: bool = False,
+        allow_team: bool | None = None,
+    ) -> tuple[RouteDecision, Any]:
+        """Intent-aware resolve; geeft (decision, AutoPlan) terug."""
+        from vit_ai_hub.orchestrator import plan_request
+
+        plan = plan_request(
+            text,
+            studio=studio,
+            workspace=workspace,
+            force_local=force_local,
+            allow_team=allow_team,
+        )
+        decision = self.resolve(plan.model, force_local=force_local)
+        decision.virtual = "vit/auto"
+        return decision, plan
 
 
 def extract_text_from_response(data: dict[str, Any]) -> str:

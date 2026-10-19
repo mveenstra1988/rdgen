@@ -115,11 +115,20 @@ backends:
 
 virtual_models:
   - id: vit/auto
-    name: Auto (lokaal-first + cloud indien veilig)
+    name: Auto smart (intent → beste model + team indien nodig)
+  - id: vit/smart
+    name: Smart (zelfde als Auto)
   - id: vit/local-light
     name: Lokaal light
   - id: vit/local-heavy
     name: Lokaal heavy (on-demand)
+
+orchestrator:
+  enabled: true
+  auto_team: true
+  prefer_local_for: [ops, simple, privacy]
+  # Optionele vaste model-ids per intent (leeg = dynamisch kiezen)
+  models: {}
 
 tools:
   web_search: true

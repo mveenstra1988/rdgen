@@ -16,10 +16,14 @@ async def run_team(
     task: str,
     workspace: str | None = None,
     model_override: str | None = None,
+    role_models: dict[str, str] | None = None,
+    smart_models: bool = True,
     chat_fn,
 ) -> dict[str, Any]:
     """
     chat_fn: async (messages, model, studio, workspace, tools) -> dict with content + vit meta
+    role_models: optionele map agent_id → model (van orchestrator)
+    smart_models: bij vit/auto per agent het beste model kiezen
     """
     team = get_team(team_id)
     if not team:
@@ -37,6 +41,34 @@ async def run_team(
     steps: list[dict[str, Any]] = []
     context_bits: list[str] = [f"# Opdracht\n{task}"]
     mode = (team.get("mode") or "pipeline").lower()
+    role_models = role_models or {}
+
+    intent = None
+    if smart_models and not model_override:
+        try:
+            from vit_ai_hub.orchestrator import classify_intent
+
+            intent = classify_intent(
+                task, studio=team.get("studio"), workspace=workspace
+            )
+        except Exception:
+            intent = None
+
+    def _model_for(agent: dict[str, Any]) -> tuple[str, str | None]:
+        aid = agent.get("id") or ""
+        if model_override:
+            return model_override, "override"
+        if aid in role_models:
+            return role_models[aid], "orchestrator.role"
+        raw = str(agent.get("model") or "vit/auto").strip()
+        if smart_models and intent and raw in {"vit/auto", "auto", "vit/smart", ""}:
+            from vit_ai_hub.orchestrator import pick_model_for_intent
+
+            pick = pick_model_for_intent(
+                intent, role=str(agent.get("role") or agent.get("name") or "")
+            )
+            return pick.model, pick.reason
+        return raw or "vit/auto", None
 
     async def _run_one(agent_id: str, brief: str, step_label: str) -> dict[str, Any]:
         agent = get_agent(agent_id)
@@ -68,7 +100,7 @@ async def run_team(
             {"role": "system", "content": "\n\n".join(p for p in system_parts if p)},
             {"role": "user", "content": brief},
         ]
-        model = model_override or agent.get("model") or "vit/auto"
+        model, model_reason = _model_for(agent)
         try:
             result = await chat_fn(
                 messages=messages,
@@ -85,6 +117,7 @@ async def run_team(
                 "color": agent.get("color"),
                 "label": step_label,
                 "model": model,
+                "model_reason": model_reason,
                 "error": str(exc),
             }
         content = ""
@@ -100,6 +133,7 @@ async def run_team(
             "color": agent.get("color"),
             "label": step_label,
             "model": model,
+            "model_reason": model_reason,
             "studio": studio,
             "content": content,
             "vit": result.get("vit"),

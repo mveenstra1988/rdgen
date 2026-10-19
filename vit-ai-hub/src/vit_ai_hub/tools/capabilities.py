@@ -378,9 +378,12 @@ def capabilities_manifest() -> dict[str, Any]:
             "automation_hub",
             "vit_backup",
         ],
+        "orchestrator": True,
+        "vit_auto": "intent → beste model (lokaal/bridge/OpenRouter/DeepSeek) + auto multi-agent team",
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [
+            "vit/auto: slimmer dan Cursor Auto — intent, lokale modellen, per-rol model + auto-teams.",
             "Visuele agent-teams (webdesign, apps, infra) — zelf bouwen en runnen.",
             "Studio-modi: software/webdesign/apps/design/ops vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
             "Workspace read/write/run in allowlisted projectmappen.",

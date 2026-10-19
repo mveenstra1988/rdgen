@@ -1,6 +1,7 @@
-# Roadmap status (1.1)
+# Roadmap status (1.2)
 
 ## Ingebouwd
+- [x] vit/auto orchestrator: intent → beste model + auto-team + per-rol models (incl. lokaal)
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
 - [x] Claude live AX + ChatGPT live AX
 - [x] FTS5 knowledge index (`/api/knowledge/reindex`)
