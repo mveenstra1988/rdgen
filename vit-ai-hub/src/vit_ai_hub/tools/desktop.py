@@ -27,6 +27,11 @@ KNOWN_APPS = {
     "slack": ["Slack"],
     "zoom": ["zoom.us", "Zoom"],
     "lm studio": ["LM Studio"],
+    "penpot": ["Penpot", "penpot-desktop"],
+    "figma": ["Figma"],
+    "vscode": ["Visual Studio Code", "Code"],
+    "code": ["Visual Studio Code", "Code"],
+    "zed": ["Zed"],
 }
 
 
@@ -187,6 +192,39 @@ def spotlight_search(query: str) -> dict[str, Any]:
     return {"ok": r.returncode == 0, "query": query, "paths": paths}
 
 
+def open_penpot(*, local: bool = True) -> dict[str, Any]:
+    """Open Penpot (lokale Docker UI of Penpot cloud) — Figma-alternatief."""
+    urls = []
+    if local:
+        urls.append("http://127.0.0.1:9001")
+    urls.append("https://design.penpot.app")
+    # probe local first
+    if local and _darwin():
+        try:
+            import urllib.request
+
+            urllib.request.urlopen("http://127.0.0.1:9001", timeout=1.5)
+            r = subprocess.run(["open", "http://127.0.0.1:9001"], capture_output=True, text=True)
+            return {
+                "ok": r.returncode == 0,
+                "url": "http://127.0.0.1:9001",
+                "mode": "local",
+                "hint": "Lokaal Penpot. Start met: bash scripts/install-penpot-mac.sh",
+            }
+        except Exception:
+            pass
+    url = urls[-1]
+    if not _darwin():
+        return {"ok": False, "error": "Alleen macOS open", "url": url, "hint": "Start Penpot via scripts/install-penpot-mac.sh"}
+    r = subprocess.run(["open", url], capture_output=True, text=True)
+    return {
+        "ok": r.returncode == 0,
+        "url": url,
+        "mode": "cloud",
+        "hint": "Cloud Penpot geopend. Voor 100% lokaal: bash scripts/install-penpot-mac.sh (Docker).",
+    }
+
+
 def run_shell_safe(command: str) -> dict[str, Any]:
     """Zeer beperkt: alleen allowlist van veilige lokale commands."""
     allowed_prefixes = (
@@ -328,6 +366,17 @@ def desktop_tool_specs() -> list[dict[str, Any]]:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "open_penpot",
+                "description": "Open Penpot (Figma-alternatief): lokaal :9001 of design.penpot.app.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"local": {"type": "boolean"}},
+                },
+            },
+        },
     ]
 
 
@@ -346,6 +395,7 @@ async def run_desktop_tool(name: str, arguments: dict[str, Any]) -> str:
         "spotlight_search": lambda: spotlight_search(str(arguments.get("query", ""))),
         "list_running_apps": lambda: list_running_apps(),
         "run_shell_safe": lambda: run_shell_safe(str(arguments.get("command", ""))),
+        "open_penpot": lambda: open_penpot(local=bool(arguments.get("local", True))),
     }
     fn = dispatch.get(name)
     if not fn:

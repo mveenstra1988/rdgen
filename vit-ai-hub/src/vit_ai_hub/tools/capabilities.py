@@ -12,7 +12,7 @@ import httpx
 from vit_ai_hub.config import ROOT, load_yaml_config
 from vit_ai_hub.pii import get_pii_engine
 
-MEMORY_PATH = ROOT / "data" / "memory.jsonl"
+MEMORY_PATH = Path(ROOT) / "data" / "memory.jsonl"
 MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -99,12 +99,67 @@ def tool_specs() -> list[dict[str, Any]]:
             {
                 "type": "function",
                 "function": {
-                    "name": "read_workspace_file",
-                    "description": "Lees een tekstbestand onder de vit-ai-hub werkmap (geen paden buiten project).",
+                    "name": "list_workspace",
+                    "description": "Lijst bestanden in een allowlisted projectmap (Projects/Developer/hub).",
                     "parameters": {
                         "type": "object",
-                        "properties": {"path": {"type": "string"}},
+                        "properties": {
+                            "path": {"type": "string"},
+                            "workspace": {"type": "string", "description": "Absolute projectroot"},
+                        },
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_workspace_file",
+                    "description": "Lees een tekstbestand in een allowlisted workspace (hub of ~/Projects etc.).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "workspace": {"type": "string"},
+                        },
                         "required": ["path"],
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "write_workspace_file",
+                    "description": "Schrijf/update een tekstbestand in de allowlisted workspace (geen .env/secrets).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "content": {"type": "string"},
+                            "workspace": {"type": "string"},
+                        },
+                        "required": ["path", "content"],
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_in_workspace",
+                    "description": "Run allowlisted commando in workspace (pytest, npm, git status/diff, …).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "command": {"type": "string"},
+                            "workspace": {"type": "string"},
+                            "timeout_sec": {"type": "integer"},
+                        },
+                        "required": ["command"],
                     },
                 },
             }
@@ -165,15 +220,49 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
 
         query = str(arguments.get("query", "")).strip()
         return json.dumps({"hits": search_knowledge(query, limit=20)}, ensure_ascii=False)
+    if name == "list_workspace":
+        from vit_ai_hub.workspace import list_workspace_dir
+
+        return json.dumps(
+            list_workspace_dir(
+                str(arguments.get("path") or "."),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+            ),
+            ensure_ascii=False,
+        )
     if name == "read_workspace_file":
-        rel = str(arguments.get("path", "")).strip().lstrip("/")
-        path = (ROOT / rel).resolve()
-        if not str(path).startswith(str(ROOT.resolve())):
-            return json.dumps({"error": "Pad buiten project geweigerd."})
-        if not path.is_file():
-            return json.dumps({"error": "Bestand niet gevonden."})
-        text = path.read_text(encoding="utf-8", errors="replace")[:80_000]
-        return json.dumps({"path": rel, "content": text}, ensure_ascii=False)
+        from vit_ai_hub.workspace import read_workspace_file
+
+        return json.dumps(
+            read_workspace_file(
+                str(arguments.get("path", "")).strip(),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "write_workspace_file":
+        from vit_ai_hub.workspace import write_workspace_file
+
+        content = str(arguments.get("content", ""))
+        return json.dumps(
+            write_workspace_file(
+                str(arguments.get("path", "")).strip(),
+                content,
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "run_in_workspace":
+        from vit_ai_hub.workspace import run_in_workspace
+
+        return json.dumps(
+            run_in_workspace(
+                str(arguments.get("command", "")),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                timeout_sec=int(arguments.get("timeout_sec") or 60),
+            ),
+            ensure_ascii=False,
+        )
     desktop_names = {
         "open_app",
         "open_url",
@@ -184,6 +273,7 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         "spotlight_search",
         "list_running_apps",
         "run_shell_safe",
+        "open_penpot",
     }
     if name in desktop_names:
         from vit_ai_hub.tools.desktop import run_desktop_tool
@@ -255,10 +345,14 @@ def capabilities_manifest() -> dict[str, Any]:
             "claude_live_ax",
             "live_sync",
         ],
+        "studios": ["chat", "software", "webdesign", "apps", "design"],
+        "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
+        "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [
-            "Claude/ChatGPT/Grok via abo/bridge/OpenRouter/xAI.",
-            "Desktop: Chrome, Mail, VIT Mail, apps, Spotlight.",
-            "Geïmporteerde chats/memory + FTS-index.",
-            "Live sync op de achtergrond.",
+            "Studio-modi: software/webdesign/apps/design vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
+            "Workspace read/write/run in allowlisted projectmappen.",
+            "Cursor-exit: Continue/VS Code of Zed op dezelfde gateway.",
+            "Figma-alt: Penpot lokaal of design-in-code (webdesign studio).",
+            "Desktop: Chrome, Mail, VIT Mail, Penpot, Spotlight.",
         ],
     }

@@ -1,4 +1,4 @@
-# Roadmap status (0.5)
+# Roadmap status (0.7)
 
 ## Ingebouwd
 - [x] Live sync (`/api/sync/*`, GUI knoppen)
@@ -10,6 +10,11 @@
 - [x] Desktop tools: Chrome, Mail, VIT Mail, apps, Spotlight, allowlist shell
 - [x] OpenRouter / OmniRoute / Ox Alpha
 - [x] PII fail-closed
+- [x] One-click Mac package + wizard (0.6+)
+- [x] Studio-modi: chat / software / webdesign / apps / design
+- [x] Workspace read/write/run (allowlist) — Cursor-achtig in de hub
+- [x] Continue.dev export (Cursor-exit pad)
+- [x] Penpot open + install-script (Figma-alt)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
@@ -17,3 +22,4 @@
 - [ ] VIT Mail deep IPC (niet alleen openen) als app dat expose’t
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
+- [ ] Inline diff-viewer in GUI (nog dichter bij Cursor)

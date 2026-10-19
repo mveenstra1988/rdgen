@@ -7,6 +7,8 @@ const els = {
   modelSelect: document.getElementById("model-select"),
   modelFilter: document.getElementById("model-filter"),
   modelMeta: document.getElementById("model-meta"),
+  studioSelect: document.getElementById("studio-select"),
+  workspace: document.getElementById("workspace"),
   messages: document.getElementById("messages"),
   prompt: document.getElementById("prompt"),
   form: document.getElementById("composer"),
@@ -16,6 +18,8 @@ const els = {
   routeInfo: document.getElementById("route-info"),
   refresh: document.getElementById("refresh-models"),
   newChat: document.getElementById("new-chat"),
+  exportContinue: document.getElementById("export-continue"),
+  openPenpot: document.getElementById("open-penpot"),
   importAll: document.getElementById("import-all"),
   importStatus: document.getElementById("import-status"),
   importFile: document.getElementById("import-file"),
@@ -29,6 +33,15 @@ const els = {
   syncStart: document.getElementById("sync-start"),
   syncOnce: document.getElementById("sync-once"),
 };
+
+try {
+  const savedStudio = localStorage.getItem("vit_studio");
+  if (savedStudio && els.studioSelect) els.studioSelect.value = savedStudio;
+  const savedWs = localStorage.getItem("vit_workspace");
+  if (savedWs && els.workspace) els.workspace.value = savedWs;
+} catch (_) {
+  /* ignore */
+}
 
 function headers() {
   const h = { "Content-Type": "application/json" };
@@ -153,7 +166,59 @@ els.refresh.addEventListener("click", () => loadModels().catch((e) => addBubble(
 els.newChat.addEventListener("click", () => {
   state.messages = [];
   els.messages.innerHTML = "";
-  addBubble("system", "Nieuwe chat. Privacyfilter blijft actief.");
+  const studio = els.studioSelect?.value || "chat";
+  addBubble(
+    "system",
+    `Nieuwe chat · studio=${studio}` +
+      (els.workspace?.value.trim() ? ` · ${els.workspace.value.trim()}` : "") +
+      ". Privacyfilter blijft actief."
+  );
+});
+
+els.studioSelect?.addEventListener("change", () => {
+  try {
+    localStorage.setItem("vit_studio", els.studioSelect.value);
+  } catch (_) {
+    /* ignore */
+  }
+  addBubble("system", `Studio: ${els.studioSelect.value}. Tools schrijven/lezen in je workspace.`);
+});
+
+els.workspace?.addEventListener("change", () => {
+  try {
+    localStorage.setItem("vit_workspace", els.workspace.value.trim());
+  } catch (_) {
+    /* ignore */
+  }
+});
+
+els.exportContinue?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/workspace/export-continue", { method: "POST", headers: headers() });
+    const data = await res.json();
+    addBubble(
+      "system",
+      data.ok
+        ? `Continue-config geschreven: ${data.path}\n${(data.next || []).join("\n")}`
+        : JSON.stringify(data)
+    );
+  } catch (err) {
+    addBubble("system", String(err));
+  }
+});
+
+els.openPenpot?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/tools/open_penpot", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ local: true }),
+    });
+    const data = await res.json();
+    addBubble("system", typeof data === "string" ? data : JSON.stringify(data, null, 2));
+  } catch (err) {
+    addBubble("system", String(err));
+  }
 });
 
 els.form.addEventListener("submit", async (ev) => {
@@ -174,6 +239,8 @@ els.form.addEventListener("submit", async (ev) => {
         messages: state.messages,
         vit_enable_tools: els.tools.checked,
         stream: false,
+        studio: els.studioSelect?.value || "chat",
+        workspace: els.workspace?.value.trim() || null,
       }),
     });
     const data = await res.json();

@@ -51,6 +51,8 @@ class ChatCompletionRequest(BaseModel):
     tools: list[dict[str, Any]] | None = None
     tool_choice: Any | None = None
     vit_enable_tools: bool = False
+    studio: str | None = None
+    workspace: str | None = None
 
 
 def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
@@ -147,6 +149,68 @@ async def capabilities(_: None = Depends(_auth)) -> dict[str, Any]:
     return capabilities_manifest()
 
 
+@app.get("/api/studios")
+async def api_studios() -> dict[str, Any]:
+    from vit_ai_hub.studio import list_studios
+
+    return {"studios": list_studios()}
+
+
+@app.get("/api/workspace/status")
+async def api_workspace_status(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.workspace import workspace_status
+
+    return workspace_status()
+
+
+@app.post("/api/workspace/export-continue")
+async def api_export_continue(request: Request) -> dict[str, Any]:
+    """Schrijf Continue.dev config die naar deze hub wijst (Cursor-exit)."""
+    _localhost_only(request)
+    from vit_ai_hub.config import get_settings
+
+    settings = get_settings()
+    dest = Path.home() / ".continue" / "config.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    cfg = {
+        "models": [
+            {
+                "title": "VIT AI Hub (auto)",
+                "provider": "openai",
+                "model": "vit/auto",
+                "apiBase": "http://127.0.0.1:8787/v1",
+                "apiKey": settings.vit_gateway_token or "vit-local",
+            },
+            {
+                "title": "VIT local light",
+                "provider": "openai",
+                "model": "vit/local-light",
+                "apiBase": "http://127.0.0.1:8787/v1",
+                "apiKey": settings.vit_gateway_token or "vit-local",
+            },
+        ],
+        "tabAutocompleteModel": {
+            "title": "VIT autocomplete",
+            "provider": "openai",
+            "model": "vit/local-light",
+            "apiBase": "http://127.0.0.1:8787/v1",
+            "apiKey": settings.vit_gateway_token or "vit-local",
+        },
+        "allowAnonymousTelemetry": False,
+    }
+    dest.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    return {
+        "ok": True,
+        "path": str(dest),
+        "next": [
+            "Installeer VS Code of Cursor-alternatief Zed",
+            "Installeer Continue-extensie",
+            "Herstart editor — model 'VIT AI Hub (auto)' kiezen",
+            "Cursor-abo kun je daarna opzeggen als dit bevalt",
+        ],
+    }
+
+
 @app.get("/v1/models")
 async def list_models(_: None = Depends(_auth)) -> dict[str, Any]:
     models = await collect_models()
@@ -187,8 +251,27 @@ async def _handle_chat(body: ChatCompletionRequest):
             last_user = content if isinstance(content, str) else str(content)
             break
     knowledge = knowledge_context_block(last_user, limit=8)
+    prefix: list[dict[str, Any]] = []
+    from vit_ai_hub.studio import studio_system_prompt
+
+    studio_prompt = studio_system_prompt(body.studio)
+    if studio_prompt:
+        prefix.append({"role": "system", "content": studio_prompt})
+    if body.workspace:
+        prefix.append(
+            {
+                "role": "system",
+                "content": (
+                    f"Actieve workspace: {body.workspace}. "
+                    "Gebruik list_workspace / read_workspace_file / write_workspace_file / run_in_workspace "
+                    "met workspace= dit pad."
+                ),
+            }
+        )
     if knowledge:
-        messages = [{"role": "system", "content": knowledge}, *messages]
+        prefix.append({"role": "system", "content": knowledge})
+    if prefix:
+        messages = [*prefix, *messages]
     safe_messages, pii_result = pii.process_messages(messages, destination_local=provisional.local)
 
     force_local = False
@@ -252,6 +335,8 @@ async def _handle_chat(body: ChatCompletionRequest):
         "pii_action": pii_result.action,
         "pii_forced_local": force_local,
         "pii_finding_types": sorted({f.name for f in pii_result.findings}),
+        "studio": body.studio,
+        "workspace": body.workspace,
     }
     return JSONResponse(data)
 

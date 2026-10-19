@@ -77,17 +77,38 @@
       </div>
 
       <label class="field">
+        <span>Studio</span>
+        <select id="studio-select">
+          <option value="chat">Chat</option>
+          <option value="software">Software (Cursor-achtig)</option>
+          <option value="webdesign">Webdesign</option>
+          <option value="apps">Apps</option>
+          <option value="design">Design (Penpot / Figma-alt)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Workspace (projectmap)</span>
+        <input id="workspace" type="text" placeholder="~/Projects/mijn-app" autocomplete="off" />
+      </label>
+
+      <label class="field">
         <span>Model</span>
         <input id="model-filter" type="search" placeholder="Zoek model…" />
-        <select id="model-select" size="16"></select>
+        <select id="model-select" size="12"></select>
       </label>
 
       <div class="meta" id="model-meta"></div>
 
       <label class="field checkbox">
         <input type="checkbox" id="tools-toggle" checked />
-        <span>Tools (web, memory, files)</span>
+        <span>Tools (web, files, desktop)</span>
       </label>
+
+      <div class="side-actions">
+        <button type="button" id="export-continue" class="ghost">Continue→hub (Cursor uit)</button>
+        <button type="button" id="open-penpot" class="ghost">Penpot</button>
+      </div>
 
       <label class="field">
         <span>Gateway token (optioneel)</span>

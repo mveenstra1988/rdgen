@@ -17,11 +17,20 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-0.6.1-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-0.7.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → knop **Alles nu regelen**
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
+
+## Claude / ChatGPT / Cursor eruit?
+
+Zie `docs/EXIT.md`. Kort:
+- **Chat:** studio Chat + lokaal/OpenRouter
+- **Code:** studio Software + workspace, of VS Code/Zed + Continue → hub
+- **Design:** studio Webdesign (design-in-code) of Penpot (`scripts/install-penpot-mac.sh`)
+
+Details: `docs/STUDIO.md`
 
 Zie ook `MORGEN.md`.
 
