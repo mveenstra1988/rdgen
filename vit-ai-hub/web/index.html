@@ -10,6 +10,60 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <div id="wizard" class="wizard hidden" aria-modal="true" role="dialog">
+    <div class="wizard-card">
+      <div class="wizard-top">
+        <div class="brand-mark">VIT</div>
+        <div>
+          <h2>AI Hub setup</h2>
+          <p class="muted">Alles in één keer. <span id="wiz-progress">1 / 4</span></p>
+        </div>
+      </div>
+
+      <section data-step class="wiz-step active">
+        <h3>Welkom</h3>
+        <p>Deze wizard zet secrets, import en live sync klaar. Daarna werk je in één GUI met alle modellen en desktop-tools.</p>
+        <pre id="wiz-status" class="wiz-pre">Laden…</pre>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>Cloud keys (optioneel)</h3>
+        <p class="muted tiny">Leeg laten mag. Lokaal werkt zonder keys. Grok/OpenRouter/bridge kun je later bijwerken.</p>
+        <label class="field"><span>OpenRouter API key</span><input id="wiz-openrouter" type="password" autocomplete="off" /></label>
+        <label class="field"><span>xAI / Grok API key</span><input id="wiz-xai" type="password" autocomplete="off" /></label>
+        <label class="field"><span>Bridge API key (Claude/ChatGPT abo)</span><input id="wiz-bridge" type="password" autocomplete="off" /></label>
+        <label class="field"><span>Lokaal light model-id (LM Studio)</span><input id="wiz-light" type="text" placeholder="bijv. qwen3.6-35b-a3b" /></label>
+        <button type="button" id="wiz-save-keys" class="primary">Keys opslaan</button>
+        <p class="muted tiny" id="wiz-keys-msg"></p>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>Rechten & import</h3>
+        <p>Voor “Lees ChatGPT/Claude” heeft macOS Toegankelijkheid nodig.</p>
+        <button type="button" id="wiz-a11y" class="ghost">Open Toegankelijkheid-instellingen</button>
+        <button type="button" id="wiz-import" class="primary">Importeer alles nu</button>
+        <p class="muted tiny" id="wiz-import-msg">Cursor + lokale Mac-data + export-zips in Downloads.</p>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>Klaar</h3>
+        <p>Je hub draait op <strong>http://127.0.0.1:8787</strong>. Kies een model, chat, of gebruik desktop-tools (Chrome, VIT Mail, …).</p>
+        <ul class="wiz-list">
+          <li>Privacyfilter staat aan</li>
+          <li>Live sync kan via de knoppen links</li>
+          <li>Cursor base URL: http://127.0.0.1:8787/v1</li>
+        </ul>
+        <button type="button" id="wiz-finish" class="primary">Naar de app</button>
+      </section>
+
+      <div class="wizard-nav">
+        <button type="button" id="wiz-back" class="ghost">Terug</button>
+        <button type="button" id="wiz-skip" class="ghost">Overslaan</button>
+        <button type="button" id="wiz-next" class="primary">Volgende</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
@@ -91,5 +145,6 @@
     </main>
   </div>
   <script src="/static/app.js"></script>
+  <script src="/static/wizard.js"></script>
 </body>
 </html>

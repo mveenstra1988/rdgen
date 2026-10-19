@@ -78,6 +78,44 @@ async def health() -> dict[str, Any]:
     return {"ok": True, "version": __version__, "ts": time.time()}
 
 
+@app.get("/api/setup/status")
+async def api_setup_status() -> dict[str, Any]:
+    from vit_ai_hub.setup_api import setup_status
+
+    return setup_status()
+
+
+@app.post("/api/setup/secrets")
+async def api_setup_secrets(request: Request) -> dict[str, Any]:
+    from vit_ai_hub.setup_api import save_secrets
+
+    # only localhost
+    client = request.client.host if request.client else ""
+    if client not in {"127.0.0.1", "::1", "testclient"}:
+        raise HTTPException(status_code=403, detail="Alleen localhost mag secrets zetten")
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    return save_secrets({str(k): str(v) for k, v in body.items()})
+
+
+@app.post("/api/setup/complete")
+async def api_setup_complete(request: Request) -> dict[str, Any]:
+    from vit_ai_hub.setup_api import mark_setup_complete
+
+    client = request.client.host if request.client else ""
+    if client not in {"127.0.0.1", "::1", "testclient"}:
+        raise HTTPException(status_code=403, detail="Alleen localhost")
+    return mark_setup_complete()
+
+
+@app.post("/api/setup/open-accessibility")
+async def api_setup_a11y() -> dict[str, Any]:
+    from vit_ai_hub.setup_api import open_accessibility_settings
+
+    return open_accessibility_settings()
+
+
 @app.get("/api/capabilities")
 async def capabilities(_: None = Depends(_auth)) -> dict[str, Any]:
     return capabilities_manifest()

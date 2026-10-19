@@ -15,12 +15,22 @@ Plus: privacyfilter, desktop-tools (Chrome, Mail, **VIT Mail**, apps, Spotlight)
 live sync, FTS-kennisindex, ChatGPT/Claude live-lees (Accessibility),
 OpenAI- én Anthropic-compat endpoints.
 
-## Snel starten (Mac)
+## Morgen / één pakket (Mac)
+
+1. Download `dist/VIT-AI-Hub-0.6.0-mac.zip` (of uit de PR-artifacts)
+2. Unzip → dubbelklik **VIT AI Hub.app** (of `START.command`)
+3. Wizard regelt venv, secrets, import, sync, browser
+
+Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
+
+Zie ook `MORGEN.md`.
+
+## Snel starten (dev)
 
 ```bash
 cd vit-ai-hub
 chmod +x scripts/*.sh
-./scripts/install-mac.sh
+./scripts/one-shot-setup.sh
 ```
 
 Open [http://127.0.0.1:8787](http://127.0.0.1:8787)

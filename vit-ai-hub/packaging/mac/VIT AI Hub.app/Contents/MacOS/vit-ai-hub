@@ -1,0 +1,35 @@
+#!/bin/bash
+# Launcher inside .app — resolves hub root next to the app or installed location.
+set -euo pipefail
+
+APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+# Prefer sibling hub payload shipped with the package
+CANDIDATES=(
+  "$APP_DIR/../hub"
+  "$APP_DIR/hub"
+  "$HOME/Applications/VIT-AI-Hub/hub"
+  "$HOME/VIT-AI-Hub"
+  "/Applications/VIT-AI-Hub/hub"
+)
+
+ROOT=""
+for c in "${CANDIDATES[@]}"; do
+  if [[ -f "$c/scripts/one-shot-setup.sh" ]]; then
+    ROOT="$(cd "$c" && pwd)"
+    break
+  fi
+done
+
+if [[ -z "$ROOT" ]]; then
+  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nZet de map hub naast deze app of in ~/Applications/VIT-AI-Hub/hub" buttons {"OK"} default button 1' || true
+  exit 1
+fi
+
+# If already healthy, just open UI
+if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
+  open "http://127.0.0.1:8787/"
+  exit 0
+fi
+
+osascript -e 'display notification "VIT AI Hub wordt gestart…" with title "VIT AI Hub"' || true
+bash "$ROOT/scripts/one-shot-setup.sh"
