@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 import time
 import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -14,6 +16,15 @@ from pydantic import BaseModel, Field
 from vit_ai_hub import __version__
 from vit_ai_hub.catalog import collect_models
 from vit_ai_hub.config import ROOT, get_settings
+from vit_ai_hub.importing import (
+    find_export_zips,
+    import_all_one_click,
+    import_file,
+    knowledge_context_block,
+    search_knowledge,
+    stats as knowledge_stats,
+)
+from vit_ai_hub.importing import cursor as cursor_import
 from vit_ai_hub.pii import get_pii_engine
 from vit_ai_hub.router import ModelRouter, extract_text_from_response
 from vit_ai_hub.tools import capabilities_manifest, run_tool, tool_specs
@@ -104,6 +115,16 @@ async def _handle_chat(body: ChatCompletionRequest):
     # First pass: assume possibly cloud; if PII blocks, force local
     provisional = router_engine.resolve(requested_model, force_local=False)
     messages = [m.model_dump() for m in body.messages]
+    # Inject imported knowledge/memory so ChatGPT/Claude/Cursor context meekomt
+    last_user = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            content = m.get("content")
+            last_user = content if isinstance(content, str) else str(content)
+            break
+    knowledge = knowledge_context_block(last_user, limit=8)
+    if knowledge:
+        messages = [{"role": "system", "content": knowledge}, *messages]
     safe_messages, pii_result = pii.process_messages(messages, destination_local=provisional.local)
 
     force_local = False
@@ -266,6 +287,53 @@ async def anthropic_messages(request: Request, _: None = Depends(_auth)):
 async def api_tool(name: str, request: Request, _: None = Depends(_auth)):
     args = await request.json()
     return JSONResponse(json.loads(await run_tool(name, args)))
+
+
+@app.get("/api/import/status")
+async def import_status(_: None = Depends(_auth)) -> dict[str, Any]:
+    found = find_export_zips()
+    return {
+        "knowledge": knowledge_stats(),
+        "cursor_roots": [str(p) for p in cursor_import.candidate_roots()],
+        "export_zips": {
+            "chatgpt": [str(p) for p in found.get("chatgpt") or []],
+            "claude": [str(p) for p in found.get("claude") or []],
+        },
+    }
+
+
+@app.post("/api/import/all")
+async def import_all(_: None = Depends(_auth)) -> dict[str, Any]:
+    """Één klik: Cursor lokaal + nieuwste ChatGPT/Claude zips in Downloads/Desktop."""
+    return import_all_one_click()
+
+
+@app.post("/api/import/cursor")
+async def import_cursor(_: None = Depends(_auth)) -> dict[str, Any]:
+    return cursor_import.import_local()
+
+
+@app.post("/api/import/upload")
+async def import_upload(
+    file: UploadFile = File(...),
+    source: str | None = Form(default=None),
+    _: None = Depends(_auth),
+) -> dict[str, Any]:
+    suffix = Path(file.filename or "export.bin").suffix or ".zip"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        tmp_path = Path(tmp.name)
+    try:
+        return import_file(tmp_path, source=source or None)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+@app.get("/api/knowledge/search")
+async def api_knowledge_search(q: str = "", _: None = Depends(_auth)) -> dict[str, Any]:
+    return {"query": q, "hits": search_knowledge(q, limit=20)}
 
 
 def run() -> None:

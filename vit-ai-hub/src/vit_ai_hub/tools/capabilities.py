@@ -80,6 +80,20 @@ def tool_specs() -> list[dict[str, Any]]:
                 },
             }
         )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "knowledge_search",
+                    "description": "Zoek in geïmporteerde ChatGPT/Claude/Cursor kennis en geheugen.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"query": {"type": "string"}},
+                        "required": ["query"],
+                    },
+                },
+            }
+        )
     if cfg.get("files", True):
         tools.append(
             {
@@ -136,7 +150,17 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
                 if key and row.get("key") != key:
                     continue
                 rows.append(row)
-        return json.dumps({"items": rows[-50:]}, ensure_ascii=False)
+        from vit_ai_hub.importing.store import stats as kstats
+
+        return json.dumps(
+            {"items": rows[-50:], "imported_knowledge": kstats()},
+            ensure_ascii=False,
+        )
+    if name == "knowledge_search":
+        from vit_ai_hub.importing.store import search_knowledge
+
+        query = str(arguments.get("query", "")).strip()
+        return json.dumps({"hits": search_knowledge(query, limit=20)}, ensure_ascii=False)
     if name == "read_workspace_file":
         rel = str(arguments.get("path", "")).strip().lstrip("/")
         path = (ROOT / rel).resolve()
@@ -201,8 +225,10 @@ def capabilities_manifest() -> dict[str, Any]:
         ],
         "tools": [t["function"]["name"] for t in tool_specs()],
         "privacy_filter": True,
+        "import": ["chatgpt_export", "claude_export", "cursor_local", "one_click_all"],
         "parity_notes": [
             "Claude/ChatGPT kennis via die modellen (abo/bridge/OpenRouter).",
+            "Geïmporteerde chats/memory via /api/import/all of upload.",
             "Actuele kennis via web_search/fetch_url tools.",
             "Memory/files lokaal op de Mac.",
             "Vision: afhankelijk van gekozen multimodaal model + image parts in messages.",

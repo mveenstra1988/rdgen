@@ -89,6 +89,15 @@ button {
 }
 button:hover { transform: translateY(-1px); border-color: rgba(196, 240, 77, 0.45); }
 button.ghost { background: transparent; flex: 1; }
+button.primary {
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+button:disabled { opacity: 0.55; cursor: wait; transform: none; }
+#import-upload { width: 100%; }
 #send {
   background: var(--accent);
   color: var(--accent-ink);
@@ -96,6 +105,17 @@ button.ghost { background: transparent; flex: 1; }
   font-weight: 700;
   min-width: 110px;
 }
+.import-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: rgba(33, 48, 41, 0.35);
+}
+.import-panel h3 { margin: 0; font-size: 0.92rem; }
+.tiny { font-size: 0.72rem !important; }
 
 .side-foot {
   margin-top: auto;

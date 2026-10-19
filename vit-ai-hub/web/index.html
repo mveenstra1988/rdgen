@@ -43,6 +43,23 @@
         <button type="button" id="new-chat" class="ghost">Nieuwe chat</button>
       </div>
 
+      <section class="import-panel">
+        <h3>Kennis & geheugen</h3>
+        <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
+        <button type="button" id="import-all" class="primary">Importeer alles (1 klik)</button>
+        <p class="muted tiny">Cursor lokaal + nieuwste ChatGPT/Claude-zips in Downloads/Desktop.</p>
+        <label class="field">
+          <span>Of upload export (zip/json)</span>
+          <input id="import-file" type="file" accept=".zip,.json,application/zip,application/json" />
+        </label>
+        <select id="import-source">
+          <option value="">Auto-detect</option>
+          <option value="chatgpt">ChatGPT</option>
+          <option value="claude">Claude</option>
+        </select>
+        <button type="button" id="import-upload" class="ghost">Upload importeren</button>
+      </section>
+
       <footer class="side-foot">
         <span id="health">…</span>
         <a href="/api/capabilities" target="_blank" rel="noreferrer">Capabilities</a>

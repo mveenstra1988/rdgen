@@ -10,7 +10,8 @@ Lokale GUI + privacy gateway voor je Mac (M5 Max 128GB-ready).
 - OpenRouter (incl. **Ox Alpha** `stealth/ox-alpha` en `z-ai/glm-5.3-flash`)
 - OmniRoute
 
-Plus: privacyfilter (fail-closed), tools (web/memory/files), OpenAI- én Anthropic-compat endpoints.
+Plus: privacyfilter (fail-closed), tools (web/memory/files), OpenAI- én Anthropic-compat endpoints,
+en **1-klik import** van ChatGPT + Claude + Cursor kennis/geheugen.
 
 ## Snel starten (Mac)
 
@@ -44,6 +45,21 @@ GUI / Cursor / clients
 | `POST /v1/messages` | Anthropic-compat shim |
 | `GET /api/capabilities` | Tool/pariteit-manifest |
 | `POST /api/chat` | GUI-chat met tools aan |
+
+## Kennis & geheugen importeren (1 klik)
+
+In de GUI: **Importeer alles (1 klik)**.
+
+Dat doet:
+1. **Cursor** lokaal scannen (`~/.cursor`, Application Support, Agent Store/geheugen)
+2. Nieuwste **ChatGPT**- en **Claude**-exportzips in `~/Downloads` of `~/Desktop` importeren
+3. Alles opslaan onder `data/knowledge/` (chats, memories, projects)
+4. Bij elke chat wordt relevante kennis automatisch in de context gezet
+
+Handmatig:
+- ChatGPT: Settings → Data controls → Export → zip downloaden → in Downloads zetten of uploaden
+- Claude: Settings → Privacy → Export → zip downloaden → in Downloads zetten of uploaden
+- API: `POST /api/import/all`, `POST /api/import/upload`, `GET /api/knowledge/search?q=`
 
 ## Privacy
 

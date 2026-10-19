@@ -16,6 +16,11 @@ const els = {
   routeInfo: document.getElementById("route-info"),
   refresh: document.getElementById("refresh-models"),
   newChat: document.getElementById("new-chat"),
+  importAll: document.getElementById("import-all"),
+  importStatus: document.getElementById("import-status"),
+  importFile: document.getElementById("import-file"),
+  importSource: document.getElementById("import-source"),
+  importUpload: document.getElementById("import-upload"),
 };
 
 function headers() {
@@ -156,6 +161,70 @@ els.form.addEventListener("submit", async (ev) => {
   }
 });
 
-addBubble("system", "VIT AI Hub klaar. Kies een specifiek model of vit/auto.");
+async function refreshImportStatus() {
+  try {
+    const res = await fetch("/api/import/status", { headers: headers() });
+    const data = await res.json();
+    const k = data.knowledge || {};
+    els.importStatus.textContent =
+      `${k.conversations || 0} chats · ${k.memories || 0} memories · ${k.projects || 0} projects` +
+      (data.export_zips?.chatgpt?.length || data.export_zips?.claude?.length
+        ? ` · zips klaar: GPT ${data.export_zips.chatgpt?.length || 0} / Claude ${data.export_zips.claude?.length || 0}`
+        : "");
+  } catch {
+    els.importStatus.textContent = "Status onbekend";
+  }
+}
+
+els.importAll?.addEventListener("click", async () => {
+  els.importAll.disabled = true;
+  els.importAll.textContent = "Bezig…";
+  try {
+    const res = await fetch("/api/import/all", { method: "POST", headers: headers() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    const k = data.knowledge || {};
+    addBubble(
+      "system",
+      `Import klaar (${data.elapsed_sec}s): ${k.conversations || 0} chats, ${k.memories || 0} memories, ${k.projects || 0} projects.` +
+        (data.hints?.length ? `\n${data.hints.join("\n")}` : "")
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Import mislukt: ${err}`);
+  } finally {
+    els.importAll.disabled = false;
+    els.importAll.textContent = "Importeer alles (1 klik)";
+  }
+});
+
+els.importUpload?.addEventListener("click", async () => {
+  const file = els.importFile.files?.[0];
+  if (!file) {
+    addBubble("system", "Kies eerst een ChatGPT- of Claude-export (zip/json).");
+    return;
+  }
+  const fd = new FormData();
+  fd.append("file", file);
+  if (els.importSource.value) fd.append("source", els.importSource.value);
+  const h = {};
+  const token = els.token.value.trim();
+  if (token) h.Authorization = `Bearer ${token}`;
+  els.importUpload.disabled = true;
+  try {
+    const res = await fetch("/api/import/upload", { method: "POST", headers: h, body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    addBubble("system", `Upload geïmporteerd (${data.source}): ${JSON.stringify(data.conversations || data)}`);
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Upload-import mislukt: ${err}`);
+  } finally {
+    els.importUpload.disabled = false;
+  }
+});
+
+addBubble("system", "VIT AI Hub klaar. Kies een model, of importeer ChatGPT/Claude/Cursor-kennis met 1 klik.");
 ping();
+refreshImportStatus();
 loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
