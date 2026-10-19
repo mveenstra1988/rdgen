@@ -47,8 +47,10 @@ pip -q install --upgrade pip
 pip -q install -r "$ROOT/requirements.txt"
 echo "    dependencies OK"
 
-# LaunchAgent voor auto-start (localhost only)
-cat >"$LAUNCH_AGENT" <<PLIST
+# Standaard: géén KeepAlive LaunchAgent — de .app start/stopt de hub.
+# Opt-in: VIT_INSTALL_LAUNCH_AGENT=1 voor login-autostart.
+if [[ "${VIT_INSTALL_LAUNCH_AGENT:-0}" == "1" ]]; then
+  cat >"$LAUNCH_AGENT" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -72,11 +74,16 @@ cat >"$LAUNCH_AGENT" <<PLIST
 </dict>
 </plist>
 PLIST
-
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  launchctl bootout "gui/$(id -u)/nl.veenstra-it.aihub" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || launchctl load -w "$LAUNCH_AGENT" 2>/dev/null || true
-  echo "    LaunchAgent geladen (start bij login)"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl bootout "gui/$(id -u)/nl.veenstra-it.aihub" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$LAUNCH_AGENT" 2>/dev/null || launchctl load -w "$LAUNCH_AGENT" 2>/dev/null || true
+    echo "    LaunchAgent geladen (opt-in login start)"
+  fi
+else
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl bootout "gui/$(id -u)/nl.veenstra-it.aihub" 2>/dev/null || true
+  fi
+  echo "    sessie-modus: .app start/stopt hub (geen login KeepAlive)"
 fi
 
 # Start nu op de voorgrond-detached als nog niet up

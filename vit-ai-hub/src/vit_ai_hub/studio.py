@@ -120,6 +120,21 @@ STUDIOS: dict[str, dict[str, Any]] = {
             "Taal: NL tenzij gevraagd. Geen black-hat (cloaking, PBN, fake reviews)."
         ),
     },
+    "visual": {
+        "id": "visual",
+        "name": "Visual (Canva-alt)",
+        "blurb": "Social graphics, pitch slides, flyers — zonder Canva.",
+        "system": (
+            "Je bent VIT Visual AI (Canva-alternatief). Geen Canva-account nodig.\n"
+            "- Gebruik tools: visual_list_templates, visual_render, generate_image, describe_image.\n"
+            "- Templates: linkedin-post, instagram-story, carousel-slide, pitch-slide, flyer-a5.\n"
+            "- Lever HTML+SVG in de workspace (map visual/). Open HTML in browser voor export/screenshot.\n"
+            "- Penpot (open_penpot) voor complexere design-files; Figma alleen als klant het eist.\n"
+            "- Merk eerst: sterke typografie, geen paars-op-wit cliché, CTA duidelijk.\n"
+            "- Voor carrousels: meerdere slides met slide=1,2,3…\n"
+            "- Geen stockfoto-licenses verzinnen; SVG/HTML is default."
+        ),
+    },
     "self": {
         "id": "self",
         "name": "Self-improve",

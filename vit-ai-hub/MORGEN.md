@@ -1,9 +1,9 @@
-# Morgen — VIT AI Hub 1.6
+# Morgen — VIT AI Hub 1.7
 
-1. Unzip `dist/VIT-AI-Hub-1.6.0-mac.zip`
-2. Dubbelklik **VIT AI Hub.app** → setup of overslaan
-3. Chat: studio + **vit/auto** → typ
-4. Growth: kies **Marketing / Socials / SEO-GEO** of laat vit/auto → team-growth
-5. Abonnementen / migratie: open alleen als nodig (ingeklapt links)
+1. Open `dist/VIT-AI-Hub-1.7.0-mac.dmg`
+2. Sleep **VIT AI Hub** naar Applications
+3. Dubbelklik de app → hub start + browser
+4. Cmd+Q / Dock Quit → hub stopt (geen losse tools)
+5. Studios: Marketing · Socials · SEO/GEO · **Visual (Canva-alt)** · Site pipeline via vit/auto
 
-1.6: marketing + socials + SEO/GEO studios · growth teams · router in vit/auto
+Zip-fallback: `VIT-AI-Hub-1.7.0-mac.zip`

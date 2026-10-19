@@ -261,6 +261,113 @@ async def api_studios() -> dict[str, Any]:
     return {"studios": list_studios()}
 
 
+@app.get("/api/app/status")
+async def api_app_status() -> dict[str, Any]:
+    """Lifecycle info voor de Mac-app / health UI."""
+    from vit_ai_hub import __version__
+
+    run_dir = ROOT / "data" / "run"
+    hub_pid = None
+    session_pid = None
+    try:
+        p = run_dir / "hub.pid"
+        if p.is_file():
+            hub_pid = int(p.read_text().strip() or "0") or None
+    except Exception:
+        pass
+    try:
+        p = run_dir / "session.pid"
+        if p.is_file():
+            session_pid = int(p.read_text().strip() or "0") or None
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "version": __version__,
+        "hub_pid": hub_pid,
+        "session_pid": session_pid,
+        "lifecycle": "app-session",
+        "hint": "Open VIT AI Hub.app om te starten; Cmd+Q stopt de hub.",
+    }
+
+
+@app.get("/api/presets")
+async def api_presets() -> dict[str, Any]:
+    """Snelle starters (research-upgrade: slash-achtige presets)."""
+    return {
+        "presets": [
+            {
+                "id": "pitch",
+                "label": "Pitch",
+                "studio": "marketing",
+                "text": "Schrijf een scherpe 30s + 2min pitch met positionering en CTA voor ",
+            },
+            {
+                "id": "landing",
+                "label": "Landing",
+                "studio": "webdesign",
+                "text": "Bouw een volledige landingspagina end-to-end met hero, SEO en CTA voor ",
+            },
+            {
+                "id": "linkedin",
+                "label": "LinkedIn",
+                "studio": "socials",
+                "text": "Maak 5 LinkedIn posts + mini-kalender over ",
+            },
+            {
+                "id": "canva",
+                "label": "Visual",
+                "studio": "visual",
+                "text": "Render Canva-alt LinkedIn carousel (3 slides) over ",
+            },
+            {
+                "id": "seo",
+                "label": "SEO/GEO",
+                "studio": "seo",
+                "text": "SEO + GEO plan met keyword clusters en FAQ schema voor ",
+            },
+        ]
+    }
+
+
+@app.get("/api/visual/templates")
+async def api_visual_templates() -> dict[str, Any]:
+    from vit_ai_hub.visual import list_templates
+
+    return {"templates": list_templates()}
+
+
+@app.post("/api/visual/render")
+async def api_visual_render(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.visual import render_template
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    result = render_template(
+        str(body.get("template") or "linkedin-post"),
+        headline=str(body.get("headline") or ""),
+        sub=str(body.get("sub") or ""),
+        cta=str(body.get("cta") or ""),
+        brand=str(body.get("brand") or "VIT"),
+        accent=str(body.get("accent") or "#c4f04d"),
+        slide=str(body.get("slide") or ""),
+    )
+    if body.get("write") and body.get("workspace") and result.get("ok"):
+        from vit_ai_hub.workspace import write_workspace_file
+
+        ws = str(body["workspace"])
+        result["written"] = {
+            "html": write_workspace_file(
+                result["suggested_paths"]["html"], result["html"], workspace=ws
+            ),
+            "svg": write_workspace_file(
+                result["suggested_paths"]["svg"], result["svg"], workspace=ws
+            ),
+        }
+    return result
+
+
 @app.get("/api/agents")
 async def api_list_agents(_: None = Depends(_auth)) -> dict[str, Any]:
     from vit_ai_hub.agents import list_agents

@@ -253,6 +253,19 @@ def pick_model_for_intent(
         if local_ok:
             return ModelPick(local_model_id(), "schrijven → lokaal", True, role)
 
+    if kind == "visual":
+        if bridge_ok:
+            return ModelPick("claude-sonnet-4", "visual → Claude", False, role)
+        if or_ok:
+            return ModelPick(
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "visual → Llama free",
+                False,
+                role,
+            )
+        if local_ok:
+            return ModelPick(local_model_id(heavy=True), "visual → lokaal heavy", True, role)
+
     if kind in {"marketing", "socials", "seo"}:
         # Growth stack: quality writing/strategy → Claude; researchy SEO → OR/DeepSeek ok
         if intent.complexity == "high" or kind == "marketing":

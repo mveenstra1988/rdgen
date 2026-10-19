@@ -1,11 +1,9 @@
 #!/bin/bash
-# Launcher inside .app — resolves hub root next to the app or installed location.
+# VIT AI Hub.app — start alles bij openen, stop bij sluiten (één app).
 set -euo pipefail
 
-# Contents/MacOS -> Contents -> .app
 APP_BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
 PARENT="$(cd "$APP_BUNDLE/.." && pwd)"
-# Prefer hub nested in the .app, then sibling hub from the zip, then install paths
 CANDIDATES=(
   "$APP_BUNDLE/hub"
   "$PARENT/hub"
@@ -16,30 +14,31 @@ CANDIDATES=(
 
 ROOT=""
 for c in "${CANDIDATES[@]}"; do
-  if [[ -f "$c/scripts/one-shot-setup.sh" ]]; then
+  if [[ -f "$c/scripts/app-session.sh" ]] || [[ -f "$c/scripts/one-shot-setup.sh" ]]; then
     ROOT="$(cd "$c" && pwd)"
     break
   fi
 done
 
 if [[ -z "$ROOT" ]]; then
-  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nHoud de map hub bij deze app (zip-inhoud), of installeer naar /Applications/VIT-AI-Hub/hub" buttons {"OK"} default button 1' || true
+  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nHoud de map hub in de app (DMG/zip-inhoud)." buttons {"OK"} default button 1' || true
   exit 1
 fi
 
-# Clear quarantine so double-click works after download
 xattr -dr com.apple.quarantine "$APP_BUNDLE" 2>/dev/null || true
 xattr -dr com.apple.quarantine "$ROOT" 2>/dev/null || true
 
-# If already healthy, just open UI (wizard only on first setup)
-if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
-  if [[ -f "$ROOT/data/.setup-complete" ]]; then
-    open "http://127.0.0.1:8787/"
-  else
-    open "http://127.0.0.1:8787/?wizard=1"
+# Voorkom dubbele sessies
+if [[ -f "$ROOT/data/run/session.pid" ]]; then
+  OLD="$(cat "$ROOT/data/run/session.pid" 2>/dev/null || true)"
+  if [[ -n "$OLD" ]] && kill -0 "$OLD" 2>/dev/null; then
+    if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
+      open "http://127.0.0.1:8787/"
+      # Blijf wachten tot bestaande sessie stopt (of gebruiker quits deze instance)
+      while kill -0 "$OLD" 2>/dev/null; do sleep 2; done
+      exit 0
+    fi
   fi
-  exit 0
 fi
 
-osascript -e 'display notification "VIT AI Hub wordt gestart…" with title "VIT AI Hub"' || true
-bash "$ROOT/scripts/one-shot-setup.sh"
+exec bash "$ROOT/scripts/app-session.sh"

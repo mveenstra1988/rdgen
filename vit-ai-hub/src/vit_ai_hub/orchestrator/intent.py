@@ -59,6 +59,11 @@ _SEO = re.compile(
     r"on.?page|backlinks?|eeat|e-?e-?a-?t)\b",
     re.I,
 )
+_VISUAL = re.compile(
+    r"\b(canva|visual|social.?graphic|carousel|story.?slide|flyer|poster|"
+    r"instagram.?story|pitch.?slide|banner|thumbnail|og.?image|render.?template)\b",
+    re.I,
+)
 _RESEARCH = re.compile(
     r"\b(zoek|research|vergelijk|wat is|hoe werkt|documentatie|bronnen|actueel|"
     r"nieuws|prijs|benchmark)\b",
@@ -79,7 +84,13 @@ _SIMPLE = re.compile(
     re.I,
 )
 _SITE_PITCH = re.compile(
-    r"\b(site|website|landing|pitch.?deck|sales.?page|landingspagina)\b",
+    r"\b(website|landing|landingspagina|pitch.?deck|sales.?page|"
+    r"bouw .{0,60}(site|landing|website)|volledige (site|landing))\b",
+    re.I,
+)
+_VISUAL_STRONG = re.compile(
+    r"\b(canva|carousel|flyer|poster|instagram.?story|pitch.?slide|"
+    r"social.?graphic|banner|thumbnail)\b",
     re.I,
 )
 
@@ -103,6 +114,7 @@ def classify_intent(
         "marketing": 0.0,
         "socials": 0.0,
         "seo": 0.0,
+        "visual": 0.0,
         "research": 0.0,
         "complex": 0.0,
         "self": 0.0,
@@ -133,6 +145,9 @@ def classify_intent(
     elif studio == "seo":
         scores["seo"] += 0.7
         signals.append("studio:seo")
+    elif studio == "visual":
+        scores["visual"] += 0.7
+        signals.append("studio:visual")
 
     if workspace:
         scores["code"] += 0.15
@@ -152,6 +167,7 @@ def classify_intent(
         ("marketing", _MARKETING, 0.5),
         ("socials", _SOCIALS, 0.5),
         ("seo", _SEO, 0.5),
+        ("visual", _VISUAL, 0.5),
         ("write", _WRITE, 0.35),
         ("research", _RESEARCH, 0.35),
         ("self", _SELF, 0.7),
@@ -160,6 +176,13 @@ def classify_intent(
         if rx.search(t):
             scores[kind] += w
             signals.append(kind)
+
+    # Canva/carousel etc. winnen van pure socials-copy
+    if _VISUAL_STRONG.search(t):
+        scores["visual"] += 0.45
+        signals.append("visual_strong")
+        if scores["socials"] >= 0.35:
+            scores["socials"] -= 0.25
 
     # length / structure heuristics
     if len(t) > 600 or t.count("\n") >= 8:
@@ -170,7 +193,7 @@ def classify_intent(
         signals.append("code_fence")
 
     # multi-domain → complex
-    growth_domains = sum(1 for k in ("marketing", "socials", "seo") if scores[k] >= 0.35)
+    growth_domains = sum(1 for k in ("marketing", "socials", "seo", "visual") if scores[k] >= 0.35)
     other_domains = sum(1 for k in ("code", "design", "ops", "write") if scores[k] >= 0.35)
     if growth_domains >= 2 or (growth_domains >= 1 and other_domains >= 1):
         scores["complex"] += 0.45
@@ -188,6 +211,16 @@ def classify_intent(
     complexity = "low"
 
     def _pick_growth_team() -> str:
+        # Full site build → dedicated site pipeline
+        if _SITE_PITCH.search(t) and (
+            scores["design"] >= 0.25
+            or scores["marketing"] >= 0.25
+            or scores["seo"] >= 0.25
+            or "bouw" in t.lower()
+        ):
+            return "team-site"
+        if scores["visual"] >= 0.4 and scores["visual"] >= scores["marketing"]:
+            return "team-visual"
         if growth_domains >= 2 or (scores["marketing"] >= 0.35 and (_SITE_PITCH.search(t) or scores["design"] >= 0.3)):
             return "team-growth"
         if scores["seo"] >= scores["marketing"] and scores["seo"] >= scores["socials"] and scores["seo"] >= 0.35:
@@ -197,7 +230,7 @@ def classify_intent(
         return "team-marketing"
 
     if kind == "complex" or (
-        kind in {"code", "design", "marketing", "socials", "seo"} and scores["complex"] >= 0.35
+        kind in {"code", "design", "marketing", "socials", "seo", "visual"} and scores["complex"] >= 0.35
     ):
         multi = True
         complexity = "high"
@@ -206,6 +239,7 @@ def classify_intent(
             or scores["marketing"] >= 0.35
             or scores["socials"] >= 0.35
             or scores["seo"] >= 0.35
+            or scores["visual"] >= 0.35
         ):
             team = _pick_growth_team()
             sug_studio = sug_studio or (
@@ -213,6 +247,10 @@ def classify_intent(
                 if team == "team-seo"
                 else "socials"
                 if team == "team-socials"
+                else "visual"
+                if team == "team-visual"
+                else "webdesign"
+                if team == "team-site"
                 else "marketing"
             )
         elif scores["design"] >= scores["code"] and scores["design"] >= 0.3:
@@ -272,6 +310,13 @@ def classify_intent(
             multi = True
             team = "team-seo"
             complexity = "high"
+    elif kind == "visual":
+        complexity = "medium"
+        sug_studio = sug_studio or "visual"
+        if len(t) > 160 or "carousel" in t.lower() or scores["complex"] >= 0.2:
+            multi = True
+            team = "team-visual"
+            complexity = "high"
     elif kind == "simple":
         complexity = "low"
     else:
@@ -312,6 +357,7 @@ def strength_score(intent: Intent) -> float:
         "research": 0.1,
         "socials": 0.12,
         "seo": 0.15,
+        "visual": 0.14,
         "marketing": 0.18,
         "design": 0.15,
         "code": 0.2,

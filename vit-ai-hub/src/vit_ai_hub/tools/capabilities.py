@@ -176,6 +176,10 @@ def tool_specs() -> list[dict[str, Any]]:
         from vit_ai_hub.tools.ops import ops_tool_specs
 
         tools.extend(ops_tool_specs())
+    if cfg.get("media", True):
+        from vit_ai_hub.tools.media import media_tool_specs
+
+        tools.extend(media_tool_specs())
     return tools
 
 
@@ -295,6 +299,10 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
 
     if name in OPS_TOOL_NAMES:
         return await run_ops_tool(name, arguments)
+    from vit_ai_hub.tools.media import MEDIA_TOOL_NAMES, run_media_tool
+
+    if name in MEDIA_TOOL_NAMES:
+        return await run_media_tool(name, arguments)
     return json.dumps({"error": f"Onbekende tool: {name}"})
 
 
@@ -371,6 +379,7 @@ def capabilities_manifest() -> dict[str, Any]:
             "marketing",
             "socials",
             "seo",
+            "visual",
             "self",
             "ops",
         ],
@@ -390,8 +399,20 @@ def capabilities_manifest() -> dict[str, Any]:
             "vit_backup",
         ],
         "growth": True,
-        "growth_studios": ["marketing", "socials", "seo"],
-        "growth_teams": ["team-marketing", "team-socials", "team-seo", "team-growth"],
+        "growth_studios": ["marketing", "socials", "seo", "visual"],
+        "growth_teams": [
+            "team-marketing",
+            "team-socials",
+            "team-seo",
+            "team-growth",
+            "team-visual",
+            "team-site",
+        ],
+        "visual_canva_alt": True,
+        "figma_alt": "Penpot + design studio + visual templates",
+        "canva_alt": "studio Visual + visual_render/generate_image (HTML/SVG)",
+        "media_tools": ["visual_render", "generate_image", "describe_image", "speak_text"],
+        "app_lifecycle": "open .app starts hub; quit stops hub (session mode)",
         "orchestrator": True,
         "account_pools": True,
         "account_pool_names": ["bridge", "cursor", "openrouter", "deepseek", "grok", "omniroute"],
@@ -400,16 +421,13 @@ def capabilities_manifest() -> dict[str, Any]:
             "+ growth router (marketing/socials/seo) + multi-abo pool failover"
         ),
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
-        "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [
-            "vit/auto: slimmer dan Cursor Auto — intent, lokale modellen, per-rol model + auto-teams.",
-            "Growth router: Marketing / Socials / SEO-GEO studios + team-growth voor pitches & sites.",
-            "Visuele agent-teams (webdesign, apps, infra, growth) — zelf bouwen en runnen.",
-            "Studio-modi: software/webdesign/apps/design/marketing/socials/seo/ops vervangen dagelijks Claude/ChatGPT/Cursor-werk.",
-            "Workspace read/write/run in allowlisted projectmappen.",
-            "Cursor-exit: Continue/VS Code of Zed op dezelfde gateway.",
-            "Figma-alt: Penpot lokaal of design-in-code (webdesign studio).",
-            "Desktop: Chrome, Mail, VIT Mail, Penpot, Spotlight.",
+            "vit/auto: intent, lokale modellen, per-rol model + auto-teams + growth/site/visual router.",
+            "Canva-alt: studio Visual + HTML/SVG templates (geen Canva-abo).",
+            "Figma-alt: Penpot + design-in-code (webdesign) + visual templates.",
+            "Site pipeline: team-site = marketing → SEO → design → frontend → copy.",
+            "Eén Mac-app (.dmg/.app): open start hub, sluiten stopt hub.",
+            "Desktop: Chrome, Mail, VIT Mail, Penpot, Spotlight, speak_text.",
             "Ops: Proxmox/Nextcloud/Mailcow/UniFi/Backup via ops.env (VPN, read-first).",
         ],
     }

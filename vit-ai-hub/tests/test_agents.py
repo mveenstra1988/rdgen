@@ -11,7 +11,8 @@ def test_presets_and_custom_team(tmp_path, monkeypatch):
     assert any(t["id"] == "team-apps" for t in teams)
     assert any(t["id"] == "team-infra" for t in teams)
     assert any(t["id"] == "team-growth" for t in teams)
-    assert len(agents) >= 15
+    assert any(t["id"] == "team-site" for t in teams)
+    assert len(agents) >= 17
 
     agent = store.save_agent(
         {

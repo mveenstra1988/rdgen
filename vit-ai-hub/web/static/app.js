@@ -589,12 +589,45 @@ document.getElementById("acc-add")?.addEventListener("click", async () => {
 addBubble(
   "system",
   "Welkom. Laat model op vit/auto staan, kies een studio, en typ je vraag.\n" +
-    "Growth: Marketing · Socials · SEO/GEO — of laat vit/auto routen naar team-growth.\n" +
+    "Growth: Marketing · Socials · SEO/GEO · Visual (Canva-alt) · Site pipeline.\n" +
+    "Open de Mac-app om de hub te starten; sluiten stopt alles.\n" +
     "Abonnementen & migratie zitten ingeklapt links — open alleen als je ze nodig hebt."
 );
+async function loadPresets() {
+  const box = document.getElementById("presets");
+  if (!box) return;
+  try {
+    const res = await fetch("/api/presets", { headers: headers() });
+    const data = await res.json();
+    box.innerHTML = "";
+    for (const p of data.presets || []) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.label;
+      b.title = p.text;
+      b.addEventListener("click", () => {
+        if (els.studioSelect && p.studio) {
+          els.studioSelect.value = p.studio;
+          try {
+            localStorage.setItem("vit_studio", p.studio);
+          } catch (_) {}
+        }
+        if (els.prompt) {
+          els.prompt.value = p.text || "";
+          els.prompt.focus();
+        }
+      });
+      box.appendChild(b);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 ensureLocalToken().then(() => {
   ping();
   refreshImportStatus();
   refreshAccounts();
+  loadPresets();
   loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
 });

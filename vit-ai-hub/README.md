@@ -17,11 +17,12 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.6.0-mac.zip` (of uit de PR-artifacts)
-2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
-3. Dubbelklik **VIT AI Hub.app** → korte setup (of overslaan)
-4. Chat: **vit/auto** + studio · Abonnementen/Kennis zitten ingeklapt links
-5. Growth: Marketing / Socials / SEO-GEO — of Teams-tab
+1. Open `dist/VIT-AI-Hub-1.7.0-mac.dmg` → sleep **VIT AI Hub** naar Applications  
+   (of unzip `VIT-AI-Hub-1.7.0-mac.zip`)
+2. Eventueel: `xattr -dr com.apple.quarantine "/Applications/VIT AI Hub.app"`
+3. Dubbelklik **VIT AI Hub** → hub start + browser (wizard alleen eerste keer)
+4. **Sluiten (Cmd+Q)** stopt de hub — één app, geen losse tools
+5. Chat: **vit/auto** · Growth/Visual/Site via studio of auto-router
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 
@@ -67,16 +68,21 @@ API (localhost): `GET /api/ops/status`, `POST /api/ops/action`.
 
 In de GUI: **Agent teams**. Presets: Webdesign, Applicatie, Infra, Self-improve, Marketing, Socials, SEO/GEO, **Growth**. Zelf agents/teams maken, volgorde zetten, pipeline of board+synthese, daarna **Run team**.
 
-## Marketing / Socials / SEO-GEO
+## Marketing / Socials / SEO-GEO / Visual / Site
 
 | Studio | Voor | Team |
 |--------|------|------|
 | Marketing | Pitch, positionering, GTM, funnels | `team-marketing` |
 | Socials | LinkedIn/IG posts, kalender, scripts | `team-socials` |
 | SEO / GEO | Keywords, on-page, local, AEO/GEO | `team-seo` |
-| (auto) | Pitch + site + socials samen | `team-growth` |
+| Visual | Canva-alt: social cards, pitch slides, flyers (HTML/SVG) | `team-visual` |
+| (auto) | Pitch + site + socials | `team-growth` |
+| (auto) | Landing end-to-end | `team-site` |
 
-Laat **vit/auto** staan: “campagne end-to-end”, “SEO + landing”, “LinkedIn kalender” → juiste studio/team.
+**Figma:** Penpot + design-in-code (geen Figma-abo nodig voor eigen sites).  
+**Canva:** studio Visual + `visual_render` / `generate_image` (geen Canva-abo).
+
+Laat **vit/auto** staan: “campagne”, “Canva carousel”, “bouw landing” → juiste studio/team.
 
 ## Claude / ChatGPT / Cursor eruit?
 

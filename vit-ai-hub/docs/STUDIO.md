@@ -1,4 +1,4 @@
-# Studio: software, webdesign, apps, Penpot, growth
+# Studio: software, webdesign, growth, visual, Penpot
 
 ## Modi in de GUI
 
@@ -12,43 +12,25 @@
 | Marketing | Pitch/GTM tools | Positionering, pitches, funnels |
 | Socials | Buffer/Later + copywriter | LinkedIn/IG posts & kalender |
 | SEO / GEO | SEO suites + AEO | Zoek + generative-engine citeerbaarheid |
+| Visual | **Canva** | Templates HTML/SVG: posts, stories, pitch, flyer |
 | Ops | Infra chat | Proxmox/Mail/Cloud read-first |
 | Self-improve | — | Hub past zichzelf aan |
 
-Zet **Workspace** op je project (`~/Projects/foo`). Tools blijven binnen allowlist (`VIT_WORKSPACE_ROOTS`).
+## Figma & Canva
 
-## Growth router (vit/auto)
+| Was | Nu in hub |
+|-----|-----------|
+| Figma | Penpot (`open_penpot` / install-script) + Webdesign design-in-code |
+| Canva | Studio **Visual** + tools `visual_render` / `generate_image` |
 
-Met **vit/auto** classificeert de hub marketing / socials / seo en start zo nodig:
+Geen Figma/Canva-abonnement nodig voor eigen VIT-pistes/sites/socials.
 
-- `team-marketing` — strat → pitch
-- `team-socials` — plan → posts
-- `team-seo` — SEO/GEO → content briefs
-- `team-growth` — marketing + SEO + socials + site-copy (pistes & sites)
+## Growth + site router (vit/auto)
 
-Studio handmatig kiezen forceert die modus; anders routet vit/auto.
+- `team-marketing` / `team-socials` / `team-seo` / `team-visual`
+- `team-growth` — pitch + SEO + socials + site-copy
+- `team-site` — marketing → SEO → design → frontend → copy (landing end-to-end)
 
-## Webdesign zonder Figma
+## Mac-app lifecycle
 
-1. Studio → **Webdesign**
-2. Vraag: “bouw landing voor X, merk Y, CTA Z”
-3. Hub schrijft HTML/CSS/React in je workspace
-4. Optioneel: Penpot voor moodboards/exports
-5. Voor pitch+SEO+posts in één: studio Marketing of vraag “campagne end-to-end” → team-growth
-
-## Penpot (Figma-alt)
-
-```bash
-bash scripts/install-penpot-mac.sh   # Docker → :9001
-```
-
-Of knop **Penpot** in de GUI (opent lokaal of cloud).
-
-## Cursor eruit
-
-```bash
-bash scripts/export-continue-config.sh
-# of GUI: Continue→hub
-```
-
-VS Code/Zed + Continue → `http://127.0.0.1:8787/v1`.
+`.dmg` / `.app`: openen start hub + browser; Cmd+Q stopt hub. Geen losse START.command nodig.

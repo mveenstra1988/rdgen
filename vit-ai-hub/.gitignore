@@ -9,5 +9,7 @@ data/
 dist/*
 !dist/*.zip
 !dist/*.pkg
+!dist/*.dmg
+packaging/dmgmod/
 node_modules/
 .ruff_cache/

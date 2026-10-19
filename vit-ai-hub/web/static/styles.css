@@ -298,6 +298,27 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 .tag.cloud { color: var(--cloud); }
 .tag.warn { color: var(--warn); }
 
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem 1.35rem 0.15rem;
+  border-top: 1px solid var(--line);
+  background: rgba(15, 20, 18, 0.55);
+}
+.presets button {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.presets button:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
 .composer {
   display: grid;
   grid-template-columns: 1fr auto;

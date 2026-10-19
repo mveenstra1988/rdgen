@@ -383,6 +383,34 @@ def _preset_agents() -> list[dict[str, Any]]:
             "tools": False,
             "preset": True,
         },
+        {
+            "id": "agent-visual-lead",
+            "name": "Visual Lead",
+            "role": "Art direction visual",
+            "color": "#c4f04d",
+            "model": "vit/auto",
+            "studio": "visual",
+            "system": (
+                "Je bent visual lead (Canva-alt). Kies template, kleuren, typografie. "
+                "Gebruik visual_list_templates. Geen paars-op-wit cliché."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-visual-maker",
+            "name": "Visual Maker",
+            "role": "Render graphics",
+            "color": "#ffb454",
+            "model": "vit/auto",
+            "studio": "visual",
+            "system": (
+                "Je rendert visuals via visual_render/generate_image naar workspace/visual/. "
+                "HTML+SVG, meerdere slides indien carousel. Rapporteer paden."
+            ),
+            "tools": True,
+            "preset": True,
+        },
     ]
 
 
@@ -501,6 +529,37 @@ def _preset_teams() -> list[dict[str, Any]]:
                 {"agent_id": "agent-seo-lead", "order": 1, "label": "SEO/GEO"},
                 {"agent_id": "agent-social-copy", "order": 2, "label": "Socials"},
                 {"agent_id": "agent-ux-copy", "order": 3, "label": "Site-copy"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-visual",
+            "name": "Visual team",
+            "blurb": "Art direction → render. Canva-alt graphics & slides.",
+            "color": "#ffb454",
+            "studio": "visual",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-visual-lead",
+            "members": [
+                {"agent_id": "agent-visual-lead", "order": 0, "label": "Brief"},
+                {"agent_id": "agent-visual-maker", "order": 1, "label": "Render"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-site",
+            "name": "Site pipeline",
+            "blurb": "Marketing → SEO → Design → Frontend → Copy. Pitch tot live HTML.",
+            "color": "#c4f04d",
+            "studio": "webdesign",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-marketing-strat",
+            "members": [
+                {"agent_id": "agent-marketing-strat", "order": 0, "label": "Positionering"},
+                {"agent_id": "agent-seo-lead", "order": 1, "label": "SEO/GEO"},
+                {"agent_id": "agent-design-lead", "order": 2, "label": "Design"},
+                {"agent_id": "agent-frontend", "order": 3, "label": "Bouwen"},
+                {"agent_id": "agent-ux-copy", "order": 4, "label": "Teksten"},
             ],
             "preset": True,
         },

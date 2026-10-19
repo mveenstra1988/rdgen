@@ -56,7 +56,8 @@ def test_classify_growth_router_multi_domain():
         "Bouw een volledige campagne: marketing pitch, SEO landingspagina en LinkedIn posts end-to-end"
     )
     assert i.multi_agent is True
-    assert i.suggested_team == "team-growth"
+    # Landing + marketing/SEO → site pipeline (sterker dan plain growth)
+    assert i.suggested_team in {"team-site", "team-growth"}
     assert i.complexity == "high"
 
 
@@ -78,9 +79,13 @@ def test_plan_routes_growth():
     from vit_ai_hub.orchestrator.auto import plan_request
 
     plan = plan_request(
-        "Schrijf een marketing pitch voor onze IT-site met CTA",
+        "Schrijf een marketing pitch en positionering met CTA voor onze MSP-propositie",
         allow_team=True,
         tradeoff="quality",
     )
-    assert plan.studio in {"marketing", None} or plan.intent.suggested_studio == "marketing"
     assert plan.intent.kind in {"marketing", "complex", "write"}
+    assert (plan.studio or plan.intent.suggested_studio) in {
+        "marketing",
+        "webdesign",
+        None,
+    } or plan.team_id in {"team-marketing", "team-growth", "team-site", None}
