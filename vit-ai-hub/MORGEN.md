@@ -1,8 +1,8 @@
-# Morgen — VIT AI Hub 1.4
+# Morgen — VIT AI Hub 1.5
 
-1. Unzip `dist/VIT-AI-Hub-1.4.0-mac.zip`
-2. Dubbelklik **VIT AI Hub.app** → **Migreer ALLES**
-3. Wizard stap 4: meerdere bridge-URLs (:8317/:8318/:8319) of sidebar **Abo-pools**
-4. Model **vit/auto** — pool pakt automatisch een ander abo als er één op is
+1. Unzip `dist/VIT-AI-Hub-1.5.0-mac.zip`
+2. Dubbelklik **VIT AI Hub.app** → setup of overslaan
+3. Chat: studio + **vit/auto** → typ
+4. Abonnementen / migratie: open alleen als nodig (ingeklapt links)
 
-1.4: multi-abo bundelen + failover · 1.3 orchestrator · 1.1 ops
+1.5: rustige GUI · multi-abo · smart auto · ops
