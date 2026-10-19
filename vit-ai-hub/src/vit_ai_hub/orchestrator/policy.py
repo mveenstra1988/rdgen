@@ -120,9 +120,22 @@ def pick_model_for_intent(
                 return ModelPick("claude-sonnet-4", "QA → Claude via bridge", False, role)
             if or_ok:
                 return ModelPick("deepseek/deepseek-r1", "QA → R1 via OpenRouter", False, role)
-        if any(x in role_l for x in ("copy", "ux", "schrijf", "tekst")):
+        if any(
+            x in role_l
+            for x in (
+                "copy",
+                "ux",
+                "schrijf",
+                "tekst",
+                "pitch",
+                "sales copy",
+                "posts",
+                "scripts",
+                "content brief",
+            )
+        ):
             if bridge_ok:
-                return ModelPick("claude-sonnet-4", "Copy → Claude", False, role)
+                return ModelPick("claude-sonnet-4", "Copy/pitch → Claude", False, role)
             if or_ok:
                 return ModelPick(
                     "meta-llama/llama-3.3-70b-instruct:free",
@@ -132,6 +145,25 @@ def pick_model_for_intent(
                 )
             if local_ok:
                 return ModelPick(local_model_id(), "Copy → lokaal", True, role)
+        if any(
+            x in role_l
+            for x in (
+                "marketing",
+                "positionering",
+                "gtm",
+                "social strategy",
+                "seo",
+                "geo",
+            )
+        ):
+            if bridge_ok:
+                return ModelPick("claude-sonnet-4", "Growth strat → Claude", False, role)
+            if ds_ok:
+                return ModelPick("deepseek-reasoner", "Growth strat → DeepSeek reasoner", False, role)
+            if or_ok:
+                return ModelPick("deepseek/deepseek-r1", "Growth strat → R1", False, role)
+            if local_ok:
+                return ModelPick(local_model_id(heavy=True), "Growth strat → lokaal heavy", True, role)
         if any(x in role_l for x in ("design", "art", "frontend")):
             if bridge_ok:
                 return ModelPick("claude-sonnet-4", "Design/FE → Claude", False, role)
@@ -220,6 +252,32 @@ def pick_model_for_intent(
             )
         if local_ok:
             return ModelPick(local_model_id(), "schrijven → lokaal", True, role)
+
+    if kind in {"marketing", "socials", "seo"}:
+        # Growth stack: quality writing/strategy → Claude; researchy SEO → OR/DeepSeek ok
+        if intent.complexity == "high" or kind == "marketing":
+            if bridge_ok:
+                return ModelPick("claude-sonnet-4", f"{kind} → Claude", False, role)
+            if ds_ok:
+                return ModelPick("deepseek-reasoner", f"{kind} → DeepSeek reasoner", False, role)
+        if kind == "seo" and or_ok:
+            return ModelPick(
+                "meta-llama/llama-3.3-70b-instruct:free",
+                "seo → OR + tools",
+                False,
+                role,
+            )
+        if bridge_ok:
+            return ModelPick("claude-sonnet-4", f"{kind} → Claude", False, role)
+        if or_ok:
+            return ModelPick(
+                "meta-llama/llama-3.3-70b-instruct:free",
+                f"{kind} → Llama free",
+                False,
+                role,
+            )
+        if local_ok:
+            return ModelPick(local_model_id(heavy=True), f"{kind} → lokaal heavy", True, role)
 
     if kind == "research":
         if or_ok:

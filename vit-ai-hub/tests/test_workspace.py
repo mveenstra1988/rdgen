@@ -47,5 +47,7 @@ def test_studio_list():
     ids = {s["id"] for s in list_studios()}
     assert "software" in ids and "webdesign" in ids and "design" in ids
     assert "ops" in ids
+    assert {"marketing", "socials", "seo"} <= ids
     assert "Penpot" in (studio_system_prompt("design") or "")
     assert "Proxmox" in (studio_system_prompt("ops") or "")
+    assert "GEO" in (studio_system_prompt("seo") or "")

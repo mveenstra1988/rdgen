@@ -589,6 +589,7 @@ document.getElementById("acc-add")?.addEventListener("click", async () => {
 addBubble(
   "system",
   "Welkom. Laat model op vit/auto staan, kies een studio, en typ je vraag.\n" +
+    "Growth: Marketing · Socials · SEO/GEO — of laat vit/auto routen naar team-growth.\n" +
     "Abonnementen & migratie zitten ingeklapt links — open alleen als je ze nodig hebt."
 );
 ensureLocalToken().then(() => {

@@ -17,24 +17,25 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.5.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.6.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → korte setup (of overslaan)
 4. Chat: **vit/auto** + studio · Abonnementen/Kennis zitten ingeklapt links
-5. Teams-tab voor agent-teams
+5. Growth: Marketing / Socials / SEO-GEO — of Teams-tab
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 
 ## vit/auto (slimmer dan Cursor Auto)
 
 Met model **vit/auto** (default):
-1. Classificeert de opdracht (code / design / ops / write / research / complex)
+1. Classificeert de opdracht (code / design / ops / marketing / socials / seo / write / research / complex)
 2. **Strong/weak** routing (RouteLLM-achtig) + tradeoff quality/cost/latency
 3. Kiest het beste beschikbare model (lokaal, Claude bridge, DeepSeek, OpenRouter free, …)
 4. **Fallback cascade** bij fout/lege output (OpenRouter-style ordered models)
 5. **Critic loop** (maker-checker) bij code/design/complex — 1 revise-ronde
 6. Bij complexe multi-stap taken: auto agent-team met **per rol een ander model**
-7. Telemetrie in `data/orchestrator.jsonl` · PII fail-closed blijft
+7. **Growth router**: pitches/sites → Marketing / Socials / SEO-GEO of `team-growth`
+8. Telemetrie in `data/orchestrator.jsonl` · PII fail-closed blijft
 
 Preview: `POST /api/orchestrator/plan` met `{"text":"…","tradeoff":"cost"}`.
 
@@ -64,7 +65,18 @@ API (localhost): `GET /api/ops/status`, `POST /api/ops/action`.
 
 ## Agent teams
 
-In de GUI: **Agent teams**. Presets: Webdesign, Applicatie, Infra, Self-improve. Zelf agents/teams maken, volgorde zetten, pipeline of board+synthese, daarna **Run team**.
+In de GUI: **Agent teams**. Presets: Webdesign, Applicatie, Infra, Self-improve, Marketing, Socials, SEO/GEO, **Growth**. Zelf agents/teams maken, volgorde zetten, pipeline of board+synthese, daarna **Run team**.
+
+## Marketing / Socials / SEO-GEO
+
+| Studio | Voor | Team |
+|--------|------|------|
+| Marketing | Pitch, positionering, GTM, funnels | `team-marketing` |
+| Socials | LinkedIn/IG posts, kalender, scripts | `team-socials` |
+| SEO / GEO | Keywords, on-page, local, AEO/GEO | `team-seo` |
+| (auto) | Pitch + site + socials samen | `team-growth` |
+
+Laat **vit/auto** staan: “campagne end-to-end”, “SEO + landing”, “LinkedIn kalender” → juiste studio/team.
 
 ## Claude / ChatGPT / Cursor eruit?
 
@@ -72,6 +84,7 @@ Zie `docs/EXIT.md`. Kort:
 - **Chat:** studio Chat + lokaal/OpenRouter
 - **Code:** studio Software + workspace, of VS Code/Zed + Continue → hub
 - **Design:** studio Webdesign (design-in-code) of Penpot (`scripts/install-penpot-mac.sh`)
+- **Pitches/sites:** Marketing + SEO/GEO + Webdesign (of team-growth)
 
 Details: `docs/STUDIO.md`
 

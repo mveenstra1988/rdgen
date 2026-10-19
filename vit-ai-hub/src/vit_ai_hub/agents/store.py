@@ -299,6 +299,90 @@ def _preset_agents() -> list[dict[str, Any]]:
             "tools": True,
             "preset": True,
         },
+        {
+            "id": "agent-marketing-strat",
+            "name": "Marketing Strat",
+            "role": "Positionering & GTM",
+            "color": "#c4f04d",
+            "model": "vit/auto",
+            "studio": "marketing",
+            "system": (
+                "Je bent marketing-strateeg voor VIT/B2B. ICP, positionering, message house, "
+                "funnel/GTM. Scherp, geen fluff. Lever pitch + bewijs + CTA."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-pitch-writer",
+            "name": "Pitch Writer",
+            "role": "Pitch & sales copy",
+            "color": "#ffb454",
+            "model": "vit/auto",
+            "studio": "marketing",
+            "system": (
+                "Je schrijft pitches, one-pagers en landingscopy. 30s + 2min versies. "
+                "Spreekbaar NL, merkbaar, concrete CTA. Geen buzzwords."
+            ),
+            "tools": False,
+            "preset": True,
+        },
+        {
+            "id": "agent-social-lead",
+            "name": "Social Lead",
+            "role": "Social strategy",
+            "color": "#7ec8ff",
+            "model": "vit/auto",
+            "studio": "socials",
+            "system": (
+                "Je plant social strategie: kanaalkeuze, kalender, hoeken. "
+                "LinkedIn B2B eerst tenzij anders gevraagd. Platform-native."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-social-copy",
+            "name": "Social Copy",
+            "role": "Posts & scripts",
+            "color": "#ffb454",
+            "model": "vit/auto",
+            "studio": "socials",
+            "system": (
+                "Je schrijft posts/scripts: sterke hook, één idee, subtiele CTA. "
+                "Batches van 5 + korte kalenderregels. Max 3–5 hashtags of geen."
+            ),
+            "tools": False,
+            "preset": True,
+        },
+        {
+            "id": "agent-seo-lead",
+            "name": "SEO Lead",
+            "role": "SEO / GEO strategy",
+            "color": "#c4f04d",
+            "model": "vit/auto",
+            "studio": "seo",
+            "system": (
+                "Je bent SEO/GEO lead. Intent map, keyword clusters, on-page + "
+                "generative-engine citeerbaarheid (AEO). Local SEO NL waar relevant. Geen black-hat."
+            ),
+            "tools": True,
+            "preset": True,
+        },
+        {
+            "id": "agent-seo-content",
+            "name": "SEO Content",
+            "role": "Content briefs",
+            "color": "#7ec8ff",
+            "model": "vit/auto",
+            "studio": "seo",
+            "system": (
+                "Je levert SEO/GEO content briefs: title/H1/H2, FAQ, schema-hints, "
+                "interne links. Quotable feiten voor AI-engines. Geen keyword stuffing."
+            ),
+            "tools": False,
+            "preset": True,
+        },
     ]
 
 
@@ -359,6 +443,64 @@ def _preset_teams() -> list[dict[str, Any]]:
                 {"agent_id": "agent-infra-lead", "order": 0, "label": "Triage"},
                 {"agent_id": "agent-proxmox", "order": 1, "label": "PVE"},
                 {"agent_id": "agent-mail-cloud", "order": 2, "label": "Mail/Cloud"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-marketing",
+            "name": "Marketing team",
+            "blurb": "Strat → pitch copy. Pitches, propositie, GTM.",
+            "color": "#c4f04d",
+            "studio": "marketing",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-marketing-strat",
+            "members": [
+                {"agent_id": "agent-marketing-strat", "order": 0, "label": "Strat"},
+                {"agent_id": "agent-pitch-writer", "order": 1, "label": "Pitch"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-socials",
+            "name": "Socials team",
+            "blurb": "Social lead → posts/scripts. LinkedIn & contentkalender.",
+            "color": "#7ec8ff",
+            "studio": "socials",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-social-lead",
+            "members": [
+                {"agent_id": "agent-social-lead", "order": 0, "label": "Plan"},
+                {"agent_id": "agent-social-copy", "order": 1, "label": "Posts"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-seo",
+            "name": "SEO / GEO team",
+            "blurb": "SEO lead → content briefs. Zoek + AI-citeerbaarheid.",
+            "color": "#ffb454",
+            "studio": "seo",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-seo-lead",
+            "members": [
+                {"agent_id": "agent-seo-lead", "order": 0, "label": "Strategie"},
+                {"agent_id": "agent-seo-content", "order": 1, "label": "Brief"},
+            ],
+            "preset": True,
+        },
+        {
+            "id": "team-growth",
+            "name": "Growth team",
+            "blurb": "Marketing → SEO → Socials → UX copy. Pitches & sites top.",
+            "color": "#c4f04d",
+            "studio": "marketing",
+            "mode": "pipeline",
+            "lead_agent_id": "agent-marketing-strat",
+            "members": [
+                {"agent_id": "agent-marketing-strat", "order": 0, "label": "Positionering"},
+                {"agent_id": "agent-seo-lead", "order": 1, "label": "SEO/GEO"},
+                {"agent_id": "agent-social-copy", "order": 2, "label": "Socials"},
+                {"agent_id": "agent-ux-copy", "order": 3, "label": "Site-copy"},
             ],
             "preset": True,
         },
