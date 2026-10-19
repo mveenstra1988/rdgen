@@ -87,14 +87,27 @@ def find_export_zips(download_dirs: list[Path] | None = None) -> dict[str, list[
 
 
 def import_all_one_click() -> dict[str, Any]:
-    """Cursor lokaal + nieuwste ChatGPT/Claude export-zips in Downloads/Desktop."""
+    """Cursor + lokale Mac-apps + nieuwste ChatGPT/Claude export-zips."""
     started = time.time()
-    results: dict[str, Any] = {"cursor": None, "chatgpt": [], "claude": [], "errors": []}
+    results: dict[str, Any] = {
+        "cursor": None,
+        "local_mac": None,
+        "chatgpt": [],
+        "claude": [],
+        "errors": [],
+    }
 
     try:
         results["cursor"] = cursor.import_local()
     except Exception as exc:
         results["errors"].append({"source": "cursor", "error": str(exc)})
+
+    try:
+        from vit_ai_hub.importing.local_mac import harvest_all_local
+
+        results["local_mac"] = harvest_all_local()
+    except Exception as exc:
+        results["errors"].append({"source": "local_mac", "error": str(exc)})
 
     found = find_export_zips()
     for path in found.get("chatgpt") or []:
@@ -113,15 +126,32 @@ def import_all_one_click() -> dict[str, Any]:
     results["knowledge"] = stats()
     results["elapsed_sec"] = round(time.time() - started, 2)
     results["hints"] = []
-    if not results["chatgpt"]:
+    det = (results.get("local_mac") or {}).get("detection") or {}
+    if det.get("chatgpt_encrypted_conversations") and not results["chatgpt"]:
         results["hints"].append(
-            "Geen ChatGPT-export gevonden. ChatGPT → Settings → Data controls → Export data → zip in Downloads."
+            f"ChatGPT-app gevonden ({det['chatgpt_encrypted_conversations']} encrypted chats). "
+            "Die zijn niet plain-text leesbaar. Gebruik 'Start export vanuit apps' of zet de officiële zip in Downloads."
         )
-    if not results["claude"]:
+    elif not results["chatgpt"]:
         results["hints"].append(
-            "Geen Claude-export gevonden. Claude → Settings → Privacy → Export data → zip in Downloads."
+            "Geen volledige ChatGPT-history. Start export vanuit apps, of upload de export-zip."
+        )
+    if not results["claude"] and not (
+        (results.get("local_mac") or {}).get("claude_code", {}).get("conversations", {}).get("written")
+    ):
+        results["hints"].append(
+            "Geen Claude.ai export-zip. Lokale Claude Code/Cowork is wél meegenomen als die er is. "
+            "Voor claude.ai-webchats: Privacy → Export, of knop 'Start export vanuit apps'."
         )
     if not (results.get("cursor") or {}).get("files_scanned"):
         results["hints"].append("Geen Cursor-mappen gevonden op deze machine (normaal in deze cloud-VM).")
-    log_import({"source": "all", "summary": {k: results[k] for k in ("cursor", "chatgpt", "claude", "knowledge")}})
+    log_import(
+        {
+            "source": "all",
+            "summary": {
+                k: results[k]
+                for k in ("cursor", "local_mac", "chatgpt", "claude", "knowledge")
+            },
+        }
+    )
     return results

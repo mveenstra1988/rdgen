@@ -46,8 +46,11 @@
       <section class="import-panel">
         <h3>Kennis & geheugen</h3>
         <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
-        <button type="button" id="import-all" class="primary">Importeer alles (1 klik)</button>
-        <p class="muted tiny">Cursor lokaal + nieuwste ChatGPT/Claude-zips in Downloads/Desktop.</p>
+        <p class="muted tiny" id="local-detect">Mac-apps: …</p>
+        <button type="button" id="import-all" class="primary">Importeer alles van deze Mac</button>
+        <button type="button" id="request-exports" class="ghost">Start export vanuit apps</button>
+        <button type="button" id="wait-exports" class="ghost">Wacht op zips & importeer</button>
+        <p class="muted tiny">Leest Cursor + Claude Code/Cowork + ChatGPT-cache. ChatGPT-appchats zijn encrypted; daarvoor opent “Start export” de officiële export (1 bevestiging), daarna auto-import.</p>
         <label class="field">
           <span>Of upload export (zip/json)</span>
           <input id="import-file" type="file" accept=".zip,.json,application/zip,application/json" />

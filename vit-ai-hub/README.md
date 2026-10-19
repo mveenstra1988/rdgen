@@ -46,20 +46,29 @@ GUI / Cursor / clients
 | `GET /api/capabilities` | Tool/pariteit-manifest |
 | `POST /api/chat` | GUI-chat met tools aan |
 
-## Kennis & geheugen importeren (1 klik)
+## Kennis & geheugen van dezelfde Mac
 
-In de GUI: **Importeer alles (1 klik)**.
+In de GUI:
 
-Dat doet:
-1. **Cursor** lokaal scannen (`~/.cursor`, Application Support, Agent Store/geheugen)
-2. Nieuwste **ChatGPT**- en **Claude**-exportzips in `~/Downloads` of `~/Desktop` importeren
-3. Alles opslaan onder `data/knowledge/` (chats, memories, projects)
-4. Bij elke chat wordt relevante kennis automatisch in de context gezet
+1. **Importeer alles van deze Mac**  
+   Cursor + Claude Code/Cowork + Claude Desktop local sessions + ChatGPT-cache/fragmenten + eventuele export-zips in Downloads.
+2. **Start export vanuit apps**  
+   Opent ChatGPT Data Controls + Claude Privacy (osascript/URLs). Jij klikt eenmaal Export.
+3. **Wacht op zips & importeer**  
+   Watcht Downloads/Desktop en importeert automatisch.
 
-Handmatig:
-- ChatGPT: Settings → Data controls → Export → zip downloaden → in Downloads zetten of uploaden
-- Claude: Settings → Privacy → Export → zip downloaden → in Downloads zetten of uploaden
-- API: `POST /api/import/all`, `POST /api/import/upload`, `GET /api/knowledge/search?q=`
+### Wat wél / niet lokaal leesbaar is
+| Bron | Op de Mac |
+|------|-----------|
+| Cursor / Agent Store | Ja |
+| Claude Code (`~/.claude`) | Ja (JSONL + memory) |
+| Claude Cowork / local-agent | Ja (waar aanwezig) |
+| Claude.ai webchats in Desktop-app | Meestal **niet** (server-side) → export |
+| ChatGPT Mac-app `conversations-v3/*.data` | Lokaal maar **encrypted** → export of cache-fragmenten |
+
+Dus: zelfde Mac, ja. Maar ChatGPT encrypt zijn app-history; daarvoor is de officiële export de betrouwbare volledige dump. De hub automatiseert dat pad zoveel mogelijk.
+
+API: `POST /api/import/all`, `/api/import/local-mac`, `/api/import/request-exports`, `/api/import/wait-exports`, `/api/import/upload`
 
 ## Privacy
 

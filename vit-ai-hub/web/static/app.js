@@ -21,6 +21,9 @@ const els = {
   importFile: document.getElementById("import-file"),
   importSource: document.getElementById("import-source"),
   importUpload: document.getElementById("import-upload"),
+  localDetect: document.getElementById("local-detect"),
+  requestExports: document.getElementById("request-exports"),
+  waitExports: document.getElementById("wait-exports"),
 };
 
 function headers() {
@@ -171,6 +174,15 @@ async function refreshImportStatus() {
       (data.export_zips?.chatgpt?.length || data.export_zips?.claude?.length
         ? ` · zips klaar: GPT ${data.export_zips.chatgpt?.length || 0} / Claude ${data.export_zips.claude?.length || 0}`
         : "");
+    const loc = data.local_apps || {};
+    els.localDetect.textContent =
+      `Mac: ChatGPT-app ${loc.chatgpt_app ? "ja" : "nee"}` +
+      (loc.chatgpt_encrypted_conversations
+        ? ` (${loc.chatgpt_encrypted_conversations} encrypted)`
+        : "") +
+      ` · Claude Desktop ${loc.claude_desktop ? "ja" : "nee"}` +
+      ` · Claude Code ${loc.claude_code_transcripts || 0} transcripts` +
+      ` · cache ${loc.chatgpt_cache_files || 0}`;
   } catch {
     els.importStatus.textContent = "Status onbekend";
   }
@@ -194,7 +206,49 @@ els.importAll?.addEventListener("click", async () => {
     addBubble("system", `Import mislukt: ${err}`);
   } finally {
     els.importAll.disabled = false;
-    els.importAll.textContent = "Importeer alles (1 klik)";
+    els.importAll.textContent = "Importeer alles van deze Mac";
+  }
+});
+
+els.requestExports?.addEventListener("click", async () => {
+  els.requestExports.disabled = true;
+  try {
+    const res = await fetch("/api/import/request-exports", { method: "POST", headers: headers() });
+    const data = await res.json();
+    addBubble(
+      "system",
+      data.next ||
+        JSON.stringify(data) +
+          "\nBevestig Export in ChatGPT/Claude. Klik daarna 'Wacht op zips & importeer'."
+    );
+  } catch (err) {
+    addBubble("system", `Export starten mislukt: ${err}`);
+  } finally {
+    els.requestExports.disabled = false;
+  }
+});
+
+els.waitExports?.addEventListener("click", async () => {
+  els.waitExports.disabled = true;
+  els.waitExports.textContent = "Wachten…";
+  addBubble("system", "Watching Downloads/Desktop (max ~2 min per ronde)…");
+  try {
+    const res = await fetch("/api/import/wait-exports?timeout_sec=120", {
+      method: "POST",
+      headers: headers(),
+    });
+    const data = await res.json();
+    addBubble(
+      "system",
+      `Wait-import: ${data.imported?.length || 0} bestand(en), ${data.elapsed_sec}s` +
+        (data.timed_out ? " (timeout, opnieuw klikken als zip later binnenkomt)" : "")
+    );
+    await refreshImportStatus();
+  } catch (err) {
+    addBubble("system", `Wait-import mislukt: ${err}`);
+  } finally {
+    els.waitExports.disabled = false;
+    els.waitExports.textContent = "Wacht op zips & importeer";
   }
 });
 

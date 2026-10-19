@@ -291,10 +291,13 @@ async def api_tool(name: str, request: Request, _: None = Depends(_auth)):
 
 @app.get("/api/import/status")
 async def import_status(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.local_mac import detect_local_apps
+
     found = find_export_zips()
     return {
         "knowledge": knowledge_stats(),
         "cursor_roots": [str(p) for p in cursor_import.candidate_roots()],
+        "local_apps": detect_local_apps(),
         "export_zips": {
             "chatgpt": [str(p) for p in found.get("chatgpt") or []],
             "claude": [str(p) for p in found.get("claude") or []],
@@ -304,13 +307,48 @@ async def import_status(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.post("/api/import/all")
 async def import_all(_: None = Depends(_auth)) -> dict[str, Any]:
-    """Één klik: Cursor lokaal + nieuwste ChatGPT/Claude zips in Downloads/Desktop."""
+    """Één klik: Cursor + lokale Mac-apps + nieuwste ChatGPT/Claude zips."""
     return import_all_one_click()
 
 
 @app.post("/api/import/cursor")
 async def import_cursor(_: None = Depends(_auth)) -> dict[str, Any]:
     return cursor_import.import_local()
+
+
+@app.get("/api/import/local-detect")
+async def import_local_detect(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.local_mac import detect_local_apps
+
+    return detect_local_apps()
+
+
+@app.post("/api/import/local-mac")
+async def import_local_mac(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.local_mac import harvest_all_local
+
+    return harvest_all_local()
+
+
+@app.post("/api/import/request-exports")
+async def import_request_exports(_: None = Depends(_auth)) -> dict[str, Any]:
+    """Open ChatGPT/Claude export-schermen op de Mac (osascript + URLs)."""
+    from vit_ai_hub.importing.local_mac import request_official_exports
+
+    return request_official_exports()
+
+
+@app.post("/api/import/wait-exports")
+async def import_wait_exports(
+    timeout_sec: int = 120,
+    _: None = Depends(_auth),
+) -> dict[str, Any]:
+    """Wacht op nieuwe export-zips in Downloads/Desktop en importeer ze."""
+    from vit_ai_hub.importing.local_mac import wait_and_import_exports
+
+    # keep request bounded for API responsiveness; GUI can call again
+    timeout_sec = max(5, min(int(timeout_sec or 120), 600))
+    return wait_and_import_exports(timeout_sec=timeout_sec, poll_sec=3)
 
 
 @app.post("/api/import/upload")
