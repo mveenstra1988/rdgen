@@ -206,4 +206,24 @@ def intent_to_dict(intent: Intent) -> dict[str, Any]:
         "suggested_team": intent.suggested_team,
         "suggested_studio": intent.suggested_studio,
         "complexity": intent.complexity,
+        "strength": round(strength_score(intent), 3),
     }
+
+
+def strength_score(intent: Intent) -> float:
+    """0=weak/cheap genoeg, 1=strong model nodig (RouteLLM-achtig)."""
+    base = {"low": 0.25, "medium": 0.55, "high": 0.85}.get(intent.complexity, 0.5)
+    bump = {
+        "simple": -0.2,
+        "chat": 0.0,
+        "ops": -0.05,
+        "write": 0.05,
+        "research": 0.1,
+        "design": 0.15,
+        "code": 0.2,
+        "self": 0.25,
+        "complex": 0.3,
+    }.get(intent.kind, 0.0)
+    if intent.multi_agent:
+        bump += 0.1
+    return max(0.0, min(1.0, base + bump))

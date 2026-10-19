@@ -22,7 +22,7 @@ def _cfg() -> dict[str, Any]:
     return load_yaml_config().get("orchestrator") or {}
 
 
-def _has_key(backends: dict, name: str) -> bool:
+def has_backend_key(backends: dict, name: str) -> bool:
     b = backends.get(name)
     if not b:
         return False
@@ -34,7 +34,7 @@ def _has_key(backends: dict, name: str) -> bool:
     return bool(b.base_url and key and key not in {"", "bridge", "omniroute", "lmstudio", "ollama"})
 
 
-def _local_available(backends: dict) -> bool:
+def local_available(backends: dict) -> bool:
     for name in ("lmstudio", "ollama"):
         b = backends.get(name)
         if b and b.base_url:
@@ -42,7 +42,7 @@ def _local_available(backends: dict) -> bool:
     return False
 
 
-def _local_model(*, heavy: bool = False) -> str:
+def local_model_id(*, heavy: bool = False) -> str:
     s = get_settings()
     if heavy:
         return s.vit_local_heavy_model or s.vit_local_light_model or "vit/local-heavy"
@@ -59,27 +59,56 @@ def pick_model_for_intent(
     *,
     force_local: bool = False,
     role: str | None = None,
+    tradeoff: str | None = None,
 ) -> ModelPick:
     """Kies het beste beschikbare model voor deze intent (+ optionele agent-rol)."""
     backends = build_backends()
     ov = _overrides()
-    local_ok = _local_available(backends)
+    local_ok = local_available(backends)
     bridge_ok = bool(backends.get("bridge") and backends["bridge"].base_url)
-    or_ok = _has_key(backends, "openrouter")
-    ds_ok = _has_key(backends, "deepseek")
-    grok_ok = _has_key(backends, "grok")
+    or_ok = has_backend_key(backends, "openrouter")
+    ds_ok = has_backend_key(backends, "deepseek")
+    grok_ok = has_backend_key(backends, "grok")
 
     prefer_local_kinds = set(_cfg().get("prefer_local_for") or ["ops", "simple", "privacy"])
     kind = intent.kind
     role_l = (role or "").lower()
+    tradeoff = (tradeoff or _cfg().get("tradeoff") or "quality").lower()
+    if tradeoff not in {"quality", "cost", "latency"}:
+        tradeoff = "quality"
+
+    from vit_ai_hub.orchestrator.intent import strength_score
+
+    strength = strength_score(intent)
+    weak_threshold = float(_cfg().get("weak_threshold") or 0.4)
+    if tradeoff == "cost":
+        weak_threshold = min(0.7, weak_threshold + 0.2)
+    elif tradeoff == "latency":
+        weak_threshold = min(0.65, weak_threshold + 0.15)
 
     if force_local:
         heavy = kind in {"code", "complex", "self"} or intent.complexity == "high"
         return ModelPick(
-            model=_local_model(heavy=heavy),
+            model=local_model_id(heavy=heavy),
             reason="PII/fail-closed → lokaal",
             prefer_local=True,
             role=role,
+        )
+
+    # Explicit weak path for simple/low-strength (cost/latency optimized)
+    if strength < weak_threshold and local_ok and kind in {"simple", "chat", "ops"}:
+        return ModelPick(
+            local_model_id(),
+            f"weak-route strength={strength:.2f} tradeoff={tradeoff} → lokaal",
+            True,
+            role,
+        )
+    if strength < weak_threshold and tradeoff in {"cost", "latency"} and or_ok and kind in {"chat", "write", "research"}:
+        return ModelPick(
+            "meta-llama/llama-3.3-70b-instruct:free",
+            f"weak-route strength={strength:.2f} → free OR",
+            False,
+            role,
         )
 
     # Role-specific overrides inside teams
@@ -102,14 +131,14 @@ def pick_model_for_intent(
                     role,
                 )
             if local_ok:
-                return ModelPick(_local_model(), "Copy → lokaal", True, role)
+                return ModelPick(local_model_id(), "Copy → lokaal", True, role)
         if any(x in role_l for x in ("design", "art", "frontend")):
             if bridge_ok:
                 return ModelPick("claude-sonnet-4", "Design/FE → Claude", False, role)
             if or_ok:
                 return ModelPick("openrouter:anthropic/claude-sonnet-4", "Design → OR Claude", False, role)
             if local_ok:
-                return ModelPick(_local_model(heavy=True), "Design → lokaal heavy", True, role)
+                return ModelPick(local_model_id(heavy=True), "Design → lokaal heavy", True, role)
         if any(x in role_l for x in ("architect", "plan", "triage", "lead")):
             if bridge_ok:
                 return ModelPick("claude-sonnet-4", "Lead/architect → Claude", False, role)
@@ -120,13 +149,13 @@ def pick_model_for_intent(
         if any(x in role_l for x in ("engineer", "implement", "proxmox", "mail", "infra", "hub improver")):
             if kind == "ops" or "proxmox" in role_l or "mail" in role_l or "infra" in role_l:
                 if local_ok:
-                    return ModelPick(_local_model(), "Ops-rol → lokaal (privacy)", True, role)
+                    return ModelPick(local_model_id(), "Ops-rol → lokaal (privacy)", True, role)
             if ds_ok:
                 return ModelPick("deepseek-chat", "Engineer → DeepSeek", False, role)
             if bridge_ok:
                 return ModelPick("claude-sonnet-4", "Engineer → Claude", False, role)
             if local_ok:
-                return ModelPick(_local_model(heavy=True), "Engineer → lokaal heavy", True, role)
+                return ModelPick(local_model_id(heavy=True), "Engineer → lokaal heavy", True, role)
 
     # Explicit config override per kind
     if kind in ov:
@@ -135,18 +164,18 @@ def pick_model_for_intent(
     # Intent policies
     if kind in prefer_local_kinds and local_ok:
         return ModelPick(
-            _local_model(heavy=kind == "ops" and intent.complexity == "high"),
+            local_model_id(heavy=kind == "ops" and intent.complexity == "high"),
             f"{kind} → lokaal-first",
             True,
             role,
         )
 
     if kind == "simple" and local_ok:
-        return ModelPick(_local_model(), "simpele vraag → lokaal light", True, role)
+        return ModelPick(local_model_id(), "simpele vraag → lokaal light", True, role)
 
     if kind == "ops":
         if local_ok:
-            return ModelPick(_local_model(), "ops → lokaal (secrets/VPN context)", True, role)
+            return ModelPick(local_model_id(), "ops → lokaal (secrets/VPN context)", True, role)
         if bridge_ok:
             return ModelPick("claude-sonnet-4", "ops → Claude (geen lokaal)", False, role)
 
@@ -164,7 +193,7 @@ def pick_model_for_intent(
         if or_ok:
             return ModelPick("deepseek/deepseek-chat", "code → DeepSeek via OR", False, role)
         if local_ok:
-            return ModelPick(_local_model(heavy=True), "code → lokaal heavy", True, role)
+            return ModelPick(local_model_id(heavy=True), "code → lokaal heavy", True, role)
 
     if kind == "design":
         if bridge_ok:
@@ -177,7 +206,7 @@ def pick_model_for_intent(
                 role,
             )
         if local_ok:
-            return ModelPick(_local_model(heavy=True), "design → lokaal heavy", True, role)
+            return ModelPick(local_model_id(heavy=True), "design → lokaal heavy", True, role)
 
     if kind == "write":
         if bridge_ok:
@@ -190,7 +219,7 @@ def pick_model_for_intent(
                 role,
             )
         if local_ok:
-            return ModelPick(_local_model(), "schrijven → lokaal", True, role)
+            return ModelPick(local_model_id(), "schrijven → lokaal", True, role)
 
     if kind == "research":
         if or_ok:
@@ -205,7 +234,7 @@ def pick_model_for_intent(
         if grok_ok:
             return ModelPick("grok-3-mini", "research → Grok mini", False, role)
         if local_ok:
-            return ModelPick(_local_model(), "research → lokaal + tools", True, role)
+            return ModelPick(local_model_id(), "research → lokaal + tools", True, role)
 
     if kind in {"complex", "self"}:
         if bridge_ok:
@@ -215,11 +244,11 @@ def pick_model_for_intent(
         if or_ok:
             return ModelPick("deepseek/deepseek-r1", f"{kind} → R1", False, role)
         if local_ok:
-            return ModelPick(_local_model(heavy=True), f"{kind} → lokaal heavy", True, role)
+            return ModelPick(local_model_id(heavy=True), f"{kind} → lokaal heavy", True, role)
 
     # chat default: local light if possible, else cheapest smart cloud
     if local_ok:
-        return ModelPick(_local_model(), "chat → lokaal light", True, role)
+        return ModelPick(local_model_id(), "chat → lokaal light", True, role)
     if bridge_ok:
         return ModelPick("claude-sonnet-4", "chat → Claude bridge", False, role)
     if or_ok:
@@ -239,9 +268,12 @@ def pick_models_for_team_roles(
     roles: list[tuple[str, str | None]],
     *,
     force_local: bool = False,
+    tradeoff: str | None = None,
 ) -> dict[str, ModelPick]:
     """roles: list of (agent_id, role_label)."""
     return {
-        agent_id: pick_model_for_intent(intent, force_local=force_local, role=role)
+        agent_id: pick_model_for_intent(
+            intent, force_local=force_local, role=role, tradeoff=tradeoff
+        )
         for agent_id, role in roles
     }

@@ -55,6 +55,8 @@ class ChatCompletionRequest(BaseModel):
     workspace: str | None = None
     vit_auto_team: bool | None = None  # None = config default; False = nooit auto-team
     vit_skip_orchestrator: bool = False  # True = geen intent/team (interne team-stappen)
+    vit_tradeoff: str | None = None  # quality | cost | latency
+    vit_critic: bool | None = None  # None = config/auto; False = skip critic
 
 
 def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
@@ -197,6 +199,7 @@ async def api_orchestrator_plan(request: Request, _: None = Depends(_auth)) -> d
         workspace=str(body.get("workspace") or "") or None,
         force_local=bool(body.get("force_local")),
         allow_team=body.get("allow_team"),
+        tradeoff=str(body.get("tradeoff") or "") or None,
     )
     return {"ok": True, "plan": plan.to_dict()}
 
@@ -397,6 +400,7 @@ async def _handle_chat(body: ChatCompletionRequest):
                 workspace=body.workspace,
                 force_local=False,
                 allow_team=body.vit_auto_team,
+                tradeoff=body.vit_tradeoff,
             )
             # Auto multi-agent: complexe taken → team met per-rol model
             if auto_plan.use_team and auto_plan.team_id and not body.stream:
@@ -517,7 +521,91 @@ async def _handle_chat(body: ChatCompletionRequest):
             media_type="text/event-stream",
         )
 
-    data = await _chat_with_tools(decision, payload)
+    cascade_meta: dict[str, Any] = {}
+    critic_meta: dict[str, Any] | None = None
+    models_chain = [decision.model]
+    if auto_plan and auto_plan.fallbacks:
+        models_chain = list(auto_plan.fallbacks)
+
+    if auto_plan and len(models_chain) > 1 and not body.vit_skip_orchestrator:
+        from vit_ai_hub.orchestrator.cascade import cascade_chat
+
+        async def _one(dec, pl):
+            return await _chat_with_tools(dec, pl)
+
+        def _res(mid: str):
+            return router_engine.resolve(mid, force_local=force_local)
+
+        try:
+            data, cascade_meta = await cascade_chat(
+                models=models_chain,
+                resolve=_res,
+                chat_fn=_one,
+                payload=payload,
+                intent_kind=auto_plan.intent.kind if auto_plan else None,
+                force_local=force_local,
+            )
+            decision = _res(cascade_meta.get("used_model") or decision.model)
+        except Exception:
+            data = await _chat_with_tools(decision, payload)
+    else:
+        data = await _chat_with_tools(decision, payload)
+
+    # Maker-checker (critic) — Azure evaluator-optimizer pattern
+    want_critic = False
+    if auto_plan and not body.vit_skip_orchestrator:
+        want_critic = auto_plan.use_critic if body.vit_critic is None else bool(body.vit_critic)
+    if want_critic:
+        try:
+            from vit_ai_hub.orchestrator.critic import run_critic_loop
+
+            draft = ""
+            try:
+                draft = data["choices"][0]["message"].get("content") or ""
+            except Exception:
+                draft = ""
+
+            async def chat_once(model: str, messages: list[dict[str, Any]]) -> str:
+                fake = ChatCompletionRequest(
+                    model=model,
+                    messages=[ChatMessage(**m) for m in messages],
+                    vit_enable_tools=False,
+                    stream=False,
+                    vit_skip_orchestrator=True,
+                    vit_auto_team=False,
+                    vit_critic=False,
+                )
+                out = await _handle_chat(fake)
+                if isinstance(out, JSONResponse):
+                    out = json.loads(out.body.decode())
+                try:
+                    return out["choices"][0]["message"].get("content") or ""
+                except Exception:
+                    return ""
+
+            critic_model = "vit/local-light"
+            if not decision.local:
+                critic_model = "deepseek-reasoner" if "deepseek" in (decision.model or "") else decision.model
+            # prefer a different model for critic when possible
+            if auto_plan and auto_plan.fallbacks:
+                for cand in auto_plan.fallbacks:
+                    if cand != decision.model:
+                        critic_model = cand
+                        break
+
+            critic_meta = await run_critic_loop(
+                task=last_user,
+                draft=draft,
+                intent=auto_plan.intent,
+                chat_once=chat_once,
+                critic_model=critic_model,
+                revise_model=decision.model,
+            )
+            if critic_meta.get("used") and critic_meta.get("final"):
+                data["choices"][0]["message"]["content"] = critic_meta["final"]
+        except Exception as exc:
+            critic_meta = {"used": False, "error": str(exc)}
+
     # rehydrate assistant content
     try:
         content = data["choices"][0]["message"].get("content")
@@ -537,6 +625,8 @@ async def _handle_chat(body: ChatCompletionRequest):
         "studio": body.studio,
         "workspace": body.workspace,
         "orchestrator": auto_plan.to_dict() if auto_plan else None,
+        "cascade": cascade_meta or None,
+        "critic": critic_meta,
     }
     return JSONResponse(data)
 

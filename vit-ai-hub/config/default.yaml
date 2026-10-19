@@ -127,6 +127,17 @@ orchestrator:
   enabled: true
   auto_team: true
   prefer_local_for: [ops, simple, privacy]
+  # quality | cost | latency (RouteLLM/NotDiamond-achtige tradeoff)
+  tradeoff: quality
+  # strength < weak_threshold → cheap/local (RouteLLM strong/weak)
+  weak_threshold: 0.4
+  # OpenRouter-style fallback chain length (excl. primary)
+  max_fallbacks: 3
+  fallback_extra: []
+  # Maker-checker / critic loop na single-model antwoorden
+  critic: true
+  critic_rounds: 1
+  telemetry: true
   # Optionele vaste model-ids per intent (leeg = dynamisch kiezen)
   models: {}
 

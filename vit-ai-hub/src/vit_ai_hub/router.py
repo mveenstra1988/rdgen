@@ -177,6 +177,7 @@ class ModelRouter:
         workspace: str | None = None,
         force_local: bool = False,
         allow_team: bool | None = None,
+        tradeoff: str | None = None,
     ) -> tuple[RouteDecision, Any]:
         """Intent-aware resolve; geeft (decision, AutoPlan) terug."""
         from vit_ai_hub.orchestrator import plan_request
@@ -187,6 +188,7 @@ class ModelRouter:
             workspace=workspace,
             force_local=force_local,
             allow_team=allow_team,
+            tradeoff=tradeoff,
         )
         decision = self.resolve(plan.model, force_local=force_local)
         decision.virtual = "vit/auto"

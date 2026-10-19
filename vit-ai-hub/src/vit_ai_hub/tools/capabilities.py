@@ -379,7 +379,10 @@ def capabilities_manifest() -> dict[str, Any]:
             "vit_backup",
         ],
         "orchestrator": True,
-        "vit_auto": "intent → beste model (lokaal/bridge/OpenRouter/DeepSeek) + auto multi-agent team",
+        "vit_auto": (
+            "intent → strong/weak + tradeoff + fallback cascade + critic + auto multi-agent "
+            "(lokaal/bridge/OpenRouter/DeepSeek)"
+        ),
         "cursor_exit": "VS Code + Continue → http://127.0.0.1:8787/v1 (scripts/export-continue-config.sh)",
         "figma_alt": "Penpot (scripts/install-penpot-mac.sh) + design studio",
         "parity_notes": [

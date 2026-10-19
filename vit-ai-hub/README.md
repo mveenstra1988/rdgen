@@ -17,13 +17,26 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Download `dist/VIT-AI-Hub-1.2.0-mac.zip` (of uit de PR-artifacts)
+1. Download `dist/VIT-AI-Hub-1.3.0-mac.zip` (of uit de PR-artifacts)
 2. Unzip → eventueel `xattr -dr com.apple.quarantine "VIT AI Hub.app" hub`
 3. Dubbelklik **VIT AI Hub.app** → wizard → **Migreer ALLES**
-4. Kies model **vit/auto** — intent → beste model + auto-team bij complexe taken
+4. Kies model **vit/auto** — intent → model + fallbacks + critic + auto-team
 5. Tab **Agent teams** · studio **Ops / Infra** of **Self-improve** · MCP + ops-tools
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
+
+## vit/auto (slimmer dan Cursor Auto)
+
+Met model **vit/auto** (default):
+1. Classificeert de opdracht (code / design / ops / write / research / complex)
+2. **Strong/weak** routing (RouteLLM-achtig) + tradeoff quality/cost/latency
+3. Kiest het beste beschikbare model (lokaal, Claude bridge, DeepSeek, OpenRouter free, …)
+4. **Fallback cascade** bij fout/lege output (OpenRouter-style ordered models)
+5. **Critic loop** (maker-checker) bij code/design/complex — 1 revise-ronde
+6. Bij complexe multi-stap taken: auto agent-team met **per rol een ander model**
+7. Telemetrie in `data/orchestrator.jsonl` · PII fail-closed blijft
+
+Preview: `POST /api/orchestrator/plan` met `{"text":"…","tradeoff":"cost"}`.
 
 ## Ops / Infra
 
