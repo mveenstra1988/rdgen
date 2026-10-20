@@ -696,6 +696,40 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 .diff-new { background: #e7f6ea; margin-top: 0.35rem; }
 .diff-fence { background: var(--accent-soft); }
 
+.vit-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.55rem;
+}
+.vit-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.75rem;
+}
+.vit-app-row .dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: #bbb;
+  display: inline-block;
+  margin-right: 0.35rem;
+}
+.vit-app-row .dot.on { background: var(--accent-deep, #5a8f12); }
+.vit-app-row button {
+  font-size: 0.7rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+}
+
 .mac-profile-box {
   margin-top: 0.5rem;
   padding: 0.55rem 0.65rem;

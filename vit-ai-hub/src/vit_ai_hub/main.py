@@ -1555,6 +1555,29 @@ async def api_media_status(_: None = Depends(_auth)) -> dict[str, Any]:
     return {"ok": True, **media_capabilities()}
 
 
+@app.get("/api/vit-apps")
+async def api_vit_apps(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.tools.vit_apps import list_vit_apps
+
+    return list_vit_apps()
+
+
+@app.post("/api/vit-apps/{app_id}/open")
+async def api_vit_app_open(app_id: str, body: dict[str, Any] | None = None, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.tools.vit_apps import open_vit_app
+
+    body = body or {}
+    return open_vit_app(
+        app_id,
+        action=str(body.get("action") or "open"),
+        to=str(body.get("to") or ""),
+        subject=str(body.get("subject") or ""),
+        body=str(body.get("body") or ""),
+        path=str(body.get("path") or ""),
+        prefer_web=bool(body.get("prefer_web")),
+    )
+
+
 @app.get("/docs/MAC_M5_MAX.md")
 async def docs_mac_m5() -> FileResponse:
     path = ROOT / "docs" / "MAC_M5_MAX.md"

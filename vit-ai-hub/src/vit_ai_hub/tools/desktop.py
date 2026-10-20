@@ -16,6 +16,20 @@ KNOWN_APPS = {
     "mail": ["Mail"],
     "vit mail": ["VIT Mail", "VITMail", "vit-mail"],
     "vitmail": ["VIT Mail", "VITMail"],
+    "vit kluis": ["VIT Kluis", "VITKluis"],
+    "kluis": ["VIT Kluis", "VITKluis"],
+    "bitwarden": ["VIT Kluis", "Bitwarden"],
+    "vit backup": ["VIT Backup", "VIT-Schijfkluis", "VIT Schijfkluis"],
+    "backup": ["VIT Backup", "VIT-Schijfkluis"],
+    "vit office": ["VIT Office", "VITOffice"],
+    "office": ["VIT Office", "VITOffice"],
+    "vit pdf": ["VIT PDF", "VITPDF"],
+    "pdf": ["VIT PDF", "VITPDF", "Preview"],
+    "vit remote": ["VIT Remote Manager", "VIT Remote"],
+    "remote manager": ["VIT Remote Manager", "VIT Remote"],
+    "remote": ["VIT Remote Manager", "VIT Remote"],
+    "vit menubalk": ["VIT Menubalk"],
+    "menubalk": ["VIT Menubalk"],
     "cursor": ["Cursor"],
     "chatgpt": ["ChatGPT"],
     "claude": ["Claude"],
@@ -163,22 +177,13 @@ def mail_compose(to: str = "", subject: str = "", body: str = "") -> dict[str, A
 
 
 def vit_mail_open(action: str = "open") -> dict[str, Any]:
-    """Open VIT Mail app; optional deep-ish actions via open URL schemes if present."""
-    opened = open_app("vit mail")
-    if not opened.get("ok"):
-        # try common bundle locations Mike uses
-        for path in (
-            Path.home() / "Applications/VIT Mail.app",
-            Path("/Applications/VIT Mail.app"),
-            Path.home() / "Applications/VITMail.app",
-        ):
-            if path.exists():
-                r = subprocess.run(["open", str(path)], capture_output=True, text=True)
-                opened = {"ok": r.returncode == 0, "app": str(path)}
-                break
-    if action.startswith("mailto:"):
-        open_url(action)
-    return {"ok": opened.get("ok", False), "action": action, "app": opened}
+    """Open VIT Mail — via VIT-suite (compose/open)."""
+    from vit_ai_hub.tools.vit_apps import open_vit_app
+
+    act = action or "open"
+    if act.startswith("mailto:"):
+        return open_url(act)
+    return open_vit_app("mail", action=act if act in {"open", "compose", "web"} else "open")
 
 
 def spotlight_search(query: str) -> dict[str, Any]:
@@ -304,12 +309,18 @@ def list_running_apps() -> dict[str, Any]:
 
 
 def desktop_tool_specs() -> list[dict[str, Any]]:
-    return [
+    from vit_ai_hub.tools.vit_apps import vit_app_tool_specs
+
+    tools: list[dict[str, Any]] = [
+        *vit_app_tool_specs(),
         {
             "type": "function",
             "function": {
                 "name": "open_app",
-                "description": "Open een lokale Mac-app (Chrome, Mail, VIT Mail, Cursor, ChatGPT, Claude, Grok, …).",
+                "description": (
+                    "Open een lokale Mac-app (Chrome, Mail, VIT Mail/Kluis/Backup/Office/PDF/"
+                    "Remote Manager, Cursor, ChatGPT, Claude, …)."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {"name": {"type": "string"}},
@@ -430,9 +441,16 @@ def desktop_tool_specs() -> list[dict[str, Any]]:
             },
         },
     ]
+    return tools
 
 
 async def run_desktop_tool(name: str, arguments: dict[str, Any]) -> str:
+    from vit_ai_hub.tools.vit_apps import run_vit_app_tool, vit_app_tool_specs
+
+    vit_names = {t["function"]["name"] for t in vit_app_tool_specs()}
+    if name in vit_names:
+        return await run_vit_app_tool(name, arguments)
+
     dispatch = {
         "open_app": lambda: open_app(str(arguments.get("name", ""))),
         "open_url": lambda: open_url(str(arguments.get("url", ""))),

@@ -416,6 +416,8 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         "run_shell_safe",
         "open_penpot",
         "open_figcraft",
+        "vit_apps_list",
+        "vit_app_open",
     }
     if name in desktop_names:
         from vit_ai_hub.tools.desktop import run_desktop_tool
@@ -571,7 +573,8 @@ def capabilities_manifest() -> dict[str, Any]:
             "Figma-alt: Penpot + design-in-code (webdesign) + visual templates.",
             "Site pipeline: team-site = marketing → SEO → design → frontend → copy.",
             "Eén Mac-app (.dmg/.app): open start hub, sluiten stopt hub.",
-            "Desktop: Chrome, Mail, VIT Mail, Penpot, Spotlight, speak_text.",
+            "Desktop: Chrome, Mail, VIT-suite (Mail/Kluis/Backup/Office/PDF/Remote), Penpot, FigCraft.",
             "Ops: Proxmox/Nextcloud/Mailcow/UniFi/Backup via ops.env (VPN, read-first).",
+            "VIT Kluis = Vaultwarden/Bitwarden @ secure.vitwerkplek.nl (vit_app_open kluis).",
         ],
     }

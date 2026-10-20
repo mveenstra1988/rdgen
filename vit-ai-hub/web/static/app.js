@@ -889,6 +889,40 @@ els.importZipsNow?.addEventListener("click", async () => {
   }
 });
 
+async function refreshVitApps() {
+  const box = document.getElementById("vit-apps-list");
+  if (!box) return;
+  try {
+    const res = await fetch("/api/vit-apps", { headers: headers() });
+    const data = await res.json();
+    box.innerHTML = "";
+    for (const a of data.apps || []) {
+      const row = document.createElement("div");
+      row.className = "vit-app-row";
+      row.innerHTML = `<span><i class="dot ${a.installed ? "on" : ""}"></i>${escapeHtml(a.name)}</span>`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = a.installed ? "Open" : a.web ? "Web" : "—";
+      btn.disabled = !a.installed && !a.web;
+      btn.addEventListener("click", async () => {
+        const r = await fetch(`/api/vit-apps/${encodeURIComponent(a.id)}/open`, {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ prefer_web: !a.installed && !!a.web }),
+        });
+        const out = await r.json();
+        addBubble("system", `${a.name}: ${out.ok ? "geopend" : out.error || "mislukt"}`);
+      });
+      row.appendChild(btn);
+      box.appendChild(row);
+    }
+  } catch {
+    box.innerHTML = `<p class="muted tiny">VIT-apps niet geladen.</p>`;
+  }
+}
+
+document.getElementById("vit-apps-refresh")?.addEventListener("click", () => refreshVitApps());
+
 async function refreshMacProfile() {
   const box = document.getElementById("mac-profile-box");
   if (!box) return;
@@ -1204,6 +1238,7 @@ ensureLocalToken().then(async () => {
   refreshAccounts();
   refreshNetwork();
   refreshMacProfile();
+  refreshVitApps();
   loadPresets();
   loadModels().catch((e) => {
     if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;
