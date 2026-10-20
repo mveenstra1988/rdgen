@@ -45,6 +45,7 @@
 - [x] Wizard: Gemini + Claude Code/Codex/ChatGPT login-knoppen + auto-save (2.5)
 - [x] Parity-matrix `docs/PARITY.md` (okt 2026)
 - [x] Bridge auto: install CLIProxyAPI + key + Claude/ChatGPT OAuth in wizard (2.5.2)
+- [x] Login-only wizard (Claude/ChatGPT/Cursor/Gemini) + `install_auto` doet de rest (2.6.0)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)

@@ -598,8 +598,7 @@ els.form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   let text = els.prompt.value.trim();
   if (!text) return;
-  // Sync /plan /ask /agent naar dropdown
-  const slash = text.match(/^\/(plan|ask|agent)(?:\s|$)/i);
+  const slash = text.match(/^\/(plan|ask|agent|debug)(?:\s|$)/i);
   if (slash && els.agentMode) {
     els.agentMode.value = slash[1].toLowerCase();
   }
@@ -630,6 +629,14 @@ els.form.addEventListener("submit", async (ev) => {
     if (!res.ok) {
       const detail = data.detail || data.error || data;
       addBubble("system", typeof detail === "string" ? detail : JSON.stringify(detail, null, 2));
+      return;
+    }
+    if (data.vit?.action === "clear_chat") {
+      state.messages = [];
+      saveSessionMessages();
+      if (els.messages) els.messages.innerHTML = "";
+      addBubble("system", data.choices?.[0]?.message?.content || "Chat geleegd.");
+      syncEmptyState();
       return;
     }
     const content = data.choices?.[0]?.message?.content || "(leeg antwoord)";

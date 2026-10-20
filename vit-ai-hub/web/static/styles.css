@@ -541,6 +541,20 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
   background: var(--bg); border-radius: 8px; border: 1px solid var(--line);
   font-size: 0.8rem; color: var(--muted);
 }
+.wiz-login-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.wiz-login {
+  width: 100%;
+  min-height: 2.75rem;
+  font-size: 0.95rem;
+}
+.wiz-auto-log { margin-top: 0.35rem; max-height: 8rem; overflow: auto; }
+@media (max-width: 520px) {
+  .wiz-login-grid { grid-template-columns: 1fr; }
+}
 .wiz-copy code {
   font-family: var(--mono); font-size: 0.78rem; color: var(--accent-deep);
   word-break: break-all;

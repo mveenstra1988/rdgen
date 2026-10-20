@@ -23,148 +23,50 @@
         <div class="brand-mark">VIT</div>
         <div>
           <h2>Welkom bij AI Hub</h2>
-          <p class="muted">Alles in één keer goed · daarna gewoon chatten. <span id="wiz-progress">1 / 10</span></p>
+          <p class="muted">Alleen inloggen · de rest doet de installatie. <span id="wiz-progress">1 / 3</span></p>
         </div>
       </div>
       <ol class="wiz-rail" id="wiz-rail" aria-hidden="true"></ol>
 
       <section data-step class="wiz-step active">
-        <h3>Wat je krijgt</h3>
-        <p>Één app: lokaal + je Claude/ChatGPT/Cursor-abos, privacyfilter, teams en ops.</p>
+        <h3>Jij logt in · wij doen de rest</h3>
+        <p>Claude, ChatGPT, Cursor en Gemini. Bridge, keys, migratie, Cursor-koppeling en defaults gaan automatisch.</p>
         <ul class="wiz-list">
-          <li>Gemini, OpenRouter, Claude/ChatGPT/Cursor — alles in deze wizard</li>
-          <li>Klant-PII wordt geblokkeerd vóór cloud</li>
-          <li>Oude kennis + skills/MCP overzetten van deze Mac</li>
+          <li>Geen OpenRouter / OmniRoute / bridge-URL invullen</li>
+          <li>Privacyfilter, kennis-import en skills/MCP worden gezet</li>
+          <li>Daarna gewoon chatten met <strong>vit/auto</strong></li>
         </ul>
         <pre id="wiz-status" class="wiz-pre">Laden…</pre>
-        <button type="button" id="wiz-start" class="primary wiz-hero">Start setup</button>
-        <p class="muted tiny">Stappen overslaan mag — lokaal werkt ook zonder cloud-keys.</p>
+        <pre id="wiz-auto-log" class="wiz-pre wiz-auto-log hidden">Installatie start bij «Start»…</pre>
+        <button type="button" id="wiz-start" class="primary wiz-hero">Start — rest gaat vanzelf</button>
+        <p class="muted tiny">Overslaan mag; je kunt later opnieuw openen via Setup.</p>
       </section>
 
       <section data-step class="wiz-step">
-        <h3>1 · Lokaal</h3>
-        <p class="muted tiny">LM Studio · light MoE ~20GB · heavy alleen on-demand.</p>
-        <label class="field"><span>Light model-id</span>
-          <input id="wiz-light" type="text" placeholder="bijv. qwen3.6-35b-a3b" /></label>
-        <label class="field"><span>Heavy model-id (optioneel)</span>
-          <input id="wiz-heavy" type="text" placeholder="groot model" /></label>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="lmstudio">Open LM Studio</button>
-          <button type="button" id="wiz-save-local" class="primary">Opslaan</button>
+        <h3>Inloggen (4×)</h3>
+        <p class="muted tiny">Klik elke knop · browser/app opent · klaar. Geen keys of URLs behalve Gemini (Google geeft alleen een API key).</p>
+        <pre id="wiz-bridge-status" class="wiz-pre">Installatie bezig…</pre>
+        <div class="wiz-login-grid">
+          <button type="button" id="wiz-bridge-login-claude" class="primary wiz-login">Log in bij Claude</button>
+          <button type="button" id="wiz-bridge-login-gpt" class="primary wiz-login">Log in bij ChatGPT</button>
+          <button type="button" id="wiz-login-cursor" class="primary wiz-login">Open Cursor</button>
+          <button type="button" id="wiz-login-gemini" class="primary wiz-login">Log in bij Gemini</button>
         </div>
-        <p class="muted tiny" id="wiz-local-msg">Local Server aan → model laden.</p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>2 · Cloud keys (optioneel)</h3>
-        <p class="muted tiny">OpenRouter = gratis + meer. DeepSeek/Grok optioneel. Log in via de knoppen.</p>
-        <label class="field"><span>OpenRouter</span>
-          <input id="wiz-openrouter" type="password" autocomplete="off" placeholder="sk-or-…" /></label>
-        <label class="field"><span>DeepSeek</span>
-          <input id="wiz-deepseek" type="password" autocomplete="off" /></label>
-        <label class="field"><span>Grok / xAI</span>
-          <input id="wiz-xai" type="password" autocomplete="off" /></label>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="openrouter_keys">OpenRouter keys</button>
-          <button type="button" class="ghost" data-guide="deepseek_keys">DeepSeek keys</button>
-          <button type="button" class="ghost" data-guide="xai_keys">xAI login</button>
-          <button type="button" id="wiz-save-cloud" class="primary">Opslaan</button>
-        </div>
-        <p class="muted tiny" id="wiz-cloud-msg">Mag leeg — dan vooral lokaal + abo-bridge.</p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>3 · Gemini / Nano Banana</h3>
-        <p class="muted tiny"><strong>Aanbevolen.</strong> Log in bij Google → maak een API key → plak hier. Zonder key geen echte Nano Banana-beelden.</p>
-        <label class="field"><span>Gemini API key</span>
+        <label class="field"><span>Gemini API key <span class="muted">(plak na Google-login)</span></span>
           <input id="wiz-gemini" type="password" autocomplete="off" placeholder="AIza…" /></label>
-        <label class="field"><span>Banana model (optioneel)</span>
-          <input id="wiz-banana-model" type="text" autocomplete="off" placeholder="gemini-2.0-flash-preview-image-generation" /></label>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="google_ai_studio">Google inloggen</button>
-          <button type="button" class="ghost" data-guide="gemini_keys">API key maken</button>
-          <button type="button" id="wiz-save-gemini" class="primary">Opslaan</button>
-        </div>
-        <p class="muted tiny" id="wiz-gemini-msg">Zonder key: lokale SVG-fallback; met key: echte Nano Banana.</p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>4 · OmniRoute (optioneel)</h3>
-        <p class="muted tiny">Lokaal :20128. Overslaan mag.</p>
-        <label class="field"><span>API key</span>
-          <input id="wiz-omni" type="password" autocomplete="off" /></label>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="omniroute_docs">Docs</button>
-          <button type="button" id="wiz-save-omni" class="primary">Opslaan</button>
-        </div>
-        <p class="muted tiny" id="wiz-omni-msg"></p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>5 · Claude &amp; ChatGPT (inloggen)</h3>
-        <p class="muted tiny">Jij logt in in de browser. De hub installeert de bridge, maakt de key aan en koppelt alles zelf.</p>
-        <pre id="wiz-bridge-status" class="wiz-pre">Laden…</pre>
-        <div class="wiz-actions">
-          <button type="button" id="wiz-bridge-bootstrap" class="primary wiz-hero">1 · Bridge klaarzetten</button>
-        </div>
-        <div class="wiz-actions">
-          <button type="button" id="wiz-bridge-login-claude" class="primary">2 · Log in bij Claude</button>
-          <button type="button" id="wiz-bridge-login-gpt" class="primary">3 · Log in bij ChatGPT</button>
-        </div>
+        <p class="muted tiny" id="wiz-bridge-msg">Bridge en Cursor-config worden automatisch gezet.</p>
         <div class="wiz-actions">
           <button type="button" id="wiz-bridge-refresh" class="ghost">↻ Status</button>
-          <button type="button" id="wiz-bridge-start" class="ghost">Bridge starten</button>
         </div>
-        <p class="muted tiny" id="wiz-bridge-msg">Geen bridge-URL of key invullen — dat doet de hub.</p>
-        <details class="wiz-advanced">
-          <summary>Geavanceerd (handmatig, meestal niet nodig)</summary>
-          <label class="field"><span>Bridge URL</span>
-            <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
-          <label class="field"><span>Bridge key</span>
-            <input id="wiz-bridge" type="password" autocomplete="off" placeholder="wordt auto gevuld" /></label>
-          <button type="button" id="wiz-save-bridge" class="ghost">Handmatig opslaan</button>
-        </details>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>6 · Cursor</h3>
-        <p class="muted tiny">Settings → Models → OpenAI-compat:</p>
-        <div class="wiz-copy">
-          <code id="wiz-cursor-url">http://127.0.0.1:8787/v1</code>
-          <button type="button" id="wiz-copy-url" class="ghost">Kopieer</button>
-        </div>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="cursor_settings">Open Cursor</button>
-          <button type="button" id="wiz-export-continue" class="ghost">Continue→hub</button>
-        </div>
-        <p class="muted tiny" id="wiz-cursor-msg">API key = hub-token (na setup).</p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>7 · VIT-apps (Mail, Kluis, …)</h3>
-        <p class="muted tiny">Hub opent je suite-apps. Log daar in (Mail, Kluis/Bitwarden, Backup, Office, PDF, Remote).</p>
-        <pre id="wiz-vit-apps" class="wiz-pre">Laden…</pre>
-        <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="vit_mail">Mail</button>
-          <button type="button" class="ghost" data-guide="vit_kluis">Kluis</button>
-          <button type="button" class="ghost" data-guide="kluis_web">Kluis web</button>
-          <button type="button" class="ghost" data-guide="vit_backup">Backup</button>
-          <button type="button" class="ghost" data-guide="vit_office">Office</button>
-          <button type="button" class="ghost" data-guide="vit_pdf">PDF</button>
-          <button type="button" class="ghost" data-guide="vit_remote">Remote</button>
-          <button type="button" id="wiz-vit-refresh" class="primary">↻ Status</button>
-        </div>
-        <p class="muted tiny" id="wiz-vit-msg">Kluis = Vaultwarden @ secure.vitwerkplek.nl (Bitwarden-compat).</p>
-      </section>
-
-      <section data-step class="wiz-step">
-        <h3>8 · Alles overzetten</h3>
-        <p class="muted tiny">Chats, skills, MCP, rules, prompts — één klik.</p>
-        <div class="wiz-actions">
-          <button type="button" id="wiz-a11y" class="ghost">Toegankelijkheid</button>
-          <button type="button" id="wiz-import" class="primary">Migreer ALLES nu</button>
-        </div>
-        <p class="muted tiny" id="wiz-import-msg">Encrypted ChatGPT-history: nog export-zip.</p>
+        <!-- hidden advanced fields kept for JS collectSecrets compat -->
+        <input id="wiz-bridge" type="hidden" value="" />
+        <input id="wiz-openrouter" type="hidden" value="" />
+        <input id="wiz-deepseek" type="hidden" value="" />
+        <input id="wiz-xai" type="hidden" value="" />
+        <input id="wiz-omni" type="hidden" value="" />
+        <input id="wiz-light" type="hidden" value="" />
+        <input id="wiz-heavy" type="hidden" value="" />
+        <input id="wiz-banana-model" type="hidden" value="" />
       </section>
 
       <section data-step class="wiz-step">
@@ -230,6 +132,7 @@
                 <option value="agent" selected>Agent</option>
                 <option value="plan">Plan</option>
                 <option value="ask">Ask</option>
+                <option value="debug">Debug</option>
               </select>
             </label>
             <label class="chip-select" title="Werkmodus">
@@ -259,7 +162,12 @@
             <button type="button" id="new-chat" class="ghost" style="border-radius:999px;padding:0.35rem 0.75rem;font-size:0.78rem">Nieuw</button>
           </div>
           <form id="composer" class="composer">
-            <textarea id="prompt" rows="2" placeholder="Vraag of /plan · /ask · /agent … (privacy aan)"></textarea>
+            <div id="slash-menu" class="slash-menu hidden" role="listbox"></div>
+            <textarea id="prompt" rows="2" placeholder="/plan · /ask · /debug · /review · /doctor …"></textarea>
+            <label class="attach-btn" title="Afbeelding bijvoegen">
+              <input id="prompt-image" type="file" accept="image/*" hidden />
+              <span>🖼</span>
+            </label>
             <button type="submit" id="send">Stuur</button>
           </form>
         </div>

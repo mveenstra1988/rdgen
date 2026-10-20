@@ -5,19 +5,9 @@
   const params = new URLSearchParams(location.search);
   const force = params.get("wizard") === "1";
   let step = 0;
+  let autoPromise = null;
   const steps = [...overlay.querySelectorAll("[data-step]")];
-  const titles = [
-    "Welkom",
-    "Lokaal",
-    "Cloud",
-    "Gemini",
-    "OmniRoute",
-    "Claude/GPT",
-    "Cursor",
-    "VIT-apps",
-    "Import",
-    "Klaar",
-  ];
+  const titles = ["Welkom", "Inloggen", "Klaar"];
 
   function showStep(i) {
     step = Math.max(0, Math.min(steps.length - 1, i));
@@ -32,45 +22,42 @@
         )
         .join("");
     }
-    if (step === steps.length - 1) refreshProbe();
-    if (titles[step] === "VIT-apps") refreshVitWizard();
-    if (titles[step] === "Claude/GPT") refreshBridgeStatus();
+    if (titles[step] === "Inloggen") refreshBridgeStatus();
+    if (titles[step] === "Klaar") refreshProbe();
   }
 
   function collectSecrets() {
     return {
-      OPENROUTER_API_KEY: overlay.querySelector("#wiz-openrouter")?.value || "",
-      DEEPSEEK_API_KEY: overlay.querySelector("#wiz-deepseek")?.value || "",
-      XAI_API_KEY: overlay.querySelector("#wiz-xai")?.value || "",
       GEMINI_API_KEY: overlay.querySelector("#wiz-gemini")?.value || "",
-      VIT_NANO_BANANA_MODEL: overlay.querySelector("#wiz-banana-model")?.value || "",
-      BRIDGE_API_KEY: overlay.querySelector("#wiz-bridge")?.value || "",
-      OMNIROUTE_API_KEY: overlay.querySelector("#wiz-omni")?.value || "",
-      VIT_LOCAL_LIGHT_MODEL: overlay.querySelector("#wiz-light")?.value || "",
-      VIT_LOCAL_HEAVY_MODEL: overlay.querySelector("#wiz-heavy")?.value || "",
     };
   }
 
   function applyToken(data) {
-    if (!data?.gateway_token) return;
-    const tok = document.getElementById("token");
-    if (tok && !tok.value) tok.value = data.gateway_token;
+    const tok = data?.gateway_token;
+    if (!tok) return;
+    const el = document.getElementById("token");
+    if (el && !el.value) el.value = tok;
     try {
-      sessionStorage.setItem("vit_gateway_token", data.gateway_token);
+      sessionStorage.setItem("vit_gateway_token", tok);
     } catch (_) {
       /* ignore */
     }
   }
 
-  async function saveSecrets(msgEl) {
+  async function saveGemini(msgEl) {
+    const key = overlay.querySelector("#wiz-gemini")?.value || "";
+    if (!key.trim()) {
+      if (msgEl) msgEl.textContent = "Nog geen Gemini-key — log in en plak de key.";
+      return null;
+    }
     const res = await fetch("/api/setup/secrets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collectSecrets()),
+      body: JSON.stringify({ GEMINI_API_KEY: key.trim() }),
     });
     const data = await res.json();
     if (msgEl) {
-      msgEl.textContent = data.ok ? `Opgeslagen in ${data.path}` : "Opslaan mislukt";
+      msgEl.textContent = data.ok ? "Gemini-key opgeslagen." : "Opslaan mislukt";
     }
     return data;
   }
@@ -83,22 +70,61 @@
     });
   }
 
+  function setAutoLog(lines) {
+    const box = overlay.querySelector("#wiz-auto-log");
+    if (!box) return;
+    box.classList.remove("hidden");
+    box.textContent = Array.isArray(lines) ? lines.filter(Boolean).join("\n") : String(lines);
+  }
+
+  async function runInstallAuto(opts = {}) {
+    const body = {
+      secrets: collectSecrets(),
+      mark_complete: Boolean(opts.mark_complete),
+      open_a11y: false,
+    };
+    setAutoLog(["Installatie bezig…", "· Bridge + token + migratie + Cursor"]);
+    const res = await fetch("/api/setup/install-auto", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    applyToken(data);
+    const s = data.steps || {};
+    setAutoLog([
+      data.ok ? "✓ Installatie klaar — jij hoeft alleen in te loggen" : "○ Deels klaar — logins hieronder",
+      s.gateway_token?.ok ? "✓ Hub-token" : "○ Hub-token",
+      s.bridge?.ok || s.bridge?.status?.configured ? "✓ Bridge" : "○ Bridge (op Mac)",
+      s.migrate?.ok ? "✓ Kennis/skills/MCP gemigreerd" : "○ Migratie",
+      s.continue?.ok ? "✓ Continue→hub" : "○ Continue",
+      s.cursor?.ok ? "✓ Cursor-wire" : "○ Cursor-wire",
+      data.cursor_base_url ? `Cursor URL: ${data.cursor_base_url}` : "",
+    ]);
+    return data;
+  }
+
+  function ensureAutoStarted() {
+    if (!autoPromise) {
+      autoPromise = runInstallAuto().catch((e) => {
+        setAutoLog(String(e));
+        return null;
+      });
+    }
+    return autoPromise;
+  }
+
   async function loadStatus() {
     const res = await fetch("/api/setup/status");
     const data = await res.json();
     applyToken(data);
     const box = overlay.querySelector("#wiz-status");
     if (box) {
-      const opsN = Object.values(data.ops_configured || {}).filter(Boolean).length;
       box.textContent = [
         `Versie ${data.version}`,
-        data.secret_exists ? "Secrets OK" : "Secrets worden aangemaakt",
-        data.lmstudio_up ? "✓ LM Studio" : "○ LM Studio nog uit",
-        data.ollama_up ? "✓ Ollama" : "○ Ollama optioneel",
-        data.ops_env_exists
-          ? `Ops.env · ${opsN} service(s) geconfigureerd`
-          : "Ops.env template wordt aangemaakt",
-        `Keys: ${(data.keys_present || []).filter((k) => k !== "VIT_GATEWAY_TOKEN").join(", ") || "nog geen cloud keys"}`,
+        "Jij: Claude · ChatGPT · Cursor · Gemini",
+        "Hub: bridge, token, migratie, defaults — automatisch",
+        data.lmstudio_up ? "✓ LM Studio al online" : "○ LM Studio later mag",
       ].join("\n");
     }
     if (data.setup_complete && !force) {
@@ -110,27 +136,38 @@
     return data;
   }
 
-  async function refreshVitWizard() {
-    const box = overlay.querySelector("#wiz-vit-apps");
-    const msg = overlay.querySelector("#wiz-vit-msg");
-    if (!box) return;
+  async function refreshBridgeStatus() {
+    const box = overlay.querySelector("#wiz-bridge-status");
+    const msg = overlay.querySelector("#wiz-bridge-msg");
     try {
+      await ensureAutoStarted();
       const res = await fetch("/api/setup/probe");
       const d = await res.json();
-      const lines = (d.vit_apps || []).map(
-        (a) => `${a.installed ? "✓" : "○"} ${a.name}${a.web && !a.installed ? " (web)" : ""}`
-      );
-      box.textContent =
-        lines.join("\n") ||
-        `Suite: ${d.vit_apps_installed || 0}/${d.vit_apps_count || 0} geïnstalleerd`;
+      applyToken(d);
+      if (box) {
+        box.textContent = [
+          d.bridge_key || d.bridge?.api_key_configured
+            ? "✓ Bridge-key (auto)"
+            : "○ Bridge-key volgt…",
+          d.bridge_up ? "✓ Bridge draait" : "○ Bridge start op Mac na install",
+          d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — knop hieronder",
+          d.chatgpt_logged_in ? "✓ ChatGPT ingelogd" : "○ ChatGPT — knop hieronder",
+          d.gemini_key ? "✓ Gemini-key" : "○ Gemini — login + key plakken",
+          "✓ Cursor-config geschreven (Open Cursor)",
+        ].join("\n");
+      }
       if (msg) {
-        msg.textContent =
-          (d.vit_apps_installed || 0) > 0
-            ? "Open de apps hierboven en log in — hub koppelt via vit_app_open / handoff."
-            : "Nog geen VIT-apps gevonden in ~/Applications — Kluis web werkt wél.";
+        const left = [
+          !d.claude_logged_in && "Claude",
+          !d.chatgpt_logged_in && "ChatGPT",
+          !d.gemini_key && "Gemini",
+        ].filter(Boolean);
+        msg.textContent = left.length
+          ? `Nog inloggen: ${left.join(", ")}.`
+          : "Alle logins OK — ga door naar Klaar.";
       }
     } catch (e) {
-      box.textContent = String(e);
+      if (box) box.textContent = String(e);
     }
   }
 
@@ -138,25 +175,20 @@
     const box = overlay.querySelector("#wiz-final");
     if (!box) return;
     try {
+      await ensureAutoStarted();
       const res = await fetch("/api/setup/probe");
       const d = await res.json();
       applyToken(d);
       box.textContent = [
         `Hub v${d.version}`,
-        d.lmstudio_up ? "✓ Lokaal LM Studio" : "○ LM Studio — start later mag",
-        d.ollama_up ? "✓ Ollama" : "○ Ollama",
-        d.openrouter_key ? "✓ OpenRouter (gratis + meer)" : "○ OpenRouter key",
-        d.gemini_key ? "✓ Gemini / Nano Banana" : "○ Gemini key (beelden)",
-        d.deepseek_key ? "✓ DeepSeek direct" : "○ DeepSeek (via OpenRouter kan ook)",
-        d.bridge_up ? "✓ Bridge draait :8317" : "○ Bridge nog uit",
-        d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — log in via stap 5",
-        d.chatgpt_logged_in ? "✓ ChatGPT/Codex ingelogd" : "○ ChatGPT — log in via stap 5",
-        d.bridge_key ? "✓ Bridge-key (auto)" : "○ Bridge-key",
-        d.omniroute_up ? "✓ OmniRoute :20128" : "○ OmniRoute optioneel",
-        d.xai_key ? "✓ Grok" : "○ Grok optioneel",
-        `VIT-apps: ${d.vit_apps_installed || 0}/${d.vit_apps_count || 0} geïnstalleerd`,
-        `Cursor base URL: ${d.cursor_base_url}`,
-        d.gateway_token ? `Token (voor Cursor): ${d.gateway_token}` : "",
+        d.claude_logged_in ? "✓ Claude" : "○ Claude (optioneel later)",
+        d.chatgpt_logged_in ? "✓ ChatGPT" : "○ ChatGPT (optioneel later)",
+        d.gemini_key ? "✓ Gemini / Nano Banana" : "○ Gemini (beelden later)",
+        d.bridge_up ? "✓ Bridge" : "○ Bridge",
+        d.bridge_key ? "✓ Bridge-key auto" : "○ Bridge-key",
+        d.lmstudio_up ? "✓ LM Studio" : "○ LM Studio later",
+        `Cursor: ${d.cursor_base_url || "http://127.0.0.1:8787/v1"}`,
+        d.gateway_token ? `Token: ${d.gateway_token}` : "",
       ]
         .filter(Boolean)
         .join("\n");
@@ -165,126 +197,9 @@
     }
   }
 
-  async function runImport() {
-    const msg = overlay.querySelector("#wiz-import-msg");
-    const btn = overlay.querySelector("#wiz-import");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Bezig…";
-    }
-    if (msg) msg.textContent = "Import + sync…";
-    try {
-      await saveSecrets(null);
-      const res = await fetch("/api/setup/bootstrap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secrets: collectSecrets(), open_a11y: false }),
-      });
-      const data = await res.json();
-      const k = data.knowledge || {};
-      const mig = data.migration || {};
-      const skillsBlock = mig.skills || data.import?.skills || {};
-      const sk = skillsBlock.found ?? k.skills ?? 0;
-      const mirrored = mig.profile?.sources?.mirrored_files ?? 0;
-      const mcpN = (mig.profile?.mcp_servers || []).length;
-      if (msg) {
-        msg.textContent =
-          `${k.conversations || 0} chats · ${k.memories || 0} mem · ${sk} skills · ` +
-          `${mirrored} files gespiegeld · ${mcpN} MCP` +
-          (skillsBlock.agents_promoted
-            ? ` · ${skillsBlock.agents_promoted.written || 0} agents`
-            : "");
-      }
-      return data;
-    } catch (e) {
-      if (msg) msg.textContent = String(e);
-      throw e;
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Migreer ALLES nu";
-      }
-    }
-  }
-
-  overlay.querySelector("#wiz-next")?.addEventListener("click", async () => {
-    // Auto-opslaan keys bij elke stap → alles in 1x goed
-    try {
-      await saveSecrets(null);
-    } catch (_) {
-      /* ignore */
-    }
-    showStep(step + 1);
-  });
-  overlay.querySelector("#wiz-back")?.addEventListener("click", () => showStep(step - 1));
-  overlay.querySelector("#wiz-skip")?.addEventListener("click", () => {
-    overlay.classList.add("hidden");
-    history.replaceState({}, "", "/");
-  });
-  overlay.querySelector("#wiz-start")?.addEventListener("click", () => showStep(1));
-
-  overlay.querySelectorAll("[data-guide]").forEach((btn) => {
-    btn.addEventListener("click", () => openGuide(btn.getAttribute("data-guide")));
-  });
-
-  overlay.querySelector("#wiz-save-local")?.addEventListener("click", () =>
-    saveSecrets(overlay.querySelector("#wiz-local-msg"))
-  );
-  overlay.querySelector("#wiz-save-cloud")?.addEventListener("click", () =>
-    saveSecrets(overlay.querySelector("#wiz-cloud-msg"))
-  );
-  overlay.querySelector("#wiz-save-gemini")?.addEventListener("click", () =>
-    saveSecrets(overlay.querySelector("#wiz-gemini-msg"))
-  );
-  overlay.querySelector("#wiz-save-omni")?.addEventListener("click", () =>
-    saveSecrets(overlay.querySelector("#wiz-omni-msg"))
-  );
-  overlay.querySelector("#wiz-vit-refresh")?.addEventListener("click", () => refreshVitWizard());
-
-  async function refreshBridgeStatus() {
-    const box = overlay.querySelector("#wiz-bridge-status");
-    const msg = overlay.querySelector("#wiz-bridge-msg");
-    try {
-      const res = await fetch("/api/bridge/status");
-      const d = await res.json();
-      if (box) {
-        box.textContent = [
-          d.installed ? "✓ Bridge geïnstalleerd" : "○ Bridge nog niet geïnstalleerd",
-          d.api_key_configured ? "✓ Key automatisch aangemaakt" : "○ Key volgt bij klaarzetten",
-          d.running ? "✓ Bridge draait (:8317)" : "○ Bridge uit",
-          d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — knop 2",
-          d.chatgpt_logged_in ? "✓ ChatGPT ingelogd" : "○ ChatGPT — knop 3",
-          d.ready ? "→ Klaar: hub gebruikt je abos" : d.hint || "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-      }
-      if (msg && d.ready) msg.textContent = "Alles gekoppeld — ga door naar de volgende stap.";
-    } catch (e) {
-      if (box) box.textContent = String(e);
-    }
-  }
-
-  overlay.querySelector("#wiz-bridge-bootstrap")?.addEventListener("click", async () => {
-    const msg = overlay.querySelector("#wiz-bridge-msg");
-    if (msg) msg.textContent = "Bridge installeren + key aanmaken…";
-    try {
-      const res = await fetch("/api/bridge/bootstrap", { method: "POST" });
-      const data = await res.json();
-      if (msg) {
-        msg.textContent =
-          data.ok || data.start?.ok
-            ? "Bridge klaar — log nu in bij Claude en/of ChatGPT."
-            : data.install?.error || data.error || "Bootstrap deels mislukt (check status)";
-      }
-      await refreshBridgeStatus();
-    } catch (e) {
-      if (msg) msg.textContent = String(e);
-    }
-  });
-
   async function doBridgeLogin(provider) {
     const msg = overlay.querySelector("#wiz-bridge-msg");
+    await ensureAutoStarted();
     if (msg) msg.textContent = `Browser opent voor ${provider}…`;
     try {
       const res = await fetch("/api/bridge/login", {
@@ -304,6 +219,38 @@
     }
   }
 
+  overlay.querySelector("#wiz-next")?.addEventListener("click", async () => {
+    try {
+      await saveGemini(null);
+    } catch (_) {
+      /* ignore */
+    }
+    if (step === 0) ensureAutoStarted();
+    showStep(step + 1);
+  });
+  overlay.querySelector("#wiz-back")?.addEventListener("click", () => showStep(step - 1));
+  overlay.querySelector("#wiz-skip")?.addEventListener("click", () => {
+    overlay.classList.add("hidden");
+    history.replaceState({}, "", "/");
+  });
+
+  overlay.querySelector("#wiz-start")?.addEventListener("click", async () => {
+    const btn = overlay.querySelector("#wiz-start");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Bezig…";
+    }
+    try {
+      await ensureAutoStarted();
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Start — rest gaat vanzelf";
+      }
+    }
+    showStep(1);
+  });
+
   overlay.querySelector("#wiz-bridge-login-claude")?.addEventListener("click", () =>
     doBridgeLogin("claude")
   );
@@ -311,75 +258,45 @@
     doBridgeLogin("chatgpt")
   );
   overlay.querySelector("#wiz-bridge-refresh")?.addEventListener("click", () => refreshBridgeStatus());
-  overlay.querySelector("#wiz-bridge-start")?.addEventListener("click", async () => {
+
+  overlay.querySelector("#wiz-login-cursor")?.addEventListener("click", async () => {
     const msg = overlay.querySelector("#wiz-bridge-msg");
-    try {
-      const res = await fetch("/api/bridge/start", { method: "POST" });
-      const data = await res.json();
-      if (msg) msg.textContent = data.ok ? "Bridge gestart." : data.error || "Start mislukt";
-      await refreshBridgeStatus();
-    } catch (e) {
-      if (msg) msg.textContent = String(e);
+    await ensureAutoStarted();
+    await openGuide("cursor_settings");
+    if (msg) {
+      msg.textContent =
+        "Cursor geopend. Hub-URL + token staan in ~/.config/vit/cursor-hub.json (en Continue-config).";
     }
   });
 
-  overlay.querySelector("#wiz-save-bridge")?.addEventListener("click", async () => {
+  overlay.querySelector("#wiz-login-gemini")?.addEventListener("click", async () => {
     const msg = overlay.querySelector("#wiz-bridge-msg");
-    await saveSecrets(msg);
-    const url = overlay.querySelector("#wiz-bridge-url-1")?.value || "http://127.0.0.1:8317/v1";
-    const key = overlay.querySelector("#wiz-bridge")?.value || "";
-    try {
-      const res = await fetch("/api/accounts/bridge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label: "Bridge handmatig",
-          base_url: url.trim(),
-          api_key: key,
-          tags: ["claude", "chatgpt"],
-          enabled: true,
-        }),
-      });
-      if (msg) msg.textContent = res.ok ? "Handmatig opgeslagen." : "Opslaan mislukt";
-    } catch (e) {
-      if (msg) msg.textContent = String(e);
-    }
+    await openGuide("gemini");
+    if (msg) msg.textContent = "Google AI Studio open — maak/kopieer de API key en plak hieronder.";
   });
 
-  overlay.querySelector("#wiz-copy-url")?.addEventListener("click", async () => {
-    const url = overlay.querySelector("#wiz-cursor-url")?.textContent || "";
-    try {
-      await navigator.clipboard.writeText(url);
-      overlay.querySelector("#wiz-cursor-msg").textContent = "Gekopieerd.";
-    } catch {
-      overlay.querySelector("#wiz-cursor-msg").textContent = url;
-    }
-  });
+  overlay.querySelector("#wiz-gemini")?.addEventListener("change", () =>
+    saveGemini(overlay.querySelector("#wiz-bridge-msg"))
+  );
+  overlay.querySelector("#wiz-gemini")?.addEventListener("blur", () =>
+    saveGemini(overlay.querySelector("#wiz-bridge-msg"))
+  );
 
-  overlay.querySelector("#wiz-export-continue")?.addEventListener("click", async () => {
-    const res = await fetch("/api/workspace/export-continue", { method: "POST" });
-    const data = await res.json();
-    overlay.querySelector("#wiz-cursor-msg").textContent = data.ok
-      ? `Continue-config: ${data.path}`
-      : "Export mislukt";
-  });
-
-  overlay.querySelector("#wiz-a11y")?.addEventListener("click", () => {
-    fetch("/api/setup/open-accessibility", { method: "POST" });
-  });
-
-  overlay.querySelector("#wiz-import")?.addEventListener("click", () => runImport());
   overlay.querySelector("#wiz-probe")?.addEventListener("click", () => refreshProbe());
 
   overlay.querySelector("#wiz-finish")?.addEventListener("click", async () => {
-    await saveSecrets(null);
-    // Bridge keys/start best-effort als gebruiker al heeft ingelogd
+    const btn = overlay.querySelector("#wiz-finish");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Afronden…";
+    }
     try {
-      await fetch("/api/bridge/bootstrap", { method: "POST" });
+      await saveGemini(null);
+      await runInstallAuto({ mark_complete: true });
+      await fetch("/api/setup/complete", { method: "POST" });
     } catch (_) {
       /* ignore */
     }
-    await fetch("/api/setup/complete", { method: "POST" });
     overlay.classList.add("hidden");
     history.replaceState({}, "", "/");
     location.reload();

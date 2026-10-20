@@ -1,4 +1,4 @@
-from vit_ai_hub.setup_api import bootstrap_all, save_secrets, setup_status
+from vit_ai_hub.setup_api import bootstrap_all, install_auto, save_secrets, setup_status
 
 
 def test_setup_status_shape():
@@ -14,6 +14,7 @@ def test_open_guide_known_targets():
     assert "openrouter_keys" in GUIDE_TARGETS
     assert "bridge_docs" in GUIDE_TARGETS
     assert "gemini_keys" in GUIDE_TARGETS
+    assert "gemini" in GUIDE_TARGETS
     assert "vit_kluis" in GUIDE_TARGETS
     assert "kluis_web" in GUIDE_TARGETS
     # non-darwin returns structured error, not crash
@@ -110,3 +111,84 @@ def test_bootstrap_all(tmp_path, monkeypatch):
     assert out["ok"]
     assert marker.is_file()
     assert out["knowledge"]["conversations"] == 1
+
+
+def test_ensure_gateway_token_and_defaults(tmp_path, monkeypatch):
+    import vit_ai_hub.setup_api as setup
+
+    secret = tmp_path / "ai-gateway.env"
+    monkeypatch.setattr(setup, "SECRET_FILE", secret)
+
+    tok = setup.ensure_gateway_token()
+    assert tok["ok"] and tok["created"]
+    assert tok["token"].startswith("vit-")
+    again = setup.ensure_gateway_token()
+    assert again["created"] is False
+    assert again["token"] == tok["token"]
+
+    defs = setup.ensure_default_models()
+    assert defs["ok"]
+    text = secret.read_text(encoding="utf-8")
+    assert "VIT_LOCAL_LIGHT_MODEL=" in text
+    assert "VIT_NANO_BANANA_MODEL=" in text
+
+
+def test_install_auto(tmp_path, monkeypatch):
+    import vit_ai_hub.setup_api as setup
+
+    secret = tmp_path / "ai-gateway.env"
+    marker = tmp_path / ".setup-complete"
+    monkeypatch.setattr(setup, "SECRET_FILE", secret)
+    monkeypatch.setattr(setup, "SETUP_MARKER", marker)
+    monkeypatch.setattr(setup.Path, "home", staticmethod(lambda: tmp_path))
+
+    def fake_migrate(**_kwargs):
+        return {
+            "ok": True,
+            "knowledge_import": {"knowledge": {"conversations": 2, "memories": 1, "projects": 0}},
+            "profile": {"mcp_servers": [{"name": "x"}]},
+        }
+
+    monkeypatch.setattr(
+        "vit_ai_hub.importing.full_migrate.migrate_everything",
+        fake_migrate,
+    )
+    monkeypatch.setattr(
+        "vit_ai_hub.importing.sync.sync_once",
+        lambda **_k: {"ok": True},
+    )
+    monkeypatch.setattr(
+        "vit_ai_hub.importing.sync.start_sync",
+        lambda **_k: {"running": True},
+    )
+    monkeypatch.setattr(
+        "vit_ai_hub.bridge.bootstrap_bridge",
+        lambda: {"ok": True, "status": {"configured": True, "running": False}},
+    )
+    monkeypatch.setattr(
+        setup,
+        "probe_providers",
+        lambda: {
+            "bridge_up": False,
+            "claude_logged_in": False,
+            "chatgpt_logged_in": False,
+            "gemini_key": False,
+            "bridge_key": True,
+            "lmstudio_up": False,
+        },
+    )
+    monkeypatch.setattr(
+        "vit_ai_hub.ops.client.ensure_ops_env_template",
+        lambda: None,
+    )
+
+    out = install_auto(secrets={"GEMINI_API_KEY": "AIza-test"}, mark_complete=True)
+    assert out["ok"]
+    assert out["gateway_token"]
+    assert out["steps"]["bridge"]["ok"]
+    assert out["steps"]["migrate"]["ok"]
+    assert out["steps"]["continue"]["ok"]
+    assert marker.is_file()
+    assert "GEMINI_API_KEY=AIza-test" in secret.read_text(encoding="utf-8")
+    assert (tmp_path / ".continue" / "config.json").is_file()
+    assert (tmp_path / ".config" / "vit" / "cursor-hub.json").is_file()

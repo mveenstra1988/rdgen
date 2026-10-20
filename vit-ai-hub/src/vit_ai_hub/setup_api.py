@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,6 +16,10 @@ from vit_ai_hub.config import ROOT
 
 SECRET_FILE = Path.home() / ".config/vit/geheimen/ai-gateway.env"
 SETUP_MARKER = ROOT / "data" / ".setup-complete"
+
+DEFAULT_LIGHT_MODEL = "qwen3.6-35b-a3b"
+DEFAULT_BANANA_MODEL = "gemini-2.0-flash-preview-image-generation"
+HUB_BASE = "http://127.0.0.1:8787/v1"
 
 ALLOWED_KEYS = {
     "VIT_GATEWAY_TOKEN",
@@ -42,6 +48,10 @@ GUIDE_TARGETS: dict[str, dict[str, str]] = {
     "gemini_keys": {
         "url": "https://aistudio.google.com/apikey",
         "label": "Gemini / Nano Banana API key",
+    },
+    "gemini": {
+        "url": "https://aistudio.google.com/apikey",
+        "label": "Gemini inloggen + API key",
     },
     "google_ai_studio": {
         "url": "https://aistudio.google.com/",
@@ -165,8 +175,122 @@ def setup_status(*, include_token: bool = False) -> dict[str, Any]:
     return out
 
 
-def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
-    """Één call: VOLLEDIGE migratie + sync + setup-complete."""
+def ensure_gateway_token() -> dict[str, Any]:
+    """Maak VIT_GATEWAY_TOKEN aan als die ontbreekt."""
+    existing = _read_secret_map().get("VIT_GATEWAY_TOKEN", "").strip()
+    if existing and "change-me" not in existing:
+        return {"ok": True, "created": False, "token": existing}
+    token = "vit-" + secrets.token_hex(16)
+    save_secrets({"VIT_GATEWAY_TOKEN": token})
+    return {"ok": True, "created": True, "token": token}
+
+
+def ensure_default_models() -> dict[str, Any]:
+    """Zet verstandige defaults voor lokaal + Nano Banana als nog leeg."""
+    cur = _read_secret_map()
+    patch: dict[str, str] = {}
+    if not (cur.get("VIT_LOCAL_LIGHT_MODEL") or "").strip():
+        patch["VIT_LOCAL_LIGHT_MODEL"] = DEFAULT_LIGHT_MODEL
+    if not (cur.get("VIT_NANO_BANANA_MODEL") or "").strip():
+        patch["VIT_NANO_BANANA_MODEL"] = DEFAULT_BANANA_MODEL
+    if patch:
+        save_secrets(patch)
+    return {"ok": True, "applied": patch, "current": {**{k: cur.get(k, "") for k in ("VIT_LOCAL_LIGHT_MODEL", "VIT_NANO_BANANA_MODEL")}, **patch}}
+
+
+def export_continue_config(*, token: str | None = None) -> dict[str, Any]:
+    """Schrijf Continue.dev config → hub (Cursor-exit / OpenAI-compat)."""
+    tok = (token or "").strip()
+    if not tok:
+        tok = _read_secret_map().get("VIT_GATEWAY_TOKEN", "").strip() or "vit-local"
+    dest = Path.home() / ".continue" / "config.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    cfg = {
+        "models": [
+            {
+                "title": "VIT AI Hub (auto)",
+                "provider": "openai",
+                "model": "vit/auto",
+                "apiBase": HUB_BASE,
+                "apiKey": tok,
+            },
+            {
+                "title": "VIT local light",
+                "provider": "openai",
+                "model": "vit/local-light",
+                "apiBase": HUB_BASE,
+                "apiKey": tok,
+            },
+        ],
+        "tabAutocompleteModel": {
+            "title": "VIT autocomplete",
+            "provider": "openai",
+            "model": "vit/local-light",
+            "apiBase": HUB_BASE,
+            "apiKey": tok,
+        },
+        "allowAnonymousTelemetry": False,
+    }
+    dest.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    return {"ok": True, "path": str(dest)}
+
+
+def wire_cursor_settings(*, token: str | None = None) -> dict[str, Any]:
+    """Best-effort: Cursor User settings + hub-hint bestand."""
+    tok = (token or "").strip() or _read_secret_map().get("VIT_GATEWAY_TOKEN", "").strip() or "vit-local"
+    written: list[str] = []
+    errors: list[str] = []
+
+    hint_dir = Path.home() / ".config" / "vit"
+    hint_dir.mkdir(parents=True, exist_ok=True)
+    hint = {
+        "openai_compatible_base_url": HUB_BASE,
+        "api_key": tok,
+        "models": ["vit/auto", "vit/max", "vit/local-light"],
+        "cursor": {
+            "settings": "Cursor → Settings → Models → OpenAI API Key + Override OpenAI Base URL",
+            "base_url": HUB_BASE,
+            "api_key": tok,
+        },
+    }
+    hint_path = hint_dir / "cursor-hub.json"
+    hint_path.write_text(json.dumps(hint, indent=2) + "\n", encoding="utf-8")
+    written.append(str(hint_path))
+
+    # Merge into Cursor settings.json when present (macOS + linux paths)
+    candidates = [
+        Path.home() / "Library" / "Application Support" / "Cursor" / "User" / "settings.json",
+        Path.home() / ".config" / "Cursor" / "User" / "settings.json",
+    ]
+    patch = {
+        "cursor.openai.baseUrl": HUB_BASE,
+        "cursor.general.disableHttp2": True,
+    }
+    for settings_path in candidates:
+        try:
+            if not settings_path.parent.is_dir():
+                continue
+            data: dict[str, Any] = {}
+            if settings_path.is_file():
+                raw = json.loads(settings_path.read_text(encoding="utf-8") or "{}")
+                if isinstance(raw, dict):
+                    data = raw
+            data.update(patch)
+            # Don't overwrite an existing custom OpenAI key blindly if set to something else
+            if not data.get("cursor.openai.apiKey"):
+                data["cursor.openai.apiKey"] = tok
+            settings_path.parent.mkdir(parents=True, exist_ok=True)
+            settings_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            written.append(str(settings_path))
+            break
+        except Exception as exc:
+            errors.append(f"{settings_path}: {exc}")
+
+    return {"ok": True, "written": written, "errors": errors, "base_url": HUB_BASE}
+
+
+def bootstrap_all(*, open_a11y: bool = False, mark_complete: bool = True) -> dict[str, Any]:
+    """Één call: VOLLEDIGE migratie + sync (+ optioneel setup-complete)."""
     from vit_ai_hub.importing.full_migrate import migrate_everything
     from vit_ai_hub.importing.sync import start_sync, sync_once
 
@@ -176,7 +300,7 @@ def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
     sync_ctl = start_sync(interval_sec=300, include_ax=False)
     if open_a11y:
         open_accessibility_settings()
-    done = mark_setup_complete()
+    done = mark_setup_complete() if mark_complete else {"ok": False, "skipped": True}
     return {
         "ok": True,
         "knowledge": knowledge,
@@ -186,6 +310,88 @@ def bootstrap_all(*, open_a11y: bool = False) -> dict[str, Any]:
         "sync_ctl": sync_ctl,
         "setup": done,
         "profile": migration.get("profile"),
+    }
+
+
+def install_auto(
+    *,
+    secrets: dict[str, str] | None = None,
+    open_a11y: bool = False,
+    mark_complete: bool = False,
+) -> dict[str, Any]:
+    """Volledige auto-install: token, defaults, bridge, migrate, Cursor-wire.
+
+    Gebruiker hoeft alleen in te loggen (Claude / ChatGPT / Cursor / Gemini).
+    """
+    steps: dict[str, Any] = {}
+    if secrets:
+        steps["secrets"] = save_secrets(secrets)
+    steps["gateway_token"] = ensure_gateway_token()
+    steps["defaults"] = ensure_default_models()
+    token = steps["gateway_token"].get("token") or ""
+
+    try:
+        from vit_ai_hub.bridge import bootstrap_bridge
+
+        steps["bridge"] = bootstrap_bridge()
+    except Exception as exc:
+        steps["bridge"] = {"ok": False, "error": str(exc)}
+
+    try:
+        steps["migrate"] = bootstrap_all(open_a11y=open_a11y, mark_complete=False)
+    except Exception as exc:
+        steps["migrate"] = {"ok": False, "error": str(exc)}
+
+    try:
+        steps["continue"] = export_continue_config(token=token)
+    except Exception as exc:
+        steps["continue"] = {"ok": False, "error": str(exc)}
+
+    try:
+        steps["cursor"] = wire_cursor_settings(token=token)
+    except Exception as exc:
+        steps["cursor"] = {"ok": False, "error": str(exc)}
+
+    try:
+        from vit_ai_hub.ops.client import ensure_ops_env_template
+
+        ensure_ops_env_template()
+        steps["ops_template"] = {"ok": True}
+    except Exception as exc:
+        steps["ops_template"] = {"ok": False, "error": str(exc)}
+
+    if mark_complete:
+        steps["setup"] = mark_setup_complete()
+
+    probe: dict[str, Any] = {}
+    try:
+        probe = probe_providers()
+    except Exception:
+        probe = {}
+
+    ok = bool(
+        steps.get("gateway_token", {}).get("ok")
+        and (steps.get("migrate", {}).get("ok") or steps.get("bridge", {}).get("ok"))
+    )
+    return {
+        "ok": ok,
+        "steps": steps,
+        "probe": {
+            "bridge_up": probe.get("bridge_up"),
+            "claude_logged_in": probe.get("claude_logged_in"),
+            "chatgpt_logged_in": probe.get("chatgpt_logged_in"),
+            "gemini_key": probe.get("gemini_key"),
+            "bridge_key": probe.get("bridge_key"),
+            "lmstudio_up": probe.get("lmstudio_up"),
+        },
+        "gateway_token": token if token else None,
+        "cursor_base_url": HUB_BASE,
+        "user_actions_left": [
+            "Log in bij Claude (wizard-knop)",
+            "Log in bij ChatGPT (wizard-knop)",
+            "Open Cursor — hub-URL/token staan klaar",
+            "Log in bij Gemini / plak API key (beelden)",
+        ],
     }
 
 

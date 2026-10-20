@@ -175,11 +175,62 @@ async def api_setup_bootstrap(request: Request) -> dict[str, Any]:
     return bootstrap_all(open_a11y=bool(body.get("open_a11y")))
 
 
+@app.post("/api/setup/install-auto")
+async def api_setup_install_auto(request: Request) -> dict[str, Any]:
+    """Auto-install: bridge, migrate, token, Cursor-wire. User only logs in."""
+    from vit_ai_hub.setup_api import install_auto
+
+    _localhost_only(request)
+    body: dict[str, Any] = {}
+    try:
+        raw = await request.json()
+        if isinstance(raw, dict):
+            body = raw
+    except Exception:
+        body = {}
+    secrets: dict[str, str] = {}
+    if isinstance(body.get("secrets"), dict):
+        secrets = {str(k): str(v) for k, v in body["secrets"].items()}
+    for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "VIT_NANO_BANANA_MODEL"):
+        if body.get(k):
+            secrets[k] = str(body[k])
+    return install_auto(
+        secrets=secrets or None,
+        open_a11y=bool(body.get("open_a11y")),
+        mark_complete=bool(body.get("mark_complete")),
+    )
+
+
 @app.post("/api/setup/open-accessibility")
 async def api_setup_a11y() -> dict[str, Any]:
     from vit_ai_hub.setup_api import open_accessibility_settings
 
     return open_accessibility_settings()
+
+
+@app.get("/api/commands")
+async def api_commands_list(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.slash import list_commands
+
+    return list_commands()
+
+
+@app.post("/api/commands/run")
+async def api_commands_run(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.slash import run_local
+
+    return run_local(
+        str(body.get("cmd") or body.get("command") or ""),
+        args=str(body.get("args") or ""),
+        workspace=str(body.get("workspace") or "") or None,
+    )
+
+
+@app.get("/api/checkpoints")
+async def api_checkpoints(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.checkpoints import list_checkpoints
+
+    return list_checkpoints()
 
 
 @app.get("/api/bridge/status")
@@ -576,48 +627,16 @@ async def api_workspace_status(_: None = Depends(_auth)) -> dict[str, Any]:
 async def api_export_continue(request: Request) -> dict[str, Any]:
     """Schrijf Continue.dev config die naar deze hub wijst (Cursor-exit)."""
     _localhost_only(request)
-    from vit_ai_hub.config import get_settings
+    from vit_ai_hub.setup_api import export_continue_config
 
-    settings = get_settings()
-    dest = Path.home() / ".continue" / "config.json"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    cfg = {
-        "models": [
-            {
-                "title": "VIT AI Hub (auto)",
-                "provider": "openai",
-                "model": "vit/auto",
-                "apiBase": "http://127.0.0.1:8787/v1",
-                "apiKey": settings.vit_gateway_token or "vit-local",
-            },
-            {
-                "title": "VIT local light",
-                "provider": "openai",
-                "model": "vit/local-light",
-                "apiBase": "http://127.0.0.1:8787/v1",
-                "apiKey": settings.vit_gateway_token or "vit-local",
-            },
-        ],
-        "tabAutocompleteModel": {
-            "title": "VIT autocomplete",
-            "provider": "openai",
-            "model": "vit/local-light",
-            "apiBase": "http://127.0.0.1:8787/v1",
-            "apiKey": settings.vit_gateway_token or "vit-local",
-        },
-        "allowAnonymousTelemetry": False,
-    }
-    dest.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
-    return {
-        "ok": True,
-        "path": str(dest),
-        "next": [
-            "Installeer VS Code of Cursor-alternatief Zed",
-            "Installeer Continue-extensie",
-            "Herstart editor — model 'VIT AI Hub (auto)' kiezen",
-            "Cursor-abo kun je daarna opzeggen als dit bevalt",
-        ],
-    }
+    out = export_continue_config()
+    out["next"] = [
+        "Installeer VS Code of Cursor-alternatief Zed",
+        "Installeer Continue-extensie",
+        "Herstart editor — model 'VIT AI Hub (auto)' kiezen",
+        "Cursor-abo kun je daarna opzeggen als dit bevalt",
+    ]
+    return out
 
 
 @app.get("/v1/models")
@@ -660,8 +679,31 @@ async def _handle_chat(body: ChatCompletionRequest):
             last_user_idx = i
             break
 
-    # Slash /plan /ask /agent + agent_mode (Cursor / Claude Code parity)
+    # Slash-commands (Claude Code / Cursor / Codex parity)
     from vit_ai_hub.agent_modes import normalize_mode, parse_leading_slash
+    from vit_ai_hub.slash import llm_prompt_for, parse_slash, run_local
+
+    slash_cmd, slash_args = parse_slash(last_user)
+    if slash_cmd and slash_cmd not in {"/plan", "/ask", "/agent", "/debug", "/compact", "/review"}:
+        local = run_local(slash_cmd, args=slash_args, workspace=body.workspace)
+        if not local.get("passthrough"):
+            return {
+                "id": f"slash-{slash_cmd.strip('/')}",
+                "object": "chat.completion",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": local.get("message") or ""},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "vit": {
+                    "slash": slash_cmd,
+                    "action": local.get("action"),
+                    "ok": local.get("ok"),
+                    "session_id": body.vit_session_id,
+                },
+            }
 
     slash_mode, remainder = parse_leading_slash(last_user)
     agent_mode = normalize_mode(slash_mode or body.agent_mode)
@@ -669,11 +711,25 @@ async def _handle_chat(body: ChatCompletionRequest):
     if slash_mode is not None and last_user_idx is not None:
         last_user = remainder or f"(modus {agent_mode})"
         messages[last_user_idx] = {**messages[last_user_idx], "content": last_user}
+    elif slash_cmd in {"/compact", "/review"} and last_user_idx is not None:
+        prompted = llm_prompt_for(slash_cmd, slash_args, workspace=body.workspace) or last_user
+        last_user = prompted
+        messages[last_user_idx] = {**messages[last_user_idx], "content": last_user}
+        if slash_cmd == "/review":
+            body.studio = "software"
+            body.vit_critic = True
+            agent_mode = "ask"
+            body.agent_mode = "ask"
+        if slash_cmd == "/compact":
+            agent_mode = "ask"
+            body.agent_mode = "ask"
     if agent_mode == "plan":
         body.studio = body.studio or "software"
-        body.vit_enable_tools = True  # read-only subset later
-    elif agent_mode == "ask":
         body.vit_enable_tools = True
+    elif agent_mode in {"ask", "debug"}:
+        body.vit_enable_tools = True
+        if agent_mode == "debug":
+            body.studio = body.studio or "software"
 
     auto_plan = None
     req_l = (requested_model or "").strip().lower()

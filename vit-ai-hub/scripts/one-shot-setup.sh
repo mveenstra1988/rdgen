@@ -103,7 +103,10 @@ if curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
   FIRST_RUN=0
   if [[ ! -f "$DATA_MARKER" ]]; then
     FIRST_RUN=1
-    echo "    eerste bootstrap (import + sync)…"
+    echo "    eerste install-auto (bridge + migratie + Cursor)…"
+    curl -sf -X POST "http://${HOST}:${PORT}/api/setup/install-auto" \
+      -H "Content-Type: application/json" \
+      -d '{"open_a11y":false,"mark_complete":false}' >/dev/null 2>&1 || \
     curl -sf -X POST "http://${HOST}:${PORT}/api/setup/bootstrap" \
       -H "Content-Type: application/json" \
       -d '{"open_a11y":false}' >/dev/null 2>&1 || true

@@ -1,8 +1,10 @@
-# Morgen — VIT AI Hub 2.5.2
+# Morgen — VIT AI Hub 2.6.0
 
-1. Open `dist/VIT-AI-Hub-2.5.2-mac.dmg` → wizard
-2. Stap **Claude & ChatGPT**: «Bridge klaarzetten» → «Log in bij Claude» → «Log in bij ChatGPT»
-3. Geen bridge-URL/key invullen — hub doet dat zelf
-4. Status toont ✓ Claude / ✓ ChatGPT / ✓ Bridge draait
+1. Open `dist/VIT-AI-Hub-2.6.0-mac.dmg` → wizard
+2. **Start** — installatie doet bridge, token, migratie, Cursor-wire zelf
+3. Log alleen in: **Claude · ChatGPT · Cursor · Gemini** (Gemini: plak API key na Google-login)
+4. **Naar de app** — klaar
 
-2.5.2: automatische abo-bridge + OAuth in installatie
+Geen OpenRouter / OmniRoute / bridge-URL / handmatige migrate.
+
+2.6.0: login-only wizard + `POST /api/setup/install-auto`
