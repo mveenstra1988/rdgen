@@ -57,6 +57,29 @@ body {
   backdrop-filter: blur(14px);
   z-index: 20;
 }
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  background: #3b1d12;
+  color: #ffe8d6;
+  font-size: 0.9rem;
+  z-index: 25;
+}
+.offline-banner.hidden { display: none; }
+.offline-banner .primary {
+  width: auto;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+#health.is-offline { color: #c94444; font-weight: 600; }
 .brand {
   display: flex;
   gap: 0.55rem;

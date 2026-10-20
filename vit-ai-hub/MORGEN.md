@@ -1,13 +1,13 @@
-# Morgen — VIT AI Hub 2.6.3
+# Morgen — VIT AI Hub 2.6.4
 
-**Fix:** login-knoppen deden niets omdat `install-auto` de server blokkeerde.
+**Offline / Stuur doet niets:** browservenster open terwijl hub gestopt is.
 
-1. Quit AI Hub (Cmd+Q)
-2. Pull of open nieuwe DMG `VIT-AI-Hub-2.6.3-mac.dmg`
-3. Opnieuw openen → Inloggen → knoppen tonen «Bezig…» en openen browser
-
-Of in Terminal:
+1. Cmd+Q op alle «VIT AI Hub»
+2. Pull + herstart:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mveenstra1988/rdgen/cursor/vit-ai-hub-a440/vit-ai-hub/scripts/pull-to-ai-projecten.sh | bash
-# daarna app opnieuw starten vanuit Applications of ~/AI-projecten/VIT-ai-hub
+open "/Applications/VIT AI Hub.app"
 ```
+3. Wacht tot linksboven **online v2.6.4** staat — dan pas Stuur.
+
+DMG: `dist/VIT-AI-Hub-2.6.4-mac.dmg`

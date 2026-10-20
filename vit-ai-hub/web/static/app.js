@@ -405,13 +405,47 @@ async function loadModels() {
   renderModels(els.modelFilter.value);
 }
 
+let hubOnline = false;
+let wasOffline = false;
+
+function setOfflineUi(online, detail) {
+  hubOnline = online;
+  const banner = document.getElementById("offline-banner");
+  const text = document.getElementById("offline-banner-text");
+  const sendBtn = document.getElementById("send");
+  if (els.health) {
+    els.health.classList.toggle("is-offline", !online);
+  }
+  if (banner) banner.classList.toggle("hidden", online);
+  if (text && !online) {
+    text.textContent =
+      detail ||
+      "Hub offline — open «VIT AI Hub» opnieuw via Programma's (niet alleen dit venster).";
+  }
+  if (sendBtn) {
+    sendBtn.disabled = !online;
+    sendBtn.title = online ? "Versturen" : "Hub is offline";
+  }
+}
+
 async function ping() {
   try {
-    const res = await fetch("/health");
+    const res = await fetch("/health", { cache: "no-store" });
     const data = await res.json();
-    els.health.textContent = data.ok ? `online v${data.version}` : "offline";
+    const ok = !!data.ok;
+    if (els.health) els.health.textContent = ok ? `online v${data.version}` : "offline";
+    setOfflineUi(ok);
+    if (ok && wasOffline) {
+      loadModels().catch(() => {});
+      if (els.routeInfo) els.routeInfo.textContent = "Hub weer online.";
+    }
+    wasOffline = !ok;
+    return ok;
   } catch {
-    els.health.textContent = "offline";
+    if (els.health) els.health.textContent = "offline";
+    setOfflineUi(false);
+    wasOffline = true;
+    return false;
   }
 }
 
@@ -598,6 +632,14 @@ els.form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   let text = els.prompt.value.trim();
   if (!text) return;
+  const online = await ping();
+  if (!online) {
+    addBubble(
+      "system",
+      "Hub is offline — daarom doet Stuur niets. Open opnieuw «VIT AI Hub» in Programma's (Cmd+Q op oude app eerst), wacht tot status «online» is, en probeer opnieuw."
+    );
+    return;
+  }
   const slash = text.match(/^\/(plan|ask|agent|debug)(?:\s|$)/i);
   if (slash && els.agentMode) {
     els.agentMode.value = slash[1].toLowerCase();
@@ -665,9 +707,32 @@ els.form.addEventListener("submit", async (ev) => {
       if (bits.length) els.routeInfo.textContent = bits.join(" · ");
     }
   } catch (err) {
-    addBubble("system", String(err));
+    const msg = String(err);
+    if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+      setOfflineUi(false);
+      addBubble(
+        "system",
+        "Geen verbinding met de hub. Open «VIT AI Hub» opnieuw via Programma's tot de status weer «online» is."
+      );
+    } else {
+      addBubble("system", msg);
+    }
   } finally {
-    sendBtn.disabled = false;
+    sendBtn.disabled = !hubOnline;
+  }
+});
+
+document.getElementById("offline-retry")?.addEventListener("click", async () => {
+  const ok = await ping();
+  if (ok) {
+    loadModels().catch((e) => {
+      if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;
+    });
+  } else {
+    addBubble(
+      "system",
+      "Nog offline. Start de app: open «VIT AI Hub» in /Applications (niet dit browservenster alleen)."
+    );
   }
 });
 
@@ -1542,6 +1607,9 @@ ensureLocalToken().then(async () => {
     }
   }
   ping();
+  setInterval(() => {
+    ping();
+  }, 4000);
   refreshImportStatus();
   refreshKnowList();
   refreshAccounts();
@@ -1552,5 +1620,6 @@ ensureLocalToken().then(async () => {
   loadPresets();
   loadModels().catch((e) => {
     if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;
+    if (/failed to fetch/i.test(String(e))) setOfflineUi(false);
   });
 });
