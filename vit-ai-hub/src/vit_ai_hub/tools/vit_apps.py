@@ -7,27 +7,30 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 # Canonical VIT desktop apps (aliases → open -a namen / path-globs)
 VIT_SUITE: dict[str, dict[str, Any]] = {
     "mail": {
         "id": "mail",
         "name": "VIT Mail",
-        "aliases": ["vit mail", "vitmail", "mail vit"],
+        "aliases": ["vit mail", "vitmail", "mail vit", "email"],
         "app_names": ["VIT Mail", "VITMail", "vit-mail"],
         "paths": ["VIT Mail.app", "VITMail.app"],
-        "url_schemes": ["mailto:"],
+        "url_schemes": ["mailto:", "vitmail:"],
         "web": None,
         "role": "E-mail client (Tauri)",
+        "extensions": [".eml", ".msg"],
         "actions": {
             "open": None,
-            "compose": "mailto:{to}?subject={subject}&body={body}",
+            "compose": "mailto",
+            "open_file": "file",
         },
     },
     "kluis": {
         "id": "kluis",
         "name": "VIT Kluis",
-        "aliases": ["vit kluis", "kluis", "vault", "bitwarden", "vaultwarden", "wachtwoorden"],
+        "aliases": ["vit kluis", "kluis", "vault", "bitwarden", "vaultwarden", "wachtwoorden", "passwords"],
         "app_names": ["VIT Kluis", "VITKluis", "VIT-Kluis"],
         "paths": ["VIT Kluis.app", "VITKluis.app"],
         "url_schemes": ["bitwarden://"],
@@ -36,6 +39,8 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
         "actions": {
             "open": None,
             "web": "https://secure.vitwerkplek.nl",
+            "search": "bitwarden://password?search={q}",
+            "unlock": None,
         },
     },
     "backup": {
@@ -47,19 +52,20 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
         "url_schemes": [],
         "web": None,
         "role": "Backup / schijfkluis client",
-        "actions": {"open": None},
+        "actions": {"open": None, "status": "ops"},
         "ops_tool": "vit_backup_status",
     },
     "office": {
         "id": "office",
         "name": "VIT Office",
-        "aliases": ["vit office", "office", "vit-office", "documenten"],
+        "aliases": ["vit office", "office", "vit-office", "documenten", "word", "docx"],
         "app_names": ["VIT Office", "VITOffice", "vit-office"],
         "paths": ["VIT Office.app", "VITOffice.app"],
         "url_schemes": [],
         "web": None,
         "role": "Office / documenten",
-        "actions": {"open": None},
+        "extensions": [".doc", ".docx", ".odt", ".rtf", ".txt", ".md"],
+        "actions": {"open": None, "open_file": "file"},
     },
     "pdf": {
         "id": "pdf",
@@ -70,6 +76,7 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
         "url_schemes": [],
         "web": None,
         "role": "PDF lezen/bewerken",
+        "extensions": [".pdf"],
         "actions": {"open": None, "open_file": "file"},
     },
     "remote": {
@@ -95,10 +102,10 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
             "VIT Remote.app",
             "VITRemoteManager.app",
         ],
-        "url_schemes": [],
+        "url_schemes": ["rdp://", "vnc://"],
         "web": None,
         "role": "Remote desktop / beheer",
-        "actions": {"open": None},
+        "actions": {"open": None, "connect": "host"},
     },
     "menubalk": {
         "id": "menubalk",
@@ -114,13 +121,14 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
     "rekenbladen": {
         "id": "rekenbladen",
         "name": "VIT Rekenbladen",
-        "aliases": ["vit rekenbladen", "rekenbladen", "spreadsheet", "sheets"],
+        "aliases": ["vit rekenbladen", "rekenbladen", "spreadsheet", "sheets", "xlsx", "csv"],
         "app_names": ["VIT Rekenbladen", "VITRekenbladen"],
         "paths": ["VIT Rekenbladen.app"],
         "url_schemes": [],
         "web": None,
         "role": "Spreadsheets",
-        "actions": {"open": None},
+        "extensions": [".xlsx", ".xls", ".ods", ".csv", ".tsv"],
+        "actions": {"open": None, "open_file": "file"},
     },
     "aihub": {
         "id": "aihub",
@@ -134,6 +142,12 @@ VIT_SUITE: dict[str, dict[str, Any]] = {
         "actions": {"open": None, "web": "http://127.0.0.1:8787"},
     },
 }
+
+# extension → preferred suite id
+_EXT_ROUTE: dict[str, str] = {}
+for _eid, _e in VIT_SUITE.items():
+    for _ext in _e.get("extensions") or []:
+        _EXT_ROUTE[_ext.lower()] = _eid
 
 
 def _darwin() -> bool:
@@ -159,7 +173,6 @@ def _find_installed(entry: dict[str, Any]) -> dict[str, Any]:
             cand = base / pname
             if cand.is_dir():
                 found_paths.append(str(cand))
-        # fuzzy: any VIT* matching name words
         name_token = (entry.get("name") or "").replace("VIT ", "").strip()
         if name_token:
             for p in base.glob("VIT*.app"):
@@ -180,13 +193,46 @@ def _find_installed(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _custom_suite() -> dict[str, dict[str, Any]]:
+    try:
+        from vit_ai_hub.extensions import list_custom_apps
+
+        out: dict[str, dict[str, Any]] = {}
+        for a in list_custom_apps().get("apps") or []:
+            aid = str(a.get("id") or "")
+            if not aid:
+                continue
+            out[aid] = {
+                "id": aid,
+                "name": a.get("name") or aid,
+                "aliases": a.get("aliases") or [],
+                "app_names": a.get("app_names") or [a.get("name") or aid],
+                "paths": [f"{n}.app" for n in (a.get("app_names") or [])],
+                "url_schemes": [],
+                "web": a.get("web"),
+                "role": a.get("role") or "Custom app",
+                "actions": {"open": None, **({"web": a["web"]} if a.get("web") else {})},
+                "custom": True,
+            }
+        return out
+    except Exception:
+        return {}
+
+
+def _all_suite() -> dict[str, dict[str, Any]]:
+    merged = dict(VIT_SUITE)
+    merged.update(_custom_suite())
+    return merged
+
+
 def resolve_vit_app(query: str) -> dict[str, Any] | None:
     q = (query or "").strip().lower()
     if not q:
         return None
-    if q in VIT_SUITE:
-        return VIT_SUITE[q]
-    for entry in VIT_SUITE.values():
+    suite = _all_suite()
+    if q in suite:
+        return suite[q]
+    for entry in suite.values():
         if q == entry["id"] or q == entry["name"].lower():
             return entry
         for a in entry.get("aliases") or []:
@@ -197,8 +243,9 @@ def resolve_vit_app(query: str) -> dict[str, Any] | None:
 
 def list_vit_apps() -> dict[str, Any]:
     items = []
-    for entry in VIT_SUITE.values():
+    for entry in _all_suite().values():
         st = _find_installed(entry)
+        acts = list((entry.get("actions") or {}).keys())
         items.append(
             {
                 "id": entry["id"],
@@ -210,6 +257,9 @@ def list_vit_apps() -> dict[str, Any]:
                 "running": st["running"],
                 "web": entry.get("web"),
                 "ops_tool": entry.get("ops_tool"),
+                "actions": acts,
+                "extensions": entry.get("extensions") or [],
+                "custom": bool(entry.get("custom")),
             }
         )
     installed_n = sum(1 for i in items if i["installed"])
@@ -220,9 +270,38 @@ def list_vit_apps() -> dict[str, Any]:
         "installed": installed_n,
         "apps": items,
         "hint": (
-            "Gebruik vit_app_open met id (mail/kluis/backup/office/pdf/remote). "
-            "Kluis = Vaultwarden @ secure.vitwerkplek.nl (Bitwarden-compat)."
+            "vit_app_open (mail/kluis/backup/office/pdf/remote) · "
+            "vit_app_handoff path=… (kiest Office/PDF/Mail/Rekenbladen) · "
+            "Kluis = Vaultwarden @ secure.vitwerkplek.nl · "
+            "Eigen apps via sidebar Uitbreidingen"
         ),
+    }
+
+
+def _open_url(url: str, *, app_name: str | None = None, app_path: str | None = None) -> subprocess.CompletedProcess[str]:
+    if app_path:
+        return subprocess.run(["open", "-a", app_path, url], capture_output=True, text=True)
+    if app_name:
+        return subprocess.run(["open", "-a", app_name, url], capture_output=True, text=True)
+    return subprocess.run(["open", url], capture_output=True, text=True)
+
+
+def _open_path_in_app(entry: dict[str, Any], path: Path) -> dict[str, Any]:
+    st = _find_installed(entry)
+    if st["paths"]:
+        r = subprocess.run(["open", "-a", st["paths"][0], str(path)], capture_output=True, text=True)
+        if r.returncode == 0:
+            return {"ok": True, "app": entry["name"], "mode": "open_file", "path": str(path)}
+    for name in entry.get("app_names") or []:
+        r = subprocess.run(["open", "-a", name, str(path)], capture_output=True, text=True)
+        if r.returncode == 0:
+            return {"ok": True, "app": name, "mode": "open_file", "path": str(path)}
+    r = subprocess.run(["open", str(path)], capture_output=True, text=True)
+    return {
+        "ok": r.returncode == 0,
+        "mode": "open_file_default",
+        "path": str(path),
+        "hint": f"{entry['name']} niet gevonden; macOS default gebruikt",
     }
 
 
@@ -234,6 +313,8 @@ def open_vit_app(
     subject: str = "",
     body: str = "",
     path: str = "",
+    query: str = "",
+    host: str = "",
     prefer_web: bool = False,
 ) -> dict[str, Any]:
     entry = resolve_vit_app(app)
@@ -241,11 +322,20 @@ def open_vit_app(
         return {
             "ok": False,
             "error": f"Onbekende VIT-app: {app}",
-            "known": list(VIT_SUITE.keys()),
+            "known": list(_all_suite().keys()),
         }
     act = (action or "open").strip().lower()
-    if not _darwin() and act != "web":
+    if not _darwin() and act not in {"web", "status"}:
         return {"ok": False, "error": "App openen alleen op macOS", "app": entry["name"]}
+
+    # Backup status via ops
+    if act == "status" and entry.get("ops_tool"):
+        try:
+            from vit_ai_hub.ops.providers import run_ops_action
+
+            return {"ok": True, "app": entry["name"], "mode": "status", "result": run_ops_action(entry["ops_tool"])}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc), "app": entry["name"]}
 
     # Web / vault
     if act == "web" or prefer_web:
@@ -260,10 +350,30 @@ def open_vit_app(
             "url": url,
         }
 
+    # Kluis search via Bitwarden URL scheme
+    if act == "search" and entry["id"] == "kluis":
+        q = query or path or ""
+        url = f"bitwarden://password?search={quote(q)}"
+        st = _find_installed(entry)
+        app_path = st["paths"][0] if st["paths"] else None
+        r = _open_url(url, app_path=app_path, app_name=(entry["app_names"] or [None])[0])
+        if r.returncode != 0 and entry.get("web"):
+            web = entry["web"]
+            if q:
+                web = f"{web}/#/vault?search={quote(q)}"
+            subprocess.run(["open", web], capture_output=True, text=True)
+            return {"ok": True, "app": entry["name"], "mode": "web_search", "url": web, "query": q}
+        return {"ok": r.returncode == 0, "app": entry["name"], "mode": "search", "url": url, "query": q}
+
+    # Unlock = open app (user unlocks in UI)
+    if act == "unlock" and entry["id"] == "kluis":
+        out = open_vit_app("kluis", action="open")
+        out["mode"] = "unlock"
+        out["hint"] = "Kluis geopend — ontgrendel in de app of via Face ID / wachtwoord."
+        return out
+
     # Compose via mailto (Mail)
     if act == "compose" and entry["id"] == "mail":
-        from urllib.parse import quote
-
         mail_to = quote(to or "", safe="@+.-_")
         qs = []
         if subject:
@@ -273,7 +383,6 @@ def open_vit_app(
         url = f"mailto:{mail_to}"
         if qs:
             url += "?" + "&".join(qs)
-        # Prefer VIT Mail app if installed
         st = _find_installed(entry)
         if st["installed"] and st["paths"]:
             r = subprocess.run(["open", "-a", entry["app_names"][0], url], capture_output=True, text=True)
@@ -282,18 +391,46 @@ def open_vit_app(
         r = subprocess.run(["open", url], capture_output=True, text=True)
         return {"ok": r.returncode == 0, "app": entry["name"], "mode": "compose", "url": url}
 
-    # Open file in PDF app
+    # Remote connect hint
+    if act == "connect" and entry["id"] == "remote":
+        h = (host or path or query or "").strip()
+        launched = open_vit_app("remote", action="open")
+        if h:
+            for scheme in ("rdp://", "vnc://"):
+                url = f"{scheme}{h}"
+                r = subprocess.run(["open", url], capture_output=True, text=True)
+                if r.returncode == 0:
+                    return {
+                        "ok": True,
+                        "app": entry["name"],
+                        "mode": "connect",
+                        "host": h,
+                        "url": url,
+                        "launched": launched.get("ok"),
+                    }
+            return {
+                "ok": launched.get("ok", False),
+                "app": entry["name"],
+                "mode": "connect_manual",
+                "host": h,
+                "hint": "Remote Manager geopend — verbind handmatig naar de host.",
+            }
+        return {**launched, "mode": "connect", "hint": "Geef host= mee voor rdp:// of vnc://"}
+
+    # Reveal in Finder
+    if act == "reveal" and path:
+        p = Path(path).expanduser()
+        if not p.exists():
+            return {"ok": False, "error": f"pad niet gevonden: {path}"}
+        r = subprocess.run(["open", "-R", str(p)], capture_output=True, text=True)
+        return {"ok": r.returncode == 0, "mode": "reveal", "path": str(p)}
+
+    # Open file in app
     if act in {"open_file", "file"} and path:
         p = Path(path).expanduser()
         if not p.is_file():
             return {"ok": False, "error": f"bestand niet gevonden: {path}"}
-        st = _find_installed(entry)
-        if st["paths"]:
-            r = subprocess.run(["open", "-a", st["paths"][0], str(p)], capture_output=True, text=True)
-            if r.returncode == 0:
-                return {"ok": True, "app": entry["name"], "mode": "open_file", "path": str(p)}
-        r = subprocess.run(["open", str(p)], capture_output=True, text=True)
-        return {"ok": r.returncode == 0, "mode": "open_file_default", "path": str(p)}
+        return _open_path_in_app(entry, p)
 
     # Default: launch app
     for name in entry.get("app_names") or []:
@@ -306,7 +443,6 @@ def open_vit_app(
         if r.returncode == 0:
             return {"ok": True, "app": p, "mode": "path", "id": entry["id"]}
 
-    # Fallback web for kluis
     if entry.get("web"):
         r = subprocess.run(["open", entry["web"]], capture_output=True, text=True)
         return {
@@ -325,6 +461,39 @@ def open_vit_app(
     }
 
 
+def handoff_file(path: str, *, prefer_app: str = "") -> dict[str, Any]:
+    """Open een bestand in de juiste VIT-app (PDF/Office/Mail/Rekenbladen)."""
+    p = Path(path).expanduser()
+    if not p.is_file():
+        return {"ok": False, "error": f"bestand niet gevonden: {path}"}
+    if prefer_app:
+        entry = resolve_vit_app(prefer_app)
+        if entry:
+            return _open_path_in_app(entry, p)
+    ext = p.suffix.lower()
+    target_id = _EXT_ROUTE.get(ext)
+    if not target_id:
+        # images → preview via open; unknown → Office fallback then default
+        if ext in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".heic"}:
+            r = subprocess.run(["open", str(p)], capture_output=True, text=True) if _darwin() else None
+            return {
+                "ok": True if not _darwin() else (r.returncode == 0 if r else False),
+                "mode": "system_open",
+                "path": str(p),
+                "hint": "Geen VIT-beeldapp; systeemviewer.",
+            }
+        entry = _all_suite().get("office")
+        if entry:
+            out = _open_path_in_app(entry, p)
+            out["routed"] = "office_fallback"
+            return out
+        return {"ok": False, "error": f"geen VIT-app voor extensie {ext or '(geen)'}"}
+    entry = _all_suite()[target_id]
+    out = _open_path_in_app(entry, p)
+    out["routed"] = target_id
+    return out
+
+
 def vit_app_tool_specs() -> list[dict[str, Any]]:
     return [
         {
@@ -333,7 +502,7 @@ def vit_app_tool_specs() -> list[dict[str, Any]]:
                 "name": "vit_apps_list",
                 "description": (
                     "Lijst VIT-suite apps (Mail, Kluis/Bitwarden, Backup, Office, PDF, "
-                    "Remote Manager, …) + of ze geïnstalleerd/draaien."
+                    "Remote Manager, Rekenbladen, …) + geïnstalleerd/draaiend + acties."
                 ),
                 "parameters": {"type": "object", "properties": {}},
             },
@@ -343,8 +512,10 @@ def vit_app_tool_specs() -> list[dict[str, Any]]:
             "function": {
                 "name": "vit_app_open",
                 "description": (
-                    "Open een VIT-app. app= mail|kluis|backup|office|pdf|remote|menubalk. "
-                    "action=open|compose|web|open_file. Kluis = wachtwoorden (Vaultwarden)."
+                    "Open/bedien een VIT-app. app= mail|kluis|backup|office|pdf|remote|rekenbladen|menubalk. "
+                    "action=open|compose|web|open_file|search|unlock|connect|status|reveal. "
+                    "Kluis=wachtwoorden (Vaultwarden). Mail compose: to/subject/body. "
+                    "Remote connect: host=. Backup status: action=status."
                 ),
                 "parameters": {
                     "type": "object",
@@ -355,9 +526,32 @@ def vit_app_tool_specs() -> list[dict[str, Any]]:
                         "subject": {"type": "string"},
                         "body": {"type": "string"},
                         "path": {"type": "string"},
+                        "query": {"type": "string"},
+                        "host": {"type": "string"},
                         "prefer_web": {"type": "boolean"},
                     },
                     "required": ["app"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "vit_app_handoff",
+                "description": (
+                    "Geef een bestand door aan de juiste VIT-app: .pdf→PDF, .docx→Office, "
+                    ".xlsx/.csv→Rekenbladen, .eml→Mail. Optioneel prefer_app forceren."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "Pad naar bestand"},
+                        "prefer_app": {
+                            "type": "string",
+                            "description": "Optioneel: mail|office|pdf|rekenbladen|…",
+                        },
+                    },
+                    "required": ["path"],
                 },
             },
         },
@@ -376,7 +570,17 @@ async def run_vit_app_tool(name: str, arguments: dict[str, Any]) -> str:
                 subject=str(arguments.get("subject") or ""),
                 body=str(arguments.get("body") or ""),
                 path=str(arguments.get("path") or ""),
+                query=str(arguments.get("query") or ""),
+                host=str(arguments.get("host") or ""),
                 prefer_web=bool(arguments.get("prefer_web")),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "vit_app_handoff":
+        return json.dumps(
+            handoff_file(
+                str(arguments.get("path") or ""),
+                prefer_app=str(arguments.get("prefer_app") or ""),
             ),
             ensure_ascii=False,
         )

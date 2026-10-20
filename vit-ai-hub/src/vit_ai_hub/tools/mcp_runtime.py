@@ -16,23 +16,36 @@ DEFAULT_MCP = ROOT / "data" / "migrated" / "mcp.json"
 
 
 def load_mcp_config(path: Path | None = None) -> dict[str, Any]:
-    p = path or DEFAULT_MCP
-    # also accept ~/.cursor/mcp.json live
-    candidates = [
-        p,
-        Path.home() / ".cursor" / "mcp.json",
-        Path.home() / ".claude" / "mcp.json",
-    ]
+    """Merge hub-managed mcp.json with Cursor/Claude configs (hub wins on name clash)."""
+    if path is not None:
+        candidates = [path]
+    else:
+        candidates = [
+            ROOT / "data" / "mcp.json",
+            DEFAULT_MCP,
+            Path.home() / ".cursor" / "mcp.json",
+            Path.home() / ".claude" / "mcp.json",
+        ]
+    merged: dict[str, Any] = {}
+    used_path = str(candidates[0]) if candidates else str(DEFAULT_MCP)
     for c in candidates:
-        if c.is_file():
-            try:
-                data = json.loads(c.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            servers = data.get("mcpServers") or data.get("servers") or {}
-            if isinstance(servers, dict) and servers:
-                return {"path": str(c), "mcpServers": servers}
-    return {"path": str(p), "mcpServers": {}}
+        if not c.is_file():
+            continue
+        try:
+            data = json.loads(c.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        servers = data.get("mcpServers") or data.get("servers") or {}
+        if not isinstance(servers, dict) or not servers:
+            continue
+        for name, cfg in servers.items():
+            if name not in merged:
+                merged[name] = cfg
+        if not merged or used_path == str(candidates[0]):
+            used_path = str(c)
+    if not merged:
+        return {"path": used_path, "mcpServers": {}}
+    return {"path": used_path, "mcpServers": merged}
 
 
 class _StdioSession:

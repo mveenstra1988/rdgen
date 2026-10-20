@@ -159,10 +159,13 @@ async def api_setup_bootstrap(request: Request) -> dict[str, Any]:
         "OPENROUTER_API_KEY",
         "DEEPSEEK_API_KEY",
         "XAI_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
         "BRIDGE_API_KEY",
         "OMNIROUTE_API_KEY",
         "VIT_LOCAL_LIGHT_MODEL",
         "VIT_LOCAL_HEAVY_MODEL",
+        "VIT_NANO_BANANA_MODEL",
     ):
         if body.get(k):
             secrets[k] = str(body[k])
@@ -1348,9 +1351,21 @@ async def import_all(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.get("/api/skills")
 async def api_list_skills(_: None = Depends(_auth)) -> dict[str, Any]:
-    from vit_ai_hub.importing.store import list_skills, stats
+    from vit_ai_hub.extensions import list_hub_skills
 
-    return {"skills": list_skills(), "knowledge": stats()}
+    return list_hub_skills()
+
+
+@app.post("/api/skills")
+async def api_add_skill(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import add_skill
+
+    return add_skill(
+        name=str(body.get("name") or ""),
+        description=str(body.get("description") or ""),
+        content=str(body.get("content") or ""),
+        promote_agent=bool(body.get("promote_agent", True)),
+    )
 
 
 @app.post("/api/import/skills")
@@ -1377,9 +1392,63 @@ async def api_migrate_profile(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.get("/api/mcp/servers")
 async def api_mcp_servers(_: None = Depends(_auth)) -> dict[str, Any]:
-    from vit_ai_hub.tools.mcp_runtime import list_servers
+    from vit_ai_hub.extensions import list_mcp_managed
 
-    return list_servers()
+    return list_mcp_managed()
+
+
+@app.post("/api/mcp/servers")
+async def api_mcp_add(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import add_mcp_server
+
+    args = body.get("args")
+    return add_mcp_server(
+        name=str(body.get("name") or ""),
+        command=str(body.get("command") or ""),
+        args=args if isinstance(args, (list, str)) else str(body.get("args") or ""),
+        url=str(body.get("url") or ""),
+        env=body.get("env") if isinstance(body.get("env"), dict) else None,
+    )
+
+
+@app.delete("/api/mcp/servers/{name}")
+async def api_mcp_remove(name: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import remove_mcp_server
+
+    return remove_mcp_server(name)
+
+
+@app.get("/api/extensions")
+async def api_extensions(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import extensions_overview
+
+    return extensions_overview()
+
+
+@app.get("/api/extensions/apps")
+async def api_ext_apps(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import list_custom_apps
+
+    return list_custom_apps()
+
+
+@app.post("/api/extensions/apps")
+async def api_ext_apps_add(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import add_custom_app
+
+    return add_custom_app(
+        name=str(body.get("name") or ""),
+        app_name=str(body.get("app_name") or body.get("app") or ""),
+        aliases=body.get("aliases"),
+        web=str(body.get("web") or ""),
+    )
+
+
+@app.delete("/api/extensions/apps/{app_id}")
+async def api_ext_apps_remove(app_id: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import remove_custom_app
+
+    return remove_custom_app(app_id)
 
 
 @app.post("/api/import/cursor")
@@ -1574,7 +1643,19 @@ async def api_vit_app_open(app_id: str, body: dict[str, Any] | None = None, _: N
         subject=str(body.get("subject") or ""),
         body=str(body.get("body") or ""),
         path=str(body.get("path") or ""),
+        query=str(body.get("query") or ""),
+        host=str(body.get("host") or ""),
         prefer_web=bool(body.get("prefer_web")),
+    )
+
+
+@app.post("/api/vit-apps/handoff")
+async def api_vit_app_handoff(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.tools.vit_apps import handoff_file
+
+    return handoff_file(
+        str(body.get("path") or ""),
+        prefer_app=str(body.get("prefer_app") or ""),
     )
 
 

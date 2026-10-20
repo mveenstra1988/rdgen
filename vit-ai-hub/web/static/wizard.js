@@ -9,10 +9,12 @@
   const titles = [
     "Welkom",
     "Lokaal",
-    "OpenRouter",
+    "Cloud",
+    "Gemini",
     "OmniRoute",
     "Claude/GPT",
     "Cursor",
+    "VIT-apps",
     "Import",
     "Klaar",
   ];
@@ -31,6 +33,8 @@
         .join("");
     }
     if (step === steps.length - 1) refreshProbe();
+    // VIT-apps step index (0-based): welkom=0 … vit=7
+    if (titles[step] === "VIT-apps") refreshVitWizard();
   }
 
   function collectSecrets() {
@@ -38,6 +42,8 @@
       OPENROUTER_API_KEY: overlay.querySelector("#wiz-openrouter")?.value || "",
       DEEPSEEK_API_KEY: overlay.querySelector("#wiz-deepseek")?.value || "",
       XAI_API_KEY: overlay.querySelector("#wiz-xai")?.value || "",
+      GEMINI_API_KEY: overlay.querySelector("#wiz-gemini")?.value || "",
+      VIT_NANO_BANANA_MODEL: overlay.querySelector("#wiz-banana-model")?.value || "",
       BRIDGE_API_KEY: overlay.querySelector("#wiz-bridge")?.value || "",
       OMNIROUTE_API_KEY: overlay.querySelector("#wiz-omni")?.value || "",
       VIT_LOCAL_LIGHT_MODEL: overlay.querySelector("#wiz-light")?.value || "",
@@ -104,6 +110,30 @@
     return data;
   }
 
+  async function refreshVitWizard() {
+    const box = overlay.querySelector("#wiz-vit-apps");
+    const msg = overlay.querySelector("#wiz-vit-msg");
+    if (!box) return;
+    try {
+      const res = await fetch("/api/setup/probe");
+      const d = await res.json();
+      const lines = (d.vit_apps || []).map(
+        (a) => `${a.installed ? "✓" : "○"} ${a.name}${a.web && !a.installed ? " (web)" : ""}`
+      );
+      box.textContent =
+        lines.join("\n") ||
+        `Suite: ${d.vit_apps_installed || 0}/${d.vit_apps_count || 0} geïnstalleerd`;
+      if (msg) {
+        msg.textContent =
+          (d.vit_apps_installed || 0) > 0
+            ? "Open de apps hierboven en log in — hub koppelt via vit_app_open / handoff."
+            : "Nog geen VIT-apps gevonden in ~/Applications — Kluis web werkt wél.";
+      }
+    } catch (e) {
+      box.textContent = String(e);
+    }
+  }
+
   async function refreshProbe() {
     const box = overlay.querySelector("#wiz-final");
     if (!box) return;
@@ -116,10 +146,12 @@
         d.lmstudio_up ? "✓ Lokaal LM Studio" : "○ LM Studio — start later mag",
         d.ollama_up ? "✓ Ollama" : "○ Ollama",
         d.openrouter_key ? "✓ OpenRouter (gratis + meer)" : "○ OpenRouter key",
+        d.gemini_key ? "✓ Gemini / Nano Banana" : "○ Gemini key (beelden)",
         d.deepseek_key ? "✓ DeepSeek direct" : "○ DeepSeek (via OpenRouter kan ook)",
-        d.bridge_up ? "✓ Claude/ChatGPT bridge :8317" : "○ Bridge — log in via stap 4",
+        d.bridge_up ? "✓ Claude/ChatGPT bridge :8317" : "○ Bridge — log in via stap 5",
         d.omniroute_up ? "✓ OmniRoute :20128" : "○ OmniRoute optioneel",
         d.xai_key ? "✓ Grok" : "○ Grok optioneel",
+        `VIT-apps: ${d.vit_apps_installed || 0}/${d.vit_apps_count || 0} geïnstalleerd`,
         `Cursor base URL: ${d.cursor_base_url}`,
         d.gateway_token ? `Token (voor Cursor): ${d.gateway_token}` : "",
       ]
@@ -190,13 +222,17 @@
   overlay.querySelector("#wiz-save-cloud")?.addEventListener("click", () =>
     saveSecrets(overlay.querySelector("#wiz-cloud-msg"))
   );
+  overlay.querySelector("#wiz-save-gemini")?.addEventListener("click", () =>
+    saveSecrets(overlay.querySelector("#wiz-gemini-msg"))
+  );
   overlay.querySelector("#wiz-save-omni")?.addEventListener("click", () =>
     saveSecrets(overlay.querySelector("#wiz-omni-msg"))
   );
+  overlay.querySelector("#wiz-vit-refresh")?.addEventListener("click", () => refreshVitWizard());
+
   overlay.querySelector("#wiz-save-bridge")?.addEventListener("click", async () => {
     const msg = overlay.querySelector("#wiz-bridge-msg");
     await saveSecrets(msg);
-    // Multi-abo pool: tot 3 bridges
     const slots = [
       {
         url: overlay.querySelector("#wiz-bridge-url-1")?.value || "http://127.0.0.1:8317/v1",

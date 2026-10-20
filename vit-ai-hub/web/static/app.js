@@ -889,6 +889,15 @@ els.importZipsNow?.addEventListener("click", async () => {
   }
 });
 
+async function openVitApp(id, body = {}) {
+  const r = await fetch(`/api/vit-apps/${encodeURIComponent(id)}/open`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
 async function refreshVitApps() {
   const box = document.getElementById("vit-apps-list");
   if (!box) return;
@@ -896,24 +905,41 @@ async function refreshVitApps() {
     const res = await fetch("/api/vit-apps", { headers: headers() });
     const data = await res.json();
     box.innerHTML = "";
-    for (const a of data.apps || []) {
+    const core = (data.apps || []).filter((a) =>
+      ["mail", "kluis", "backup", "office", "pdf", "remote", "rekenbladen"].includes(a.id)
+    );
+    for (const a of core) {
       const row = document.createElement("div");
       row.className = "vit-app-row";
-      row.innerHTML = `<span><i class="dot ${a.installed ? "on" : ""}"></i>${escapeHtml(a.name)}</span>`;
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = a.installed ? "Open" : a.web ? "Web" : "—";
-      btn.disabled = !a.installed && !a.web;
-      btn.addEventListener("click", async () => {
-        const r = await fetch(`/api/vit-apps/${encodeURIComponent(a.id)}/open`, {
-          method: "POST",
-          headers: headers(),
-          body: JSON.stringify({ prefer_web: !a.installed && !!a.web }),
+      const label = document.createElement("span");
+      label.innerHTML = `<i class="dot ${a.installed ? "on" : ""}"></i>${escapeHtml(a.name)}`;
+      row.appendChild(label);
+      const acts = document.createElement("div");
+      acts.className = "vit-app-acts";
+      const mk = (text, payload, disabled) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = text;
+        btn.disabled = !!disabled;
+        btn.addEventListener("click", async () => {
+          const out = await openVitApp(a.id, payload);
+          addBubble(
+            "system",
+            `${a.name}: ${out.ok ? out.mode || "ok" : out.error || "mislukt"}`
+          );
         });
-        const out = await r.json();
-        addBubble("system", `${a.name}: ${out.ok ? "geopend" : out.error || "mislukt"}`);
-      });
-      row.appendChild(btn);
+        acts.appendChild(btn);
+      };
+      mk(a.installed ? "Open" : a.web ? "Web" : "—", {
+        prefer_web: !a.installed && !!a.web,
+      }, !a.installed && !a.web);
+      if (a.id === "mail") mk("Compose", { action: "compose" }, false);
+      if (a.id === "kluis") {
+        mk("Web", { action: "web" }, false);
+        mk("Unlock", { action: "unlock" }, !a.installed);
+      }
+      if (a.id === "backup") mk("Status", { action: "status" }, false);
+      row.appendChild(acts);
       box.appendChild(row);
     }
   } catch {
@@ -922,6 +948,125 @@ async function refreshVitApps() {
 }
 
 document.getElementById("vit-apps-refresh")?.addEventListener("click", () => refreshVitApps());
+
+async function refreshExtensions() {
+  const ov = document.getElementById("ext-overview");
+  const skillsBox = document.getElementById("ext-skills-list");
+  const mcpBox = document.getElementById("ext-mcp-list");
+  try {
+    const [ovRes, skRes, mcpRes] = await Promise.all([
+      fetch("/api/extensions", { headers: headers() }),
+      fetch("/api/skills", { headers: headers() }),
+      fetch("/api/mcp/servers", { headers: headers() }),
+    ]);
+    const overview = await ovRes.json();
+    const skills = await skRes.json();
+    const mcp = await mcpRes.json();
+    if (ov) {
+      ov.textContent = [
+        `Skills: ${overview.skills?.count ?? 0} in catalogus · ${overview.skills?.on_disk ?? 0} op schijf`,
+        `MCP: ${overview.mcp?.count ?? 0} hub-managed`,
+        `Extra apps: ${overview.custom_apps?.count ?? 0}`,
+      ].join("\n");
+    }
+    if (skillsBox) {
+      const rows = (skills.catalog || skills.skills || []).slice(0, 12);
+      skillsBox.textContent = rows.length
+        ? rows.map((s) => `• ${s.name}${s.description ? " — " + s.description.slice(0, 48) : ""}`).join("\n")
+        : "Nog geen skills — voeg er één toe of importeer.";
+    }
+    if (mcpBox) {
+      const servers = mcp.active?.servers || Object.keys(mcp.hub_servers || {}).map((n) => ({ name: n }));
+      mcpBox.textContent = servers.length
+        ? servers.map((s) => `• ${s.name}${s.command ? " · " + s.command : s.has_url ? " · url" : ""}`).join("\n")
+        : "Nog geen MCP — voeg command of URL toe.";
+    }
+  } catch {
+    if (ov) ov.textContent = "Uitbreidingen niet geladen.";
+  }
+}
+
+document.getElementById("ext-skill-add")?.addEventListener("click", async () => {
+  const msg = document.getElementById("ext-msg");
+  const name = document.getElementById("ext-skill-name")?.value || "";
+  const description = document.getElementById("ext-skill-desc")?.value || "";
+  const content = document.getElementById("ext-skill-body")?.value || "";
+  try {
+    const res = await fetch("/api/skills", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ name, description, content }),
+    });
+    const data = await res.json();
+    if (msg) msg.textContent = data.ok ? `Skill «${data.name}» opgeslagen` : data.error || "mislukt";
+    if (data.ok) {
+      document.getElementById("ext-skill-name").value = "";
+      document.getElementById("ext-skill-desc").value = "";
+      document.getElementById("ext-skill-body").value = "";
+      refreshExtensions();
+    }
+  } catch (e) {
+    if (msg) msg.textContent = String(e);
+  }
+});
+
+document.getElementById("ext-mcp-add")?.addEventListener("click", async () => {
+  const msg = document.getElementById("ext-msg");
+  try {
+    const res = await fetch("/api/mcp/servers", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        name: document.getElementById("ext-mcp-name")?.value || "",
+        command: document.getElementById("ext-mcp-cmd")?.value || "",
+        args: document.getElementById("ext-mcp-args")?.value || "",
+        url: document.getElementById("ext-mcp-url")?.value || "",
+      }),
+    });
+    const data = await res.json();
+    if (msg) msg.textContent = data.ok ? `MCP «${data.name}» toegevoegd` : data.error || "mislukt";
+    if (data.ok) {
+      ["ext-mcp-name", "ext-mcp-cmd", "ext-mcp-args", "ext-mcp-url"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      refreshExtensions();
+    }
+  } catch (e) {
+    if (msg) msg.textContent = String(e);
+  }
+});
+
+document.getElementById("ext-app-add")?.addEventListener("click", async () => {
+  const msg = document.getElementById("ext-msg");
+  try {
+    const res = await fetch("/api/extensions/apps", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        name: document.getElementById("ext-app-name")?.value || "",
+        app_name: document.getElementById("ext-app-launch")?.value || "",
+        aliases: document.getElementById("ext-app-aliases")?.value || "",
+        web: document.getElementById("ext-app-web")?.value || "",
+      }),
+    });
+    const data = await res.json();
+    if (msg) msg.textContent = data.ok ? `App «${data.app?.name}» gekoppeld` : data.error || "mislukt";
+    if (data.ok) {
+      ["ext-app-name", "ext-app-launch", "ext-app-aliases", "ext-app-web"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      refreshExtensions();
+      refreshVitApps();
+    }
+  } catch (e) {
+    if (msg) msg.textContent = String(e);
+  }
+});
+
+document.getElementById("ext-skill-refresh")?.addEventListener("click", () => refreshExtensions());
+document.getElementById("ext-mcp-refresh")?.addEventListener("click", () => refreshExtensions());
 
 async function refreshMacProfile() {
   const box = document.getElementById("mac-profile-box");
@@ -1239,6 +1384,7 @@ ensureLocalToken().then(async () => {
   refreshNetwork();
   refreshMacProfile();
   refreshVitApps();
+  refreshExtensions();
   loadPresets();
   loadModels().catch((e) => {
     if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;

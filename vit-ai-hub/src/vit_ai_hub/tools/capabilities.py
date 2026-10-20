@@ -418,6 +418,7 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         "open_figcraft",
         "vit_apps_list",
         "vit_app_open",
+        "vit_app_handoff",
     }
     if name in desktop_names:
         from vit_ai_hub.tools.desktop import run_desktop_tool
@@ -575,6 +576,7 @@ def capabilities_manifest() -> dict[str, Any]:
             "Eén Mac-app (.dmg/.app): open start hub, sluiten stopt hub.",
             "Desktop: Chrome, Mail, VIT-suite (Mail/Kluis/Backup/Office/PDF/Remote), Penpot, FigCraft.",
             "Ops: Proxmox/Nextcloud/Mailcow/UniFi/Backup via ops.env (VPN, read-first).",
-            "VIT Kluis = Vaultwarden/Bitwarden @ secure.vitwerkplek.nl (vit_app_open kluis).",
+            "VIT Kluis = Vaultwarden/Bitwarden @ secure.vitwerkplek.nl (vit_app_open kluis). "
+            "Bestanden: vit_app_handoff. Mail compose / Kluis search / Remote connect / Backup status.",
         ],
     }

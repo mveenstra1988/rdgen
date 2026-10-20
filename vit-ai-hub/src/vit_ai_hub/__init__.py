@@ -1,3 +1,3 @@
 """VIT AI Hub: lokale GUI + privacy gateway voor lokaal/Claude/GPT/Cursor/OpenRouter/OmniRoute."""
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"

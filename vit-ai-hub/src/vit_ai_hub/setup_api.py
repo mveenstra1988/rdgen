@@ -43,9 +43,17 @@ GUIDE_TARGETS: dict[str, dict[str, str]] = {
         "url": "https://aistudio.google.com/apikey",
         "label": "Gemini / Nano Banana API key",
     },
+    "google_ai_studio": {
+        "url": "https://aistudio.google.com/",
+        "label": "Google AI Studio (inloggen)",
+    },
     "deepseek_keys": {
         "url": "https://platform.deepseek.com/api_keys",
         "label": "DeepSeek API keys",
+    },
+    "xai_keys": {
+        "url": "https://console.x.ai/",
+        "label": "xAI / Grok console",
     },
     "omniroute_docs": {
         "url": "https://github.com/router-for-me/OmniRoute",
@@ -65,6 +73,16 @@ GUIDE_TARGETS: dict[str, dict[str, str]] = {
     },
     "chatgpt": {"app": "ChatGPT", "label": "ChatGPT"},
     "claude": {"app": "Claude", "label": "Claude"},
+    "vit_kluis": {"app": "VIT Kluis", "label": "VIT Kluis", "url": "https://secure.vitwerkplek.nl"},
+    "vit_mail": {"app": "VIT Mail", "label": "VIT Mail"},
+    "vit_backup": {"app": "VIT Backup", "label": "VIT Backup"},
+    "vit_office": {"app": "VIT Office", "label": "VIT Office"},
+    "vit_pdf": {"app": "VIT PDF", "label": "VIT PDF"},
+    "vit_remote": {"app": "VIT Remote Manager", "label": "VIT Remote Manager"},
+    "kluis_web": {
+        "url": "https://secure.vitwerkplek.nl",
+        "label": "VIT Kluis web (Bitwarden/Vaultwarden)",
+    },
 }
 
 
@@ -217,17 +235,32 @@ def open_guide(target: str) -> dict[str, Any]:
         return {"ok": False, "error": f"onbekend target: {target}", "known": sorted(GUIDE_TARGETS)}
     if os.uname().sysname != "Darwin":
         return {"ok": False, "error": "alleen macOS", "hint": info}
+    # Prefer desktop app when both app+url (e.g. Kluis); fall back to web
+    if info.get("app"):
+        r = subprocess.run(["open", "-a", info["app"]], capture_output=True, text=True)
+        if r.returncode == 0:
+            return {
+                "ok": True,
+                "app": info["app"],
+                "label": info.get("label"),
+            }
+        if info.get("url"):
+            subprocess.run(["open", info["url"]], check=False)
+            return {
+                "ok": True,
+                "opened": info["url"],
+                "label": info.get("label"),
+                "hint": f"{info['app']} niet gevonden; web geopend",
+            }
+        return {
+            "ok": False,
+            "app": info["app"],
+            "label": info.get("label"),
+            "error": (r.stderr or "").strip() or "app niet gevonden",
+        }
     if info.get("url"):
         subprocess.run(["open", info["url"]], check=False)
         return {"ok": True, "opened": info["url"], "label": info.get("label")}
-    if info.get("app"):
-        r = subprocess.run(["open", "-a", info["app"]], capture_output=True, text=True)
-        return {
-            "ok": r.returncode == 0,
-            "app": info["app"],
-            "label": info.get("label"),
-            "error": (r.stderr or "").strip() or None,
-        }
     return {"ok": False, "error": "geen actie"}
 
 
@@ -250,6 +283,15 @@ def probe_providers() -> dict[str, Any]:
             omni_up = False
     except Exception:
         pass
+    vit_suite: dict[str, Any] = {}
+    try:
+        from vit_ai_hub.tools.vit_apps import list_vit_apps
+
+        vit_suite = list_vit_apps()
+    except Exception:
+        vit_suite = {}
+
+    gemini = bool(secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY"))
     return {
         **status,
         "bridge_up": bridge_up,
@@ -257,6 +299,14 @@ def probe_providers() -> dict[str, Any]:
         "openrouter_key": bool(secrets.get("OPENROUTER_API_KEY")),
         "deepseek_key": bool(secrets.get("DEEPSEEK_API_KEY")),
         "xai_key": bool(secrets.get("XAI_API_KEY")),
+        "gemini_key": gemini,
         "bridge_key": bool(secrets.get("BRIDGE_API_KEY")),
         "cursor_base_url": "http://127.0.0.1:8787/v1",
+        "vit_apps_installed": vit_suite.get("installed", 0),
+        "vit_apps_count": vit_suite.get("count", 0),
+        "vit_apps": [
+            {"id": a["id"], "name": a["name"], "installed": a["installed"], "web": a.get("web")}
+            for a in (vit_suite.get("apps") or [])
+            if a["id"] in {"mail", "kluis", "backup", "office", "pdf", "remote"}
+        ],
     }

@@ -14,8 +14,11 @@ def _home() -> Path:
 
 
 def skill_candidate_roots() -> list[Path]:
+    from vit_ai_hub.config import ROOT
+
     h = _home()
     roots = [
+        ROOT / "data" / "skills",
         h / ".claude" / "skills",
         h / ".claude" / "commands",
         h / ".claude" / "plugins",

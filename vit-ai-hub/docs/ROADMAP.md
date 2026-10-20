@@ -37,11 +37,15 @@
 - [x] Inline diff-panel (search_replace + ```diff```)
 - [x] M5 Max 128GB Mac-profiel + docs (`docs/MAC_M5_MAX.md`, `/api/mac/profile`)
 - [x] Local-prep: EXEC_BRIEF (repo/kennis/geheugen) vóór cloud → minder tokens/rondes
+- [x] Nano Banana + read_document
+- [x] VIT-suite desktop: Mail/Kluis/Backup/Office/PDF/Remote (`vit_apps_list` / `vit_app_open`)
+- [x] VIT handoff + acties (compose/search/unlock/connect/status) + wizard Gemini/VIT-apps (2.4)
+- [x] Uitbreidingen-GUI: skills / MCP / custom apps toevoegen (2.4)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
 - [ ] Echte embeddings (mlx) i.p.v. alleen FTS
-- [ ] VIT Mail deep IPC (niet alleen openen) als app dat expose’t
+- [ ] VIT Mail/Kluis deep IPC (native Tauri IPC) zodra apps die exposen
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
 - [ ] IDE/LSP-bridge (tabs, breakpoints) — optioneel naast chat-agent

@@ -13,9 +13,33 @@ def test_open_guide_known_targets():
 
     assert "openrouter_keys" in GUIDE_TARGETS
     assert "bridge_docs" in GUIDE_TARGETS
+    assert "gemini_keys" in GUIDE_TARGETS
+    assert "vit_kluis" in GUIDE_TARGETS
+    assert "kluis_web" in GUIDE_TARGETS
     # non-darwin returns structured error, not crash
     out = open_guide("openrouter_keys")
     assert "ok" in out
+
+
+def test_probe_includes_gemini_and_vit(monkeypatch):
+    from vit_ai_hub.setup_api import probe_providers
+    import vit_ai_hub.setup_api as setup
+
+    monkeypatch.setattr(setup, "_read_secret_map", lambda: {"GEMINI_API_KEY": "AIza-test"})
+    monkeypatch.setattr(
+        setup,
+        "setup_status",
+        lambda include_token=False: {
+            "version": "test",
+            "setup_complete": False,
+            "lmstudio_up": False,
+            "ollama_up": False,
+        },
+    )
+    out = probe_providers()
+    assert out["gemini_key"] is True
+    assert "vit_apps" in out
+    assert "vit_apps_installed" in out
 
 
 def test_setup_status_can_include_token(tmp_path, monkeypatch):

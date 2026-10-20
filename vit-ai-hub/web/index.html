@@ -23,7 +23,7 @@
         <div class="brand-mark">VIT</div>
         <div>
           <h2>Welkom bij AI Hub</h2>
-          <p class="muted">Korte setup · daarna gewoon chatten. <span id="wiz-progress">1 / 8</span></p>
+          <p class="muted">Alles in één keer goed · daarna gewoon chatten. <span id="wiz-progress">1 / 10</span></p>
         </div>
       </div>
       <ol class="wiz-rail" id="wiz-rail" aria-hidden="true"></ol>
@@ -57,9 +57,9 @@
 
       <section data-step class="wiz-step">
         <h3>2 · Cloud keys (optioneel)</h3>
-        <p class="muted tiny">OpenRouter = gratis + meer. DeepSeek/Grok optioneel.</p>
+        <p class="muted tiny">OpenRouter = gratis + meer. DeepSeek/Grok optioneel. Log in via de knoppen.</p>
         <label class="field"><span>OpenRouter</span>
-          <input id="wiz-openrouter" type="password" autocomplete="off" /></label>
+          <input id="wiz-openrouter" type="password" autocomplete="off" placeholder="sk-or-…" /></label>
         <label class="field"><span>DeepSeek</span>
           <input id="wiz-deepseek" type="password" autocomplete="off" /></label>
         <label class="field"><span>Grok / xAI</span>
@@ -67,13 +67,29 @@
         <div class="wiz-actions">
           <button type="button" class="ghost" data-guide="openrouter_keys">OpenRouter keys</button>
           <button type="button" class="ghost" data-guide="deepseek_keys">DeepSeek keys</button>
+          <button type="button" class="ghost" data-guide="xai_keys">xAI login</button>
           <button type="button" id="wiz-save-cloud" class="primary">Opslaan</button>
         </div>
         <p class="muted tiny" id="wiz-cloud-msg">Mag leeg — dan vooral lokaal + abo-bridge.</p>
       </section>
 
       <section data-step class="wiz-step">
-        <h3>3 · OmniRoute (optioneel)</h3>
+        <h3>3 · Gemini / Nano Banana</h3>
+        <p class="muted tiny">Nodig voor beeldgeneratie (Nano Banana). Log in bij Google AI Studio → maak een API key.</p>
+        <label class="field"><span>Gemini API key</span>
+          <input id="wiz-gemini" type="password" autocomplete="off" placeholder="AIza…" /></label>
+        <label class="field"><span>Banana model (optioneel)</span>
+          <input id="wiz-banana-model" type="text" autocomplete="off" placeholder="gemini-2.0-flash-preview-image-generation" /></label>
+        <div class="wiz-actions">
+          <button type="button" class="ghost" data-guide="google_ai_studio">Google inloggen</button>
+          <button type="button" class="ghost" data-guide="gemini_keys">API key maken</button>
+          <button type="button" id="wiz-save-gemini" class="primary">Opslaan</button>
+        </div>
+        <p class="muted tiny" id="wiz-gemini-msg">Zonder key: lokale SVG-fallback; met key: echte Nano Banana.</p>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>4 · OmniRoute (optioneel)</h3>
         <p class="muted tiny">Lokaal :20128. Overslaan mag.</p>
         <label class="field"><span>API key</span>
           <input id="wiz-omni" type="password" autocomplete="off" /></label>
@@ -85,7 +101,7 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>4 · Claude / ChatGPT abos</h3>
+        <h3>5 · Claude / ChatGPT abos</h3>
         <p class="muted tiny">Meerdere bridges → hub wisselt automatisch als er één op is.</p>
         <label class="field"><span>Bridge #1 URL</span>
           <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
@@ -109,7 +125,7 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>5 · Cursor</h3>
+        <h3>6 · Cursor</h3>
         <p class="muted tiny">Settings → Models → OpenAI-compat:</p>
         <div class="wiz-copy">
           <code id="wiz-cursor-url">http://127.0.0.1:8787/v1</code>
@@ -123,7 +139,24 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>6 · Alles overzetten</h3>
+        <h3>7 · VIT-apps (Mail, Kluis, …)</h3>
+        <p class="muted tiny">Hub opent je suite-apps. Log daar in (Mail, Kluis/Bitwarden, Backup, Office, PDF, Remote).</p>
+        <pre id="wiz-vit-apps" class="wiz-pre">Laden…</pre>
+        <div class="wiz-actions">
+          <button type="button" class="ghost" data-guide="vit_mail">Mail</button>
+          <button type="button" class="ghost" data-guide="vit_kluis">Kluis</button>
+          <button type="button" class="ghost" data-guide="kluis_web">Kluis web</button>
+          <button type="button" class="ghost" data-guide="vit_backup">Backup</button>
+          <button type="button" class="ghost" data-guide="vit_office">Office</button>
+          <button type="button" class="ghost" data-guide="vit_pdf">PDF</button>
+          <button type="button" class="ghost" data-guide="vit_remote">Remote</button>
+          <button type="button" id="wiz-vit-refresh" class="primary">↻ Status</button>
+        </div>
+        <p class="muted tiny" id="wiz-vit-msg">Kluis = Vaultwarden @ secure.vitwerkplek.nl (Bitwarden-compat).</p>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>8 · Alles overzetten</h3>
         <p class="muted tiny">Chats, skills, MCP, rules, prompts — één klik.</p>
         <div class="wiz-actions">
           <button type="button" id="wiz-a11y" class="ghost">Toegankelijkheid</button>
@@ -363,6 +396,56 @@
           <p class="muted tiny">Mail · Kluis (Bitwarden) · Backup · Office · PDF · Remote</p>
           <div id="vit-apps-list" class="vit-apps-list"></div>
           <button type="button" id="vit-apps-refresh" class="ghost">↻ Status</button>
+        </div>
+      </details>
+
+      <details class="side-fold" open id="fold-ext">
+        <summary>Uitbreidingen</summary>
+        <div class="fold-body">
+          <p class="muted tiny">Skills, MCP-servers en extra apps — zelf toevoegen.</p>
+          <pre id="ext-overview" class="mac-profile-box muted">Laden…</pre>
+
+          <h4 class="ext-h">Skill toevoegen</h4>
+          <label class="field"><span>Naam</span>
+            <input id="ext-skill-name" type="text" placeholder="mijn-skill" autocomplete="off" /></label>
+          <label class="field"><span>Beschrijving</span>
+            <input id="ext-skill-desc" type="text" placeholder="Wat doet deze skill?" autocomplete="off" /></label>
+          <label class="field"><span>Inhoud (markdown)</span>
+            <textarea id="ext-skill-body" rows="4" placeholder="Instructies voor de agent…"></textarea></label>
+          <div class="side-actions">
+            <button type="button" id="ext-skill-add" class="primary">Skill opslaan</button>
+            <button type="button" id="ext-skill-refresh" class="ghost">↻ Skills</button>
+          </div>
+          <pre id="ext-skills-list" class="meta tiny muted account-list"></pre>
+
+          <h4 class="ext-h">MCP-server</h4>
+          <label class="field"><span>Naam</span>
+            <input id="ext-mcp-name" type="text" placeholder="filesystem" autocomplete="off" /></label>
+          <label class="field"><span>Command</span>
+            <input id="ext-mcp-cmd" type="text" placeholder="npx" autocomplete="off" /></label>
+          <label class="field"><span>Args</span>
+            <input id="ext-mcp-args" type="text" placeholder="-y @modelcontextprotocol/server-filesystem /pad" autocomplete="off" /></label>
+          <label class="field"><span>URL (SSE, optioneel)</span>
+            <input id="ext-mcp-url" type="text" placeholder="https://…" autocomplete="off" /></label>
+          <div class="side-actions">
+            <button type="button" id="ext-mcp-add" class="primary">MCP toevoegen</button>
+            <button type="button" id="ext-mcp-refresh" class="ghost">↻ MCP</button>
+          </div>
+          <pre id="ext-mcp-list" class="meta tiny muted account-list"></pre>
+
+          <h4 class="ext-h">Extra app</h4>
+          <label class="field"><span>Weergavenaam</span>
+            <input id="ext-app-name" type="text" placeholder="Slack" autocomplete="off" /></label>
+          <label class="field"><span>macOS app-naam</span>
+            <input id="ext-app-launch" type="text" placeholder="Slack" autocomplete="off" /></label>
+          <label class="field"><span>Aliassen</span>
+            <input id="ext-app-aliases" type="text" placeholder="chat, slack app" autocomplete="off" /></label>
+          <label class="field"><span>Web (fallback)</span>
+            <input id="ext-app-web" type="url" placeholder="https://…" autocomplete="off" /></label>
+          <div class="side-actions">
+            <button type="button" id="ext-app-add" class="primary">App koppelen</button>
+          </div>
+          <p class="muted tiny" id="ext-msg"></p>
         </div>
       </details>
 
