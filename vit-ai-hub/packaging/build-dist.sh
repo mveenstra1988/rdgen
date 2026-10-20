@@ -2,7 +2,7 @@
 # Bouwt zip + DMG: één .app die hub start/stopt.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-2.6.4}"
+VERSION="${VIT_PKG_VERSION:-2.6.5}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 APP_NAME="VIT AI Hub"
@@ -96,6 +96,14 @@ rm -rf "$DMG_STAGE"
 mkdir -p "$DMG_STAGE"
 cp -R "$STAGE/${APP_NAME}.app" "$DMG_STAGE/"
 cp "$STAGE/LEESMIJ.txt" "$DMG_STAGE/LEESMIJ.txt"
+# Eén-klik schone install (verwijdert duplicaten)
+cat >"$DMG_STAGE/Installeer (1x).command" <<'CMD'
+#!/bin/bash
+cd "$(dirname "$0")"
+APP="$(pwd)/VIT AI Hub.app"
+bash "$APP/hub/scripts/install-mac-clean.sh" "$APP"
+CMD
+chmod +x "$DMG_STAGE/Installeer (1x).command"
 ln -s /Applications "$DMG_STAGE/Applications"
 
 # Go DMG builder (werkt op Linux)

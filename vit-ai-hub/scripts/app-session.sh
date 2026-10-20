@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# App-sessie: start hub bij openen; mooie GUI-venster; herstart hub als die crasht; stop bij Cmd+Q.
+# App-sessie: snelle start, GUI, duidelijke fouten, auto-herstart.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,13 +19,30 @@ PID_DIR="$ROOT/data/run"
 HUB_PID_FILE="$PID_DIR/hub.pid"
 SESSION_PID_FILE="$PID_DIR/session.pid"
 SETUP_MARKER="$ROOT/data/.setup-complete"
+DEPS_MARKER="$ROOT/data/.deps-ok"
+REQ_FILE="$ROOT/requirements.txt"
+LOG_FILE="$LOG_DIR/app-session.log"
 
 mkdir -p "$SECRET_DIR" "$LOG_DIR" "$PID_DIR" "$ROOT/data"
 echo $$ >"$SESSION_PID_FILE"
+: >>"$LOG_FILE"
+
+log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
+
+fail_dialog() {
+  local msg="$1"
+  local tail
+  tail="$(tail -n 20 "$LOG_FILE" 2>/dev/null | sed 's/"/\\"/g' | tr '\n' '|' | sed 's/|/\\n/g')"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    osascript -e "display dialog \"${msg}\\n\\nLaatste log:\\n${tail}\" buttons {\"OK\"} default button 1 with title \"VIT AI Hub\"" 2>/dev/null || true
+  fi
+  log "FAIL: $msg"
+  exit 1
+}
 
 STARTED_BY_US=0
 cleanup() {
-  echo "==> VIT AI Hub afsluiten…"
+  log "afsluiten…"
   if [[ "$STARTED_BY_US" == "1" ]]; then
     if [[ -f "$HUB_PID_FILE" ]]; then
       HUB_PID="$(cat "$HUB_PID_FILE" 2>/dev/null || true)"
@@ -48,6 +65,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Python check
+if ! command -v python3 >/dev/null 2>&1; then
+  fail_dialog "python3 ontbreekt. Installeer Xcode Command Line Tools:\\n  xcode-select --install"
+fi
+PYVER="$(python3 -c 'import sys; print("%d.%d"%sys.version_info[:2])' 2>/dev/null || echo "0.0")"
+log "python3=$PYVER root=$ROOT"
+
 if [[ ! -f "$SECRET_FILE" ]]; then
   cp "$ROOT/.env.example" "$SECRET_FILE"
   if command -v openssl >/dev/null 2>&1; then
@@ -64,22 +88,54 @@ fi
 chmod 600 "$SECRET_FILE" 2>/dev/null || true
 chmod +x "$ROOT/scripts/"*.sh 2>/dev/null || true
 
-open_splash_soon() {
-  local next_q="%2F"
-  if [[ ! -f "$SETUP_MARKER" ]]; then
-    next_q="%2F%3Fwizard%3D1"
+req_hash() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$REQ_FILE" 2>/dev/null | awk '{print $1}'
+  else
+    cksum "$REQ_FILE" 2>/dev/null | awk '{print $1}'
   fi
-  (
-    for _ in $(seq 1 120); do
-      if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
-        bash "$ROOT/scripts/open-gui.sh" \
-          "http://${UI_HOST}:${PORT}/static/splash.html?next=${next_q}"
-        exit 0
-      fi
-      sleep 0.25
+}
+
+ensure_deps() {
+  local need=0 h
+  h="$(req_hash)"
+  if [[ ! -d "$ROOT/.venv" ]]; then need=1
+  elif [[ ! -f "$DEPS_MARKER" ]]; then need=1
+  elif [[ "$(cat "$DEPS_MARKER" 2>/dev/null || true)" != "$h" ]]; then need=1
+  elif ! "$ROOT/.venv/bin/python" -c "import fastapi,uvicorn" 2>/dev/null; then need=1
+  fi
+  if [[ "$need" != "1" ]]; then
+    log "deps OK (cache)"
+    return 0
+  fi
+  log "deps installeren…"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    osascript -e 'display notification "Eenmalig: packages installeren…" with title "VIT AI Hub"' 2>/dev/null || true
+  fi
+  if [[ ! -d "$ROOT/.venv" ]]; then
+    python3 -m venv "$ROOT/.venv" >>"$LOG_FILE" 2>&1 || fail_dialog "venv aanmaken mislukt (vaak: xcode-select --install)"
+  fi
+  # shellcheck disable=SC1091
+  source "$ROOT/.venv/bin/activate"
+  if ! pip -q install -r "$REQ_FILE" >>"$LOG_FILE" 2>&1; then
+    fail_dialog "pip install mislukt. Zie log."
+  fi
+  echo "$h" >"$DEPS_MARKER"
+  log "deps klaar"
+}
+
+open_gui() {
+  bash "$ROOT/scripts/open-gui.sh" "$1" 2>>"$LOG_FILE" || open "$1" 2>/dev/null || true
+}
+
+free_port() {
+  if command -v lsof >/dev/null 2>&1; then
+    for p in $(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do
+      log "poort $PORT bezet door pid $p — stoppen"
+      kill "$p" 2>/dev/null || true
     done
-  ) &
-  SPLASH_PID=$!
+    sleep 0.3
+  fi
 }
 
 start_hub() {
@@ -93,61 +149,81 @@ start_hub() {
   set +a
   export VIT_GATEWAY_HOST="$BIND_HOST"
 
-  # Start uvicorn direct (betrouwbaarder PID dan geneste bash)
+  if [[ ! -f "$ROOT/src/vit_ai_hub/main.py" ]]; then
+    fail_dialog "Hub-bestanden incompleet in:\\n$ROOT\\nRun install-mac-clean of pull-script."
+  fi
+
+  free_port
   nohup python -m uvicorn vit_ai_hub.main:app --host "$BIND_HOST" --port "$PORT" \
-    >>"$LOG_DIR/app-session.log" 2>&1 &
+    >>"$LOG_FILE" 2>&1 &
   echo $! >"$HUB_PID_FILE"
   STARTED_BY_US=1
+  log "uvicorn pid=$(cat "$HUB_PID_FILE")"
 
-  for _ in $(seq 1 90); do
+  for _ in $(seq 1 80); do
     if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
+      log "health OK"
       return 0
     fi
-    sleep 0.5
+    # vroeg crashen?
+    if [[ -f "$HUB_PID_FILE" ]]; then
+      HUB_PID="$(cat "$HUB_PID_FILE" 2>/dev/null || true)"
+      if [[ -n "$HUB_PID" ]] && ! kill -0 "$HUB_PID" 2>/dev/null; then
+        log "uvicorn gestopt tijdens start"
+        return 1
+      fi
+    fi
+    sleep 0.25
   done
   return 1
 }
 
-# venv
-if [[ ! -d "$ROOT/.venv" ]]; then
-  if [[ "$(uname -s)" == "Darwin" ]]; then
-    osascript -e 'display notification "Eerste keer: Python-omgeving wordt gezet…" with title "VIT AI Hub"' 2>/dev/null || true
-  fi
-  python3 -m venv "$ROOT/.venv"
-fi
-# shellcheck disable=SC1091
-source "$ROOT/.venv/bin/activate"
-pip -q install --upgrade pip
-pip -q install -r "$ROOT/requirements.txt"
-
-ALREADY_UP=0
+# Snelle path
 if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
-  ALREADY_UP=1
+  log "al online — GUI openen"
+  if [[ -f "$SETUP_MARKER" ]]; then
+    open_gui "http://${UI_HOST}:${PORT}/"
+  else
+    open_gui "http://${UI_HOST}:${PORT}/?wizard=1"
+  fi
 else
-  open_splash_soon
+  ensure_deps
+  # shellcheck disable=SC1091
+  source "$ROOT/.venv/bin/activate"
+  (
+    for _ in $(seq 1 80); do
+      if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
+        if [[ -f "$SETUP_MARKER" ]]; then
+          open_gui "http://${UI_HOST}:${PORT}/static/splash.html?next=%2F"
+        else
+          open_gui "http://${UI_HOST}:${PORT}/static/splash.html?next=%2F%3Fwizard%3D1"
+        fi
+        exit 0
+      fi
+      sleep 0.25
+    done
+  ) &
+  SPLASH_PID=$!
   if ! start_hub; then
-    osascript -e 'display dialog "VIT AI Hub startte niet.\nZie ~/Library/Logs/VIT-AI-Hub/app-session.log" buttons {"OK"} default button 1' 2>/dev/null || true
-    exit 1
+    fail_dialog "VIT AI Hub startte niet.\\nLog: ~/Library/Logs/VIT-AI-Hub/app-session.log"
+  fi
+  if ! kill -0 "${SPLASH_PID:-0}" 2>/dev/null; then
+    if [[ -f "$SETUP_MARKER" ]]; then
+      open_gui "http://${UI_HOST}:${PORT}/"
+    else
+      open_gui "http://${UI_HOST}:${PORT}/?wizard=1"
+    fi
   fi
 fi
 
 if [[ ! -f "$SETUP_MARKER" ]]; then
-  curl -sf -X POST "http://${UI_HOST}:${PORT}/api/setup/install-auto" \
-    -H "Content-Type: application/json" \
-    -d '{"open_a11y":false,"mark_complete":false}' >/dev/null 2>&1 || true
-  NEXT="http://${UI_HOST}:${PORT}/?wizard=1"
-else
-  NEXT="http://${UI_HOST}:${PORT}/"
+  (
+    curl -sf -X POST "http://${UI_HOST}:${PORT}/api/setup/install-auto" \
+      -H "Content-Type: application/json" \
+      -d '{"open_a11y":false,"mark_complete":false}' >/dev/null 2>&1 || true
+  ) &
 fi
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  osascript -e 'display notification "Hub draait — sluit de app (Cmd+Q) om te stoppen" with title "VIT AI Hub"' 2>/dev/null || true
-  if [[ "$ALREADY_UP" == "1" ]] || ! kill -0 "${SPLASH_PID:-0}" 2>/dev/null; then
-    bash "$ROOT/scripts/open-gui.sh" "$NEXT"
-  fi
-fi
-
-# Blijf leven; herstart hub automatisch als die crasht (tot .app quit)
 while true; do
   sleep 2
   if [[ "$(uname -s)" == "Darwin" ]] && [[ -n "${PPID:-}" ]]; then
@@ -156,7 +232,8 @@ while true; do
     fi
   fi
   if ! curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
-    echo "==> hub weg — herstarten…" >>"$LOG_DIR/app-session.log"
+    log "hub weg — herstarten"
+    ensure_deps || true
     start_hub || true
   fi
 done
