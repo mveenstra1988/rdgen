@@ -44,6 +44,11 @@
     }
   }
 
+  function setMsg(text) {
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    if (msg) msg.textContent = text;
+  }
+
   async function saveGemini(msgEl) {
     const key = overlay.querySelector("#wiz-gemini")?.value || "";
     if (!key.trim()) {
@@ -63,11 +68,12 @@
   }
 
   async function openGuide(target) {
-    await fetch("/api/setup/open-guide", {
+    const res = await fetch("/api/setup/open-guide", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ target }),
     });
+    return res.json();
   }
 
   function setAutoLog(lines) {
@@ -83,7 +89,7 @@
       mark_complete: Boolean(opts.mark_complete),
       open_a11y: false,
     };
-    setAutoLog(["Installatie bezig…", "· Bridge + token + migratie + Cursor"]);
+    setAutoLog(["Installatie op achtergrond…", "· Bridge + token + migratie + Cursor"]);
     const res = await fetch("/api/setup/install-auto", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -104,7 +110,8 @@
     return data;
   }
 
-  function ensureAutoStarted() {
+  /** Start install op achtergrond — blokkeert login-knoppen NIET. */
+  function kickAutoInstall() {
     if (!autoPromise) {
       autoPromise = runInstallAuto().catch((e) => {
         setAutoLog(String(e));
@@ -132,6 +139,7 @@
     } else {
       overlay.classList.remove("hidden");
       showStep(0);
+      kickAutoInstall();
     }
     return data;
   }
@@ -140,7 +148,7 @@
     const box = overlay.querySelector("#wiz-bridge-status");
     const msg = overlay.querySelector("#wiz-bridge-msg");
     try {
-      await ensureAutoStarted();
+      // Geen await op install-auto — anders lijkt de UI dood
       const res = await fetch("/api/setup/probe");
       const d = await res.json();
       applyToken(d);
@@ -149,21 +157,21 @@
           d.bridge_key || d.bridge?.api_key_configured
             ? "✓ Bridge-key (auto)"
             : "○ Bridge-key volgt…",
-          d.bridge_up ? "✓ Bridge draait" : "○ Bridge start op Mac na install",
+          d.bridge_up ? "✓ Bridge draait" : "○ Bridge — login start install",
           d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — knop hieronder",
           d.chatgpt_logged_in ? "✓ ChatGPT ingelogd" : "○ ChatGPT — knop hieronder",
           d.gemini_key ? "✓ Gemini-key" : "○ Gemini — login + key plakken",
-          "✓ Cursor-config geschreven (Open Cursor)",
+          d.bridge?.installed ? "✓ Bridge-binary" : "○ Bridge-binary (download bij login)",
         ].join("\n");
       }
-      if (msg) {
+      if (msg && !msg.dataset.busy) {
         const left = [
           !d.claude_logged_in && "Claude",
           !d.chatgpt_logged_in && "ChatGPT",
           !d.gemini_key && "Gemini",
         ].filter(Boolean);
         msg.textContent = left.length
-          ? `Nog inloggen: ${left.join(", ")}.`
+          ? `Nog inloggen: ${left.join(", ")}. Klik een oranje knop — browser opent.`
           : "Alle logins OK — ga door naar Klaar.";
       }
     } catch (e) {
@@ -175,7 +183,6 @@
     const box = overlay.querySelector("#wiz-final");
     if (!box) return;
     try {
-      await ensureAutoStarted();
       const res = await fetch("/api/setup/probe");
       const d = await res.json();
       applyToken(d);
@@ -197,25 +204,51 @@
     }
   }
 
-  async function doBridgeLogin(provider) {
+  async function doBridgeLogin(provider, btn) {
     const msg = overlay.querySelector("#wiz-bridge-msg");
-    await ensureAutoStarted();
-    if (msg) msg.textContent = `Browser opent voor ${provider}…`;
+    if (msg) msg.dataset.busy = "1";
+    const label = btn?.textContent || "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Bezig…";
+    }
+    setMsg(
+      provider === "claude"
+        ? "Bridge klaarzetten + Claude-login… browser opent zo."
+        : "Bridge klaarzetten + ChatGPT-login… browser opent zo."
+    );
     try {
       const res = await fetch("/api/bridge/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider }),
       });
-      const data = await res.json();
-      if (msg) {
-        msg.textContent = data.ok
-          ? data.hint || "Log in in de browser, daarna ↻ Status."
-          : data.error || "Login starten mislukt";
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(`Fout ${res.status}: ${data.detail || data.error || "login mislukt"}`);
+        window.open(
+          provider === "claude" ? "https://claude.ai/login" : "https://chatgpt.com/",
+          "_blank"
+        );
+      } else if (data.ok) {
+        setMsg(data.hint || "Browser open — log in, daarna ↻ Status.");
+      } else {
+        setMsg(data.error || data.hint || "Login starten mislukt — zie logs.");
+        // Zichtbare fallback zodat er altijd iets opent
+        window.open(
+          provider === "claude" ? "https://claude.ai/login" : "https://chatgpt.com/",
+          "_blank"
+        );
       }
       await refreshBridgeStatus();
     } catch (e) {
-      if (msg) msg.textContent = String(e);
+      setMsg("Netwerkfout: " + String(e));
+    } finally {
+      if (msg) delete msg.dataset.busy;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
     }
   }
 
@@ -225,7 +258,7 @@
     } catch (_) {
       /* ignore */
     }
-    if (step === 0) ensureAutoStarted();
+    kickAutoInstall();
     showStep(step + 1);
   });
   overlay.querySelector("#wiz-back")?.addEventListener("click", () => showStep(step - 1));
@@ -234,45 +267,64 @@
     history.replaceState({}, "", "/");
   });
 
-  overlay.querySelector("#wiz-start")?.addEventListener("click", async () => {
-    const btn = overlay.querySelector("#wiz-start");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Bezig…";
-    }
-    try {
-      await ensureAutoStarted();
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Start — rest gaat vanzelf";
-      }
-    }
+  overlay.querySelector("#wiz-start")?.addEventListener("click", () => {
+    kickAutoInstall();
     showStep(1);
   });
 
-  overlay.querySelector("#wiz-bridge-login-claude")?.addEventListener("click", () =>
-    doBridgeLogin("claude")
+  overlay.querySelector("#wiz-bridge-login-claude")?.addEventListener("click", (ev) =>
+    doBridgeLogin("claude", ev.currentTarget)
   );
-  overlay.querySelector("#wiz-bridge-login-gpt")?.addEventListener("click", () =>
-    doBridgeLogin("chatgpt")
+  overlay.querySelector("#wiz-bridge-login-gpt")?.addEventListener("click", (ev) =>
+    doBridgeLogin("chatgpt", ev.currentTarget)
   );
   overlay.querySelector("#wiz-bridge-refresh")?.addEventListener("click", () => refreshBridgeStatus());
 
-  overlay.querySelector("#wiz-login-cursor")?.addEventListener("click", async () => {
-    const msg = overlay.querySelector("#wiz-bridge-msg");
-    await ensureAutoStarted();
-    await openGuide("cursor_settings");
-    if (msg) {
-      msg.textContent =
-        "Cursor geopend. Hub-URL + token staan in ~/.config/vit/cursor-hub.json (en Continue-config).";
+  overlay.querySelector("#wiz-login-cursor")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Bezig…";
+    setMsg("Cursor openen…");
+    try {
+      const data = await openGuide("cursor_settings");
+      setMsg(
+        data.ok
+          ? "Cursor geopend. Hub-URL/token: ~/.config/vit/cursor-hub.json"
+          : data.error || data.hint || "Cursor openen mislukt — is Cursor geïnstalleerd?"
+      );
+    } catch (e) {
+      setMsg(String(e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
     }
   });
 
-  overlay.querySelector("#wiz-login-gemini")?.addEventListener("click", async () => {
-    const msg = overlay.querySelector("#wiz-bridge-msg");
-    await openGuide("gemini");
-    if (msg) msg.textContent = "Google AI Studio open — maak/kopieer de API key en plak hieronder.";
+  overlay.querySelector("#wiz-login-gemini")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Bezig…";
+    setMsg("Google AI Studio openen…");
+    try {
+      const data = await openGuide("gemini");
+      setMsg(
+        data.ok
+          ? "Browser open — log in bij Google, maak een API key en plak die hieronder."
+          : data.error || "Kon Gemini-pagina niet openen."
+      );
+      // Fallback: open zelf in dit venster als mac open faalde
+      if (!data.ok) {
+        window.open("https://aistudio.google.com/apikey", "_blank");
+      }
+    } catch (e) {
+      setMsg(String(e));
+      window.open("https://aistudio.google.com/apikey", "_blank");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
   });
 
   overlay.querySelector("#wiz-gemini")?.addEventListener("change", () =>

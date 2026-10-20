@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import tempfile
@@ -171,8 +172,8 @@ async def api_setup_bootstrap(request: Request) -> dict[str, Any]:
         if body.get(k):
             secrets[k] = str(body[k])
     if secrets:
-        save_secrets(secrets)
-    return bootstrap_all(open_a11y=bool(body.get("open_a11y")))
+        await asyncio.to_thread(save_secrets, secrets)
+    return await asyncio.to_thread(bootstrap_all, open_a11y=bool(body.get("open_a11y")))
 
 
 @app.post("/api/setup/install-auto")
@@ -194,7 +195,9 @@ async def api_setup_install_auto(request: Request) -> dict[str, Any]:
     for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "VIT_NANO_BANANA_MODEL"):
         if body.get(k):
             secrets[k] = str(body[k])
-    return install_auto(
+    # Belangrijk: niet de event-loop blokkeren — anders reageren login-knoppen niet
+    return await asyncio.to_thread(
+        install_auto,
         secrets=secrets or None,
         open_a11y=bool(body.get("open_a11y")),
         mark_complete=bool(body.get("mark_complete")),
@@ -248,13 +251,13 @@ async def api_bridge_bootstrap(request: Request) -> dict[str, Any]:
     from vit_ai_hub.bridge import bootstrap_bridge
 
     _localhost_only(request)
-    return bootstrap_bridge()
+    return await asyncio.to_thread(bootstrap_bridge)
 
 
 @app.post("/api/bridge/login")
 async def api_bridge_login(request: Request) -> dict[str, Any]:
     """Start OAuth: body.provider = claude | chatgpt."""
-    from vit_ai_hub.bridge import start_login, start_bridge, bridge_status
+    from vit_ai_hub.bridge import start_login, start_bridge, bridge_status, bootstrap_bridge
 
     _localhost_only(request)
     body: dict[str, Any] = {}
@@ -264,15 +267,25 @@ async def api_bridge_login(request: Request) -> dict[str, Any]:
             body = raw
     except Exception:
         body = {}
-    out = start_login(str(body.get("provider") or "claude"))
-    # best-effort start bridge after kicking login
-    if out.get("ok"):
-        try:
-            start_bridge()
-        except Exception:
-            pass
-    out["status"] = bridge_status()
-    return out
+    provider = str(body.get("provider") or "claude")
+
+    def _run() -> dict[str, Any]:
+        # Zorg dat binary/config er is vóór OAuth (snel pad, los van install-auto)
+        boot = bootstrap_bridge()
+        out = start_login(provider)
+        if out.get("ok"):
+            try:
+                start_bridge()
+            except Exception:
+                pass
+        out["bootstrap"] = {
+            "ok": boot.get("ok"),
+            "installed": (boot.get("status") or {}).get("installed"),
+        }
+        out["status"] = bridge_status()
+        return out
+
+    return await asyncio.to_thread(_run)
 
 
 @app.post("/api/bridge/start")
@@ -280,9 +293,13 @@ async def api_bridge_start(request: Request) -> dict[str, Any]:
     from vit_ai_hub.bridge import start_bridge, bridge_status
 
     _localhost_only(request)
-    out = start_bridge()
-    out["status"] = bridge_status()
-    return out
+
+    def _run() -> dict[str, Any]:
+        out = start_bridge()
+        out["status"] = bridge_status()
+        return out
+
+    return await asyncio.to_thread(_run)
 
 
 @app.post("/api/setup/open-guide")
@@ -298,7 +315,7 @@ async def api_setup_open_guide(request: Request) -> dict[str, Any]:
     except Exception:
         body = {}
     target = str(body.get("target") or request.query_params.get("target") or "")
-    return open_guide(target)
+    return await asyncio.to_thread(open_guide, target)
 
 
 @app.get("/api/setup/probe")

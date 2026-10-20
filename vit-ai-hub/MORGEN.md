@@ -1,10 +1,13 @@
-# Morgen — VIT AI Hub 2.6.2
+# Morgen — VIT AI Hub 2.6.3
 
-1. Open `dist/VIT-AI-Hub-2.6.2-mac.dmg`
-2. Sleep **VIT AI Hub** naar Applications (of dubbelklik)
-3. App opent een **eigen venster** (Chrome app-modus) met splash → wizard
-4. Bestanden landen in `~/AI-projecten/VIT-ai-hub` (schrijfbaar; DMG is read-only)
+**Fix:** login-knoppen deden niets omdat `install-auto` de server blokkeerde.
 
-Eerste keer even geduld (Python venv). Daarna: Claude / ChatGPT / Cursor / Gemini inloggen.
+1. Quit AI Hub (Cmd+Q)
+2. Pull of open nieuwe DMG `VIT-AI-Hub-2.6.3-mac.dmg`
+3. Opnieuw openen → Inloggen → knoppen tonen «Bezig…» en openen browser
 
-Fix t.o.v. 2.6.1: geen stille fail vanaf DMG; geen wizard die meteen wegklapt; echte GUI-window.
+Of in Terminal:
+```bash
+curl -fsSL https://raw.githubusercontent.com/mveenstra1988/rdgen/cursor/vit-ai-hub-a440/vit-ai-hub/scripts/pull-to-ai-projecten.sh | bash
+# daarna app opnieuw starten vanuit Applications of ~/AI-projecten/VIT-ai-hub
+```
