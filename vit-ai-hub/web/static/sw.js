@@ -1,6 +1,13 @@
 /* VIT AI Hub — minimal PWA shell cache */
-const CACHE = "vit-ai-hub-shell-v18";
-const SHELL = ["/", "/static/styles.css", "/static/app.js", "/manifest.webmanifest"];
+const CACHE = "vit-ai-hub-shell-v261";
+const SHELL = [
+  "/",
+  "/static/styles.css",
+  "/static/app.js",
+  "/static/logo-mark.png",
+  "/static/logo-wordmark.png",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

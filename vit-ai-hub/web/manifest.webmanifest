@@ -1,26 +1,32 @@
 {
   "name": "VIT AI Hub",
   "short_name": "VIT AI",
-  "description": "Lokale AI-hub: chat, teams, marketing, visual — privacy first.",
+  "description": "Veenstra IT AI Hub — lokaal + Claude/ChatGPT/Cursor/Gemini, privacy first.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f6f8f5",
-  "theme_color": "#1a2e22",
+  "background_color": "#111111",
+  "theme_color": "#111111",
   "lang": "nl",
   "icons": [
     {
       "src": "/static/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/static/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

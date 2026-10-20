@@ -46,6 +46,7 @@
 - [x] Parity-matrix `docs/PARITY.md` (okt 2026)
 - [x] Bridge auto: install CLIProxyAPI + key + Claude/ChatGPT OAuth in wizard (2.5.2)
 - [x] Login-only wizard (Claude/ChatGPT/Cursor/Gemini) + `install_auto` doet de rest (2.6.0)
+- [x] Officieel Veenstra IT-logo (leeuw + wordmark) in UI / PWA / .app (2.6.1)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)

@@ -2,7 +2,7 @@
 # Bouwt zip + DMG: één .app die hub start/stopt.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-2.6.0}"
+VERSION="${VIT_PKG_VERSION:-2.6.1}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 APP_NAME="VIT AI Hub"
@@ -39,11 +39,23 @@ fi
 # .app bundle met hub erin
 cp -R "$ROOT/packaging/mac/${APP_NAME}.app" "$STAGE/"
 # bump version in plist copy
-/usr/bin/sed -i.bak "s#<string>1\\.[0-9]\\.[0-9]</string>#<string>${VERSION}</string>#g" \
-  "$STAGE/${APP_NAME}.app/Contents/Info.plist" 2>/dev/null || \
-  sed -i "s/<string>1\\.[0-9]\\.[0-9]<\\/string>/<string>${VERSION}<\\/string>/g" \
-  "$STAGE/${APP_NAME}.app/Contents/Info.plist"
-rm -f "$STAGE/${APP_NAME}.app/Contents/Info.plist.bak"
+python3 - <<PY
+from pathlib import Path
+p = Path("$STAGE/${APP_NAME}.app/Contents/Info.plist")
+t = p.read_text(encoding="utf-8")
+import re
+t = re.sub(r"(<key>CFBundleVersion</key>\s*<string>)[^<]+", r"\g<1>${VERSION}", t)
+t = re.sub(r"(<key>CFBundleShortVersionString</key>\s*<string>)[^<]+", r"\g<1>${VERSION}", t)
+p.write_text(t, encoding="utf-8")
+PY
+# brand icons into .app
+mkdir -p "$STAGE/${APP_NAME}.app/Contents/Resources"
+cp -f "$ROOT/packaging/mac/${APP_NAME}.app/Contents/Resources/AppIcon.png" \
+  "$STAGE/${APP_NAME}.app/Contents/Resources/AppIcon.png" 2>/dev/null || \
+  cp -f "$ROOT/web/static/icon-512.png" "$STAGE/${APP_NAME}.app/Contents/Resources/AppIcon.png"
+cp -f "$ROOT/packaging/mac/${APP_NAME}.app/Contents/Resources/AppIcon.icns" \
+  "$STAGE/${APP_NAME}.app/Contents/Resources/AppIcon.icns" 2>/dev/null || true
+
 rm -rf "$STAGE/${APP_NAME}.app/hub"
 cp -R "$STAGE/hub" "$STAGE/${APP_NAME}.app/hub"
 chmod +x "$STAGE/${APP_NAME}.app/Contents/MacOS/vit-ai-hub"
