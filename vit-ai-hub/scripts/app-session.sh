@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# App-sessie: start hub (+ optioneel sync) bij openen; stop alles bij afsluiten.
-# Gebruikt door VIT AI Hub.app — geen losse tools nodig.
+# App-sessie: start hub bij openen; mooie GUI-venster; stop bij Cmd+Q.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-# LAN/iPhone: VIT_LAN_ACCESS=1 of VIT_GATEWAY_HOST=0.0.0.0 in ai-gateway.env
+
 if [[ "${VIT_LAN_ACCESS:-0}" == "1" ]] || [[ "${VIT_LAN_ACCESS:-}" == "true" ]]; then
-  HOST="${VIT_GATEWAY_HOST:-0.0.0.0}"
+  BIND_HOST="${VIT_GATEWAY_HOST:-0.0.0.0}"
 else
-  HOST="${VIT_GATEWAY_HOST:-127.0.0.1}"
+  BIND_HOST="${VIT_GATEWAY_HOST:-127.0.0.1}"
 fi
+# UI altijd via loopback (0.0.0.0 werkt niet in browser/app-window)
+UI_HOST="127.0.0.1"
 PORT="${VIT_GATEWAY_PORT:-8787}"
 SECRET_DIR="$HOME/.config/vit/geheimen"
 SECRET_FILE="$SECRET_DIR/ai-gateway.env"
@@ -18,7 +19,7 @@ LOG_DIR="$HOME/Library/Logs/VIT-AI-Hub"
 PID_DIR="$ROOT/data/run"
 HUB_PID_FILE="$PID_DIR/hub.pid"
 SESSION_PID_FILE="$PID_DIR/session.pid"
-DATA_MARKER="$ROOT/data/.setup-complete"
+SETUP_MARKER="$ROOT/data/.setup-complete"
 
 mkdir -p "$SECRET_DIR" "$LOG_DIR" "$PID_DIR" "$ROOT/data"
 echo $$ >"$SESSION_PID_FILE"
@@ -36,7 +37,6 @@ cleanup() {
       done
       kill -9 "$HUB_PID" 2>/dev/null || true
     fi
-    # Alleen poort legen als wij startten
     if command -v lsof >/dev/null 2>&1; then
       for p in $(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true); do
         kill "$p" 2>/dev/null || true
@@ -64,11 +64,33 @@ if [[ ! -f "$SECRET_FILE" ]]; then
     echo "VIT_GATEWAY_TOKEN=${TOKEN}" >>"$SECRET_FILE"
   fi
 fi
-
+chmod 600 "$SECRET_FILE" 2>/dev/null || true
 chmod +x "$ROOT/scripts/"*.sh 2>/dev/null || true
 
-# venv
+# Splash zodra de server de HTML kan serveren → app-venster (Chrome --app)
+open_splash_soon() {
+  local next_q="%2F"
+  if [[ ! -f "$SETUP_MARKER" ]]; then
+    next_q="%2F%3Fwizard%3D1"
+  fi
+  (
+    for _ in $(seq 1 120); do
+      if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
+        bash "$ROOT/scripts/open-gui.sh" \
+          "http://${UI_HOST}:${PORT}/static/splash.html?next=${next_q}"
+        exit 0
+      fi
+      sleep 0.25
+    done
+  ) &
+  SPLASH_PID=$!
+}
+
+# venv (schrijfbare ROOT — niet op DMG)
 if [[ ! -d "$ROOT/.venv" ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    osascript -e 'display notification "Eerste keer: Python-omgeving wordt gezet…" with title "VIT AI Hub"' 2>/dev/null || true
+  fi
   python3 -m venv "$ROOT/.venv"
 fi
 # shellcheck disable=SC1091
@@ -77,51 +99,54 @@ pip -q install --upgrade pip
 pip -q install -r "$ROOT/requirements.txt"
 
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+export VIT_GATEWAY_HOST="$BIND_HOST"
 set -a
 # shellcheck disable=SC1090
 source "$SECRET_FILE"
 set +a
+# Force bind from session prefs
+export VIT_GATEWAY_HOST="$BIND_HOST"
 
 ALREADY_UP=0
-if curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
+if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
   ALREADY_UP=1
 else
   STARTED_BY_US=1
-  nohup bash "$ROOT/scripts/start.sh" >"$LOG_DIR/app-session.log" 2>&1 &
+  # start.sh leest env; zorg dat bind-host klopt
+  VIT_GATEWAY_HOST="$BIND_HOST" nohup bash "$ROOT/scripts/start.sh" >"$LOG_DIR/app-session.log" 2>&1 &
   echo $! >"$HUB_PID_FILE"
-  for _ in $(seq 1 60); do
-    if curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
+  open_splash_soon
+  for _ in $(seq 1 90); do
+    if curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
       break
     fi
     sleep 0.5
   done
 fi
 
-if ! curl -sf "http://${HOST}:${PORT}/health" >/dev/null 2>&1; then
+if ! curl -sf "http://${UI_HOST}:${PORT}/health" >/dev/null 2>&1; then
   osascript -e 'display dialog "VIT AI Hub startte niet.\nZie ~/Library/Logs/VIT-AI-Hub/app-session.log" buttons {"OK"} default button 1' 2>/dev/null || true
   exit 1
 fi
 
-FIRST=0
-if [[ ! -f "$DATA_MARKER" ]]; then
-  FIRST=1
-  curl -sf -X POST "http://${HOST}:${PORT}/api/setup/bootstrap" \
+# Auto-install op achtergrond — NIET setup-complete forceren (wizard blijft zichtbaar)
+if [[ ! -f "$SETUP_MARKER" ]]; then
+  curl -sf -X POST "http://${UI_HOST}:${PORT}/api/setup/install-auto" \
     -H "Content-Type: application/json" \
-    -d '{"open_a11y":false}' >/dev/null 2>&1 || true
+    -d '{"open_a11y":false,"mark_complete":false}' >/dev/null 2>&1 || true
+  NEXT="http://${UI_HOST}:${PORT}/?wizard=1"
+else
+  NEXT="http://${UI_HOST}:${PORT}/"
 fi
-date >"$DATA_MARKER"
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  osascript -e 'display notification "Hub draait — sluit de app om te stoppen" with title "VIT AI Hub"' 2>/dev/null || true
-  if [[ "$FIRST" == "1" ]]; then
-    open "http://${HOST}:${PORT}/?wizard=1"
-  else
-    open "http://${HOST}:${PORT}/"
+  osascript -e 'display notification "Hub draait — sluit de app (Cmd+Q) om te stoppen" with title "VIT AI Hub"' 2>/dev/null || true
+  # Als splash-watcher nog niet opende (hub was al up), open nu
+  if [[ "$ALREADY_UP" == "1" ]] || ! kill -0 "${SPLASH_PID:-0}" 2>/dev/null; then
+    bash "$ROOT/scripts/open-gui.sh" "$NEXT"
   fi
 fi
 
-# Blijf leven tot de .app wordt afgesloten (Dock Quit / Cmd+Q)
-# Heartbeat: als poort wegvalt en wij hem startten, exit
 while true; do
   sleep 2
   if [[ "$ALREADY_UP" == "0" ]]; then
@@ -132,7 +157,6 @@ while true; do
       fi
     fi
   fi
-  # macOS: als parent (.app) dood is, stop — launchd/open houdt ons soms los
   if [[ "$(uname -s)" == "Darwin" ]] && [[ -n "${PPID:-}" ]]; then
     if ! kill -0 "$PPID" 2>/dev/null; then
       break

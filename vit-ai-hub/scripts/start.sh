@@ -12,7 +12,9 @@ pip -q install -r requirements.txt
 
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
-# Laad secrets als aanwezig
+# Laad secrets als aanwezig (overschrijf geen al gezette bind-host uit app-session)
+_PRESERVE_HOST="${VIT_GATEWAY_HOST:-}"
+_PRESERVE_PORT="${VIT_GATEWAY_PORT:-}"
 if [[ -f "$HOME/.config/vit/geheimen/ai-gateway.env" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -24,6 +26,8 @@ elif [[ -f "$ROOT/.env" ]]; then
   source "$ROOT/.env"
   set +a
 fi
+[[ -n "${_PRESERVE_HOST}" ]] && VIT_GATEWAY_HOST="$_PRESERVE_HOST"
+[[ -n "${_PRESERVE_PORT}" ]] && VIT_GATEWAY_PORT="$_PRESERVE_PORT"
 
 HOST="${VIT_GATEWAY_HOST:-127.0.0.1}"
 PORT="${VIT_GATEWAY_PORT:-8787}"

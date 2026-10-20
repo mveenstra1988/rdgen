@@ -24,24 +24,30 @@ git clone --depth 1 --filter=blob:none --sparse -b "$BRANCH" "$REPO" "$TMP/repo"
   git sparse-checkout set vit-ai-hub
 )
 
-if [[ -d "$DEST/.git" ]]; then
-  echo "    bestaande git-map: pull…"
-  # Als DEST al een volle clone is van alleen hub, sync inhoud
-  rsync -a --delete \
-    --exclude '.venv' \
-    --exclude 'data/' \
-    --exclude '__pycache__' \
-    "$TMP/repo/vit-ai-hub/" "$DEST/"
-elif [[ -e "$DEST" ]]; then
-  BACKUP="${DEST}.bak-$(date +%Y%m%d-%H%M%S)"
-  echo "    $DEST bestaat → backup $BACKUP"
-  mv "$DEST" "$BACKUP"
-  mkdir -p "$DEST"
-  rsync -a "$TMP/repo/vit-ai-hub/" "$DEST/"
-else
-  mkdir -p "$DEST"
-  rsync -a "$TMP/repo/vit-ai-hub/" "$DEST/"
+sync_tree() {
+  local src="$1" dst="$2"
+  mkdir -p "$dst"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete \
+      --exclude '.venv' --exclude 'data/' --exclude '__pycache__' \
+      "$src/" "$dst/"
+  else
+    (cd "$src" && tar cf - --exclude='.venv' --exclude='data' --exclude='__pycache__' .) \
+      | (cd "$dst" && tar xf -)
+  fi
+  mkdir -p "$dst/data"
+}
+
+if [[ -e "$DEST" && ! -d "$DEST" ]]; then
+  echo "    fout: $DEST is geen map" >&2
+  exit 1
 fi
+if [[ -d "$DEST" ]]; then
+  echo "    bijwerken $DEST …"
+else
+  echo "    nieuw $DEST …"
+fi
+sync_tree "$TMP/repo/vit-ai-hub" "$DEST"
 
 # Klein git-remote behouden voor updates (optioneel)
 if [[ ! -d "$DEST/.git" ]]; then

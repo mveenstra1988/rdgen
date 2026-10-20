@@ -1,9 +1,10 @@
-# Morgen — VIT AI Hub 2.6.1
+# Morgen — VIT AI Hub 2.6.2
 
-1. Open `dist/VIT-AI-Hub-2.6.1-mac.dmg` → wizard met **Veenstra IT-logo**
-2. **Start** — installatie doet bridge, token, migratie, Cursor-wire zelf
-3. Log alleen in: **Claude · ChatGPT · Cursor · Gemini**
-4. **Naar de app** — leeuw-mark in header + favicon
+1. Open `dist/VIT-AI-Hub-2.6.2-mac.dmg`
+2. Sleep **VIT AI Hub** naar Applications (of dubbelklik)
+3. App opent een **eigen venster** (Chrome app-modus) met splash → wizard
+4. Bestanden landen in `~/AI-projecten/VIT-ai-hub` (schrijfbaar; DMG is read-only)
 
-2.6.1: officieel Veenstra IT-logo (leeuw + wordmark) in UI/PWA/app
-2.6.0: login-only wizard + `POST /api/setup/install-auto`
+Eerste keer even geduld (Python venv). Daarna: Claude / ChatGPT / Cursor / Gemini inloggen.
+
+Fix t.o.v. 2.6.1: geen stille fail vanaf DMG; geen wizard die meteen wegklapt; echte GUI-window.

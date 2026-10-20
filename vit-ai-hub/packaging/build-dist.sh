@@ -2,7 +2,7 @@
 # Bouwt zip + DMG: één .app die hub start/stopt.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-2.6.1}"
+VERSION="${VIT_PKG_VERSION:-2.6.2}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 APP_NAME="VIT AI Hub"
@@ -67,17 +67,20 @@ chmod +x "$STAGE/START.command"
 cat >"$STAGE/LEESMIJ.txt" <<EOF
 VIT AI Hub ${VERSION}
 
-Installatie (aanbevolen): open het .dmg en sleep «VIT AI Hub» naar Applications.
-Of: dubbelklik «VIT AI Hub.app» uit deze map.
+1. Sleep «VIT AI Hub» naar Applications (aanbevolen)
+2. Open de app — er verschijnt een eigen venster (splash → wizard)
+3. Project staat daarna in: ~/AI-projecten/VIT-ai-hub
 
 Gedrag:
-- App openen → hub start automatisch + browser
-- App sluiten (Cmd+Q / Dock Quit) → hub stopt
-- Geen losse tools nodig
+- Eigen GUI-venster (Chrome app-modus), geen losse tab
+- App sluiten (Cmd+Q) → hub stopt
+- Eerste keer: even wachten op Python-omgeving
 
-Eerste keer: eventueel
-  xattr -dr com.apple.quarantine "VIT AI Hub.app"
+Als macOS blokkeert:
+  xattr -dr com.apple.quarantine "/Applications/VIT AI Hub.app"
 EOF
+chmod +x "$ROOT/scripts/open-gui.sh" "$ROOT/scripts/app-session.sh" \
+  "$ROOT/packaging/mac/VIT AI Hub.app/Contents/MacOS/vit-ai-hub" 2>/dev/null || true
 
 # Zip
 (

@@ -1,40 +1,80 @@
 #!/bin/bash
-# VIT AI Hub.app — start alles bij openen, stop bij sluiten (één app).
+# VIT AI Hub.app — kopieert naar ~/AI-projecten/VIT-ai-hub, start hub, opent GUI-venster.
 set -euo pipefail
 
 APP_BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
 PARENT="$(cd "$APP_BUNDLE/.." && pwd)"
+INSTALL_ROOT="${VIT_AI_HUB_DIR:-$HOME/AI-projecten/VIT-ai-hub}"
+LOG_DIR="$HOME/Library/Logs/VIT-AI-Hub"
+mkdir -p "$LOG_DIR" "$(dirname "$INSTALL_ROOT")"
+
 CANDIDATES=(
   "$APP_BUNDLE/hub"
   "$PARENT/hub"
+  "$INSTALL_ROOT"
   "$HOME/Applications/VIT-AI-Hub/hub"
   "$HOME/VIT-AI-Hub"
   "/Applications/VIT-AI-Hub/hub"
 )
 
-ROOT=""
+BUNDLE_HUB=""
 for c in "${CANDIDATES[@]}"; do
-  if [[ -f "$c/scripts/app-session.sh" ]] || [[ -f "$c/scripts/one-shot-setup.sh" ]]; then
-    ROOT="$(cd "$c" && pwd)"
+  if [[ -f "$c/scripts/app-session.sh" ]]; then
+    BUNDLE_HUB="$(cd "$c" && pwd)"
     break
   fi
 done
 
-if [[ -z "$ROOT" ]]; then
-  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nHoud de map hub in de app (DMG/zip-inhoud)." buttons {"OK"} default button 1' || true
+if [[ -z "$BUNDLE_HUB" ]]; then
+  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nSleep de app opnieuw vanuit de DMG, of run de pull-script." buttons {"OK"} default button 1' || true
   exit 1
 fi
 
 xattr -dr com.apple.quarantine "$APP_BUNDLE" 2>/dev/null || true
-xattr -dr com.apple.quarantine "$ROOT" 2>/dev/null || true
+xattr -dr com.apple.quarantine "$BUNDLE_HUB" 2>/dev/null || true
 
-# Voorkom dubbele sessies
+# Altijd draaien vanaf schrijfbare map (DMG is read-only → geen venv/data daar)
+ROOT="$INSTALL_ROOT"
+NEED_SYNC=0
+if [[ "$BUNDLE_HUB" != "$ROOT" ]]; then
+  NEED_SYNC=1
+elif ! touch "$ROOT/.write-test" 2>/dev/null; then
+  NEED_SYNC=1
+  ROOT="$INSTALL_ROOT"
+else
+  rm -f "$ROOT/.write-test"
+fi
+
+if [[ "$NEED_SYNC" == "1" ]]; then
+  osascript -e 'display notification "Bezig met klaarzetten…" with title "VIT AI Hub"' 2>/dev/null || true
+  mkdir -p "$ROOT"
+  # Bewaar lokale data/.venv bij updates
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a \
+      --exclude '.venv' \
+      --exclude 'data/' \
+      --exclude '__pycache__' \
+      --exclude '.pytest_cache' \
+      --exclude 'dist/dmg-stage-*' \
+      "$BUNDLE_HUB/" "$ROOT/"
+  else
+    # fallback: copy tree without wiping data/venv
+    (cd "$BUNDLE_HUB" && tar cf - \
+      --exclude='.venv' --exclude='data' --exclude='__pycache__' \
+      .) | (cd "$ROOT" && tar xf -)
+  fi
+  mkdir -p "$ROOT/data" "$ROOT/data/run"
+  xattr -dr com.apple.quarantine "$ROOT" 2>/dev/null || true
+fi
+
+chmod +x "$ROOT/scripts/"*.sh "$ROOT/packaging/mac/VIT AI Hub.app/Contents/MacOS/vit-ai-hub" 2>/dev/null || true
+
+# Voorkom dubbele sessies → heropen GUI
 if [[ -f "$ROOT/data/run/session.pid" ]]; then
   OLD="$(cat "$ROOT/data/run/session.pid" 2>/dev/null || true)"
   if [[ -n "$OLD" ]] && kill -0 "$OLD" 2>/dev/null; then
     if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
-      open "http://127.0.0.1:8787/"
-      # Blijf wachten tot bestaande sessie stopt (of gebruiker quits deze instance)
+      bash "$ROOT/scripts/open-gui.sh" "http://127.0.0.1:8787/"
       while kill -0 "$OLD" 2>/dev/null; do sleep 2; done
       exit 0
     fi
