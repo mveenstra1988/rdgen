@@ -32,9 +32,9 @@
         <h3>Wat je krijgt</h3>
         <p>Één app: lokaal + je Claude/ChatGPT/Cursor-abos, privacyfilter, teams en ops.</p>
         <ul class="wiz-list">
+          <li>Gemini, OpenRouter, Claude/ChatGPT/Cursor — alles in deze wizard</li>
           <li>Klant-PII wordt geblokkeerd vóór cloud</li>
-          <li>Oude kennis overzetten van deze Mac</li>
-          <li>vit/auto kiest model én team</li>
+          <li>Oude kennis + skills/MCP overzetten van deze Mac</li>
         </ul>
         <pre id="wiz-status" class="wiz-pre">Laden…</pre>
         <button type="button" id="wiz-start" class="primary wiz-hero">Start setup</button>
@@ -75,7 +75,7 @@
 
       <section data-step class="wiz-step">
         <h3>3 · Gemini / Nano Banana</h3>
-        <p class="muted tiny">Nodig voor beeldgeneratie (Nano Banana). Log in bij Google AI Studio → maak een API key.</p>
+        <p class="muted tiny"><strong>Aanbevolen.</strong> Log in bij Google → maak een API key → plak hier. Zonder key geen echte Nano Banana-beelden.</p>
         <label class="field"><span>Gemini API key</span>
           <input id="wiz-gemini" type="password" autocomplete="off" placeholder="AIza…" /></label>
         <label class="field"><span>Banana model (optioneel)</span>
@@ -101,8 +101,8 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>5 · Claude / ChatGPT abos</h3>
-        <p class="muted tiny">Meerdere bridges → hub wisselt automatisch als er één op is.</p>
+        <h3>5 · Claude / ChatGPT / Codex</h3>
+        <p class="muted tiny">Log in via de knoppen (Claude, Claude Code, ChatGPT, Codex). Bridges → hub wisselt bij quota.</p>
         <label class="field"><span>Bridge #1 URL</span>
           <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
         <label class="field"><span>Bridge #1 key</span>
@@ -116,12 +116,15 @@
         <label class="field"><span>Bridge #3 key</span>
           <input id="wiz-bridge-key-3" type="password" autocomplete="off" /></label>
         <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="bridge_docs">Bridge docs</button>
+          <button type="button" class="ghost" data-guide="claude">Claude app</button>
+          <button type="button" class="ghost" data-guide="claude_code">Claude Code</button>
           <button type="button" class="ghost" data-guide="chatgpt">ChatGPT</button>
-          <button type="button" class="ghost" data-guide="claude">Claude</button>
+          <button type="button" class="ghost" data-guide="codex">Codex</button>
+          <button type="button" class="ghost" data-guide="codex_cli">Codex CLI</button>
+          <button type="button" class="ghost" data-guide="bridge_docs">Bridge docs</button>
           <button type="button" id="wiz-save-bridge" class="primary">Abos opslaan</button>
         </div>
-        <p class="muted tiny" id="wiz-bridge-msg">Later meer abos: sidebar → Abonnementen.</p>
+        <p class="muted tiny" id="wiz-bridge-msg">Log eerst in bij Claude/ChatGPT/Codex, start daarna je bridge (:8317).</p>
       </section>
 
       <section data-step class="wiz-step">
@@ -222,8 +225,16 @@
         <div id="presets" class="presets" hidden aria-hidden="true"></div>
         <div class="composer-shell">
           <div class="composer-meta">
+            <label class="chip-select" title="Agent-modus (Cursor/Claude Code)">
+              <span>Agent</span>
+              <select id="agent-mode">
+                <option value="agent" selected>Agent</option>
+                <option value="plan">Plan</option>
+                <option value="ask">Ask</option>
+              </select>
+            </label>
             <label class="chip-select" title="Werkmodus">
-              <span>Modus</span>
+              <span>Studio</span>
               <select id="studio-select">
                 <option value="chat">Algemeen</option>
                 <option value="software">Code</option>
@@ -249,7 +260,7 @@
             <button type="button" id="new-chat" class="ghost" style="border-radius:999px;padding:0.35rem 0.75rem;font-size:0.78rem">Nieuw</button>
           </div>
           <form id="composer" class="composer">
-            <textarea id="prompt" rows="2" placeholder="Vraag of opdracht… (privacyfilter staat aan)"></textarea>
+            <textarea id="prompt" rows="2" placeholder="Vraag of /plan · /ask · /agent … (privacy aan)"></textarea>
             <button type="submit" id="send">Stuur</button>
           </form>
         </div>

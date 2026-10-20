@@ -48,6 +48,7 @@ const els = {
   modelFilter: document.getElementById("model-filter"),
   modelMeta: document.getElementById("model-meta"),
   studioSelect: document.getElementById("studio-select"),
+  agentMode: document.getElementById("agent-mode"),
   workspace: document.getElementById("workspace"),
   messages: document.getElementById("messages"),
   emptyState: document.getElementById("empty-state"),
@@ -595,8 +596,13 @@ els.opsStatusBtn?.addEventListener("click", async () => {
 
 els.form.addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  const text = els.prompt.value.trim();
+  let text = els.prompt.value.trim();
   if (!text) return;
+  // Sync /plan /ask /agent naar dropdown
+  const slash = text.match(/^\/(plan|ask|agent)(?:\s|$)/i);
+  if (slash && els.agentMode) {
+    els.agentMode.value = slash[1].toLowerCase();
+  }
   els.prompt.value = "";
   state.messages.push({ role: "user", content: text });
   addBubble("user", text);
@@ -614,6 +620,7 @@ els.form.addEventListener("submit", async (ev) => {
         vit_auto_team: els.autoTeam ? els.autoTeam.checked : true,
         vit_tradeoff: els.tradeoff?.value || "quality",
         vit_session_id: state.sessionId,
+        agent_mode: els.agentMode?.value || "agent",
         stream: false,
         studio: els.studioSelect?.value || "chat",
         workspace: els.workspace?.value.trim() || null,

@@ -41,6 +41,9 @@
 - [x] VIT-suite desktop: Mail/Kluis/Backup/Office/PDF/Remote (`vit_apps_list` / `vit_app_open`)
 - [x] VIT handoff + acties (compose/search/unlock/connect/status) + wizard Gemini/VIT-apps (2.4)
 - [x] Uitbreidingen-GUI: skills / MCP / custom apps toevoegen (2.4)
+- [x] Agent/Plan/Ask + `/plan` `/ask` `/agent` + AGENTS.md/CLAUDE.md inject (2.5)
+- [x] Wizard: Gemini + Claude Code/Codex/ChatGPT login-knoppen + auto-save (2.5)
+- [x] Parity-matrix `docs/PARITY.md` (okt 2026)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
@@ -49,3 +52,4 @@
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
 - [ ] IDE/LSP-bridge (tabs, breakpoints) — optioneel naast chat-agent
+- [ ] Cloud Agents /batch worktrees (zie PARITY.md)

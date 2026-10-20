@@ -204,7 +204,15 @@
     }
   }
 
-  overlay.querySelector("#wiz-next")?.addEventListener("click", () => showStep(step + 1));
+  overlay.querySelector("#wiz-next")?.addEventListener("click", async () => {
+    // Auto-opslaan keys bij elke stap → alles in 1x goed
+    try {
+      await saveSecrets(null);
+    } catch (_) {
+      /* ignore */
+    }
+    showStep(step + 1);
+  });
   overlay.querySelector("#wiz-back")?.addEventListener("click", () => showStep(step - 1));
   overlay.querySelector("#wiz-skip")?.addEventListener("click", () => {
     overlay.classList.add("hidden");

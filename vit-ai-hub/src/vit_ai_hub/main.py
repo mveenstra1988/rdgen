@@ -58,6 +58,7 @@ class ChatCompletionRequest(BaseModel):
     vit_tradeoff: str | None = None  # quality | cost | latency
     vit_critic: bool | None = None  # None = config/auto; False = skip critic
     vit_session_id: str | None = None  # gedeeld geheugen / conversatie over modelwissel
+    agent_mode: str | None = None  # agent | plan | ask (Cursor/Claude Code parity)
 
 
 def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
@@ -598,11 +599,29 @@ async def _handle_chat(body: ChatCompletionRequest):
 
     messages = [m.model_dump() for m in body.messages]
     last_user = ""
-    for m in reversed(messages):
+    last_user_idx: int | None = None
+    for i in range(len(messages) - 1, -1, -1):
+        m = messages[i]
         if m.get("role") == "user":
             content = m.get("content")
             last_user = content if isinstance(content, str) else str(content)
+            last_user_idx = i
             break
+
+    # Slash /plan /ask /agent + agent_mode (Cursor / Claude Code parity)
+    from vit_ai_hub.agent_modes import normalize_mode, parse_leading_slash
+
+    slash_mode, remainder = parse_leading_slash(last_user)
+    agent_mode = normalize_mode(slash_mode or body.agent_mode)
+    body.agent_mode = agent_mode
+    if slash_mode is not None and last_user_idx is not None:
+        last_user = remainder or f"(modus {agent_mode})"
+        messages[last_user_idx] = {**messages[last_user_idx], "content": last_user}
+    if agent_mode == "plan":
+        body.studio = body.studio or "software"
+        body.vit_enable_tools = True  # read-only subset later
+    elif agent_mode == "ask":
+        body.vit_enable_tools = True
 
     auto_plan = None
     req_l = (requested_model or "").strip().lower()
@@ -686,6 +705,25 @@ async def _handle_chat(body: ChatCompletionRequest):
     studio_prompt = studio_system_prompt(body.studio)
     if studio_prompt:
         prefix.append({"role": "system", "content": studio_prompt})
+    try:
+        from vit_ai_hub.agent_modes import mode_system_prompt
+
+        mode_prompt = mode_system_prompt(agent_mode)
+        if mode_prompt:
+            prefix.append({"role": "system", "content": mode_prompt})
+    except Exception:
+        pass
+    try:
+        from vit_ai_hub.project_context import project_system_block
+
+        proj = project_system_block(body.workspace)
+        if proj:
+            # token-save with prep
+            if use_prep and prep_meta and prep_meta.get("ok"):
+                proj = proj[:3000] + ("…" if len(proj) > 3000 else "")
+            prefix.append({"role": "system", "content": proj})
+    except Exception:
+        pass
     try:
         from vit_ai_hub.orchestrator.quality import quality_system_addon
 
@@ -824,8 +862,14 @@ async def _handle_chat(body: ChatCompletionRequest):
 
     use_tools = body.vit_enable_tools or bool(body.tools)
     if use_tools and not body.stream:
-        payload["tools"] = body.tools or tool_specs()
-        if body.tool_choice is not None:
+        from vit_ai_hub.agent_modes import filter_tools_for_mode
+
+        raw_tools = body.tools or tool_specs()
+        payload["tools"] = filter_tools_for_mode(raw_tools, agent_mode) or []
+        if agent_mode in {"plan", "ask"} and not payload["tools"]:
+            use_tools = False
+            payload.pop("tools", None)
+        if body.tool_choice is not None and payload.get("tools"):
             payload["tool_choice"] = body.tool_choice
 
     if body.stream:

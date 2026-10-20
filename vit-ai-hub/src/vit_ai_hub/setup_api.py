@@ -73,6 +73,18 @@ GUIDE_TARGETS: dict[str, dict[str, str]] = {
     },
     "chatgpt": {"app": "ChatGPT", "label": "ChatGPT"},
     "claude": {"app": "Claude", "label": "Claude"},
+    "claude_code": {
+        "url": "https://code.claude.com/docs/en/overview",
+        "label": "Claude Code docs / login",
+    },
+    "codex": {
+        "url": "https://chatgpt.com/codex",
+        "label": "ChatGPT Codex",
+    },
+    "codex_cli": {
+        "url": "https://github.com/openai/codex",
+        "label": "Codex CLI",
+    },
     "vit_kluis": {"app": "VIT Kluis", "label": "VIT Kluis", "url": "https://secure.vitwerkplek.nl"},
     "vit_mail": {"app": "VIT Mail", "label": "VIT Mail"},
     "vit_backup": {"app": "VIT Backup", "label": "VIT Backup"},
