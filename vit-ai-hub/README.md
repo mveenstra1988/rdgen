@@ -28,8 +28,12 @@ Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
 
 ## iPhone (PWA) & multi-venster
 
-- Safari op iPhone: Deel → **Zet op beginscherm** (werkt tegen je Mac-hub in hetzelfde netwerk, of via VPN/tunnel).
-- Desktop: knoppen **⧉** (chat) en **▦** (teams) openen aparte vensters naast elkaar.
+1. In de hub: **⚙ Instellingen → iPhone / PWA → LAN-modus aan**
+2. App **herstarten** (Cmd+Q → opnieuw openen)
+3. Scan QR of kopieer de link op je iPhone (zelfde wifi)
+4. Safari → Deel → **Zet op beginscherm**
+
+Desktop: **⧉** opent een **nieuwe onafhankelijke chat** in een apart venster; **▦** doet hetzelfde voor Teams. Meerdere vensters naast elkaar = parallel werken.
 
 ## vit/auto (slimmer dan Cursor Auto)
 

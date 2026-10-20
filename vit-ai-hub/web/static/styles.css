@@ -630,8 +630,24 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
   .pill#privacy-pill { display: none; }
 }
 
+.lan-qr {
+  display: grid;
+  place-items: center;
+  padding: 0.5rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.lan-qr img, .lan-qr svg { width: min(200px, 100%); height: auto; }
+
 @media (max-width: 560px) {
   .brand-text .muted { display: none; }
   .empty-state h3 { font-size: 1.45rem; }
   #send { min-width: 72px; }
+  .chrome-actions .pill { display: none; }
+  .composer-meta .chip-select:nth-child(3) { display: none; }
+  .empty-presets button { flex: 1 1 42%; }
+  /* iPhone PWA: safe areas */
+  .chrome { padding-top: max(0.35rem, env(safe-area-inset-top)); }
+  .composer-shell { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
 }

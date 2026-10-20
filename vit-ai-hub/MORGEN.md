@@ -1,9 +1,8 @@
-# Morgen — VIT AI Hub 1.8
+# Morgen — VIT AI Hub 1.8.1
 
-1. Open `dist/VIT-AI-Hub-1.8.0-mac.dmg` → sleep naar Applications
-2. Open app → hub start · Cmd+Q → hub stopt
-3. Nieuwe lichte GUI: typ of kies starter · ⚙ voor instellingen
-4. iPhone: Safari → Deel → Zet op beginscherm (PWA)
-5. ⧉ / ▦ = chat of teams in apart venster
+1. Open `dist/VIT-AI-Hub-1.8.1-mac.dmg` → Applications
+2. ⚙ → **iPhone / PWA** → LAN-modus → herstart app
+3. Scan QR op iPhone → Safari → Zet op beginscherm
+4. Desktop: **⧉** / **▦** = aparte chat- of teams-vensters naast elkaar
 
-1.8: moderne UI · PWA · multi-window · best-output defaults
+1.8.1: LAN/QR voor iPhone · onafhankelijke sessie-vensters

@@ -168,8 +168,8 @@
       </div>
       <div class="chrome-actions">
         <span class="pill" id="privacy-pill" title="Klantgegevens blijven lokaal">Privacy aan</span>
-        <button type="button" class="icon-btn" id="pop-chat" title="Chat in nieuw venster">⧉</button>
-        <button type="button" class="icon-btn" id="pop-teams" title="Teams in nieuw venster">▦</button>
+        <button type="button" class="icon-btn" id="pop-chat" title="Nieuwe chat in apart venster">⧉</button>
+        <button type="button" class="icon-btn" id="pop-teams" title="Teams in apart venster">▦</button>
         <button type="button" class="icon-btn" id="open-settings" title="Instellingen" aria-label="Instellingen">⚙</button>
       </div>
     </header>
@@ -338,6 +338,24 @@
         <div class="meta" id="model-meta"></div>
         <button type="button" id="refresh-models" class="ghost">Modellen vernieuwen</button>
       </div>
+
+      <details class="side-fold" open id="fold-iphone">
+        <summary>iPhone / PWA</summary>
+        <div class="fold-body">
+          <p class="muted tiny" id="lan-hint">Zelfde wifi als je Mac. LAN-modus opent de hub voor je telefoon.</p>
+          <label class="field checkbox">
+            <input type="checkbox" id="lan-toggle" />
+            <span>LAN-modus (iPhone mag verbinden)</span>
+          </label>
+          <p class="muted tiny" id="lan-url">…</p>
+          <div id="lan-qr" class="lan-qr" hidden></div>
+          <div class="side-actions">
+            <button type="button" id="lan-copy" class="primary">Kopieer link</button>
+            <button type="button" id="lan-refresh" class="ghost">↻</button>
+          </div>
+          <p class="muted tiny">Safari → Deel → <strong>Zet op beginscherm</strong>. Token zit in de link.</p>
+        </div>
+      </details>
 
       <details class="side-fold" open>
         <summary>Gedrag</summary>

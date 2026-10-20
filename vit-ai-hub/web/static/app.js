@@ -1,7 +1,46 @@
+const SESSION_ID = (() => {
+  const params = new URLSearchParams(location.search);
+  let sid = params.get("session") || "";
+  if (!sid) {
+    sid = `s-${Math.random().toString(36).slice(2, 10)}`;
+    params.set("session", sid);
+    const url = `${location.pathname}?${params.toString()}${location.hash || ""}`;
+    history.replaceState(null, "", url);
+  }
+  return sid;
+})();
+
 const state = {
   models: [],
   messages: [],
+  sessionId: SESSION_ID,
 };
+
+function chatStorageKey() {
+  return `vit_chat_${state.sessionId}`;
+}
+
+function loadSessionMessages() {
+  try {
+    const raw = sessionStorage.getItem(chatStorageKey());
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) state.messages = data;
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function saveSessionMessages() {
+  try {
+    sessionStorage.setItem(
+      chatStorageKey(),
+      JSON.stringify(state.messages.filter((m) => m.role === "user" || m.role === "assistant"))
+    );
+  } catch (_) {
+    /* ignore */
+  }
+}
 
 const els = {
   modelSelect: document.getElementById("model-select"),
@@ -73,12 +112,24 @@ function openSettings(on) {
 }
 
 function popWindow(view) {
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin + "/");
   url.searchParams.set("pop", "1");
   url.searchParams.set("view", view || "chat");
+  url.searchParams.set("session", `${view || "chat"}-${Date.now().toString(36)}`);
+  // Preserve token for auth in new window
+  try {
+    const t =
+      (els.token && els.token.value.trim()) ||
+      sessionStorage.getItem("vit_gateway_token") ||
+      "";
+    if (t) url.searchParams.set("token", t);
+  } catch (_) {
+    /* ignore */
+  }
   const w = view === "teams" ? 1100 : 920;
   const h = view === "teams" ? 800 : 720;
-  window.open(url.toString(), `vit-${view}-${Date.now()}`, `popup=yes,width=${w},height=${h}`);
+  const features = `popup=yes,width=${w},height=${h},left=${40 + Math.floor(Math.random() * 80)},top=${40 + Math.floor(Math.random() * 60)}`;
+  window.open(url.toString(), `vit-${view}-${Date.now()}`, features);
 }
 
 try {
@@ -105,6 +156,20 @@ function headers() {
 }
 
 async function ensureLocalToken() {
+  // Token from iPhone/PWA deep link: /?token=…
+  try {
+    const params = new URLSearchParams(location.search);
+    const fromUrl = (params.get("token") || "").trim();
+    if (fromUrl) {
+      if (els.token) els.token.value = fromUrl;
+      sessionStorage.setItem("vit_gateway_token", fromUrl);
+      params.delete("token");
+      const clean = `${location.pathname}?${params.toString()}`.replace(/\?$/, "");
+      history.replaceState(null, "", clean + (location.hash || ""));
+    }
+  } catch (_) {
+    /* ignore */
+  }
   try {
     const res = await fetch("/api/setup/status");
     const data = await res.json();
@@ -118,6 +183,42 @@ async function ensureLocalToken() {
     }
   } catch (_) {
     /* ignore */
+  }
+}
+
+async function refreshNetwork() {
+  const hint = document.getElementById("lan-hint");
+  const urlEl = document.getElementById("lan-url");
+  const qr = document.getElementById("lan-qr");
+  const toggle = document.getElementById("lan-toggle");
+  try {
+    const res = await fetch("/api/network", { headers: headers() });
+    const data = await res.json();
+    if (toggle) toggle.checked = !!data.lan_enabled;
+    const first = (data.urls && data.urls[0] && data.urls[0].url) || "";
+    if (urlEl) {
+      urlEl.textContent = data.lan_enabled
+        ? `Open op iPhone: ${first}`
+        : "LAN uit — alleen deze Mac (127.0.0.1).";
+      urlEl.dataset.url = first;
+    }
+    if (hint) hint.textContent = data.pwa_hint || "";
+    if (qr && data.lan_enabled && first) {
+      qr.hidden = false;
+      try {
+        const qrRes = await fetch(`/api/network/qr.svg?url=${encodeURIComponent(first)}`, {
+          headers: headers(),
+        });
+        qr.innerHTML = await qrRes.text();
+      } catch (_) {
+        qr.innerHTML = `<p class="muted tiny">${first}</p>`;
+      }
+    } else if (qr) {
+      qr.hidden = true;
+      qr.innerHTML = "";
+    }
+  } catch (err) {
+    if (urlEl) urlEl.textContent = `Netwerkinfo: ${err}`;
   }
 }
 
@@ -264,9 +365,46 @@ els.refresh?.addEventListener("click", () => loadModels().catch((e) => addBubble
 els.newChat?.addEventListener("click", () => {
   state.messages = [];
   if (els.messages) els.messages.innerHTML = "";
+  saveSessionMessages();
   syncEmptyState();
   if (els.routeInfo) els.routeInfo.textContent = "Nieuwe chat — privacyfilter blijft aan.";
   els.prompt?.focus();
+});
+
+document.getElementById("lan-refresh")?.addEventListener("click", () => refreshNetwork());
+document.getElementById("lan-copy")?.addEventListener("click", async () => {
+  const urlEl = document.getElementById("lan-url");
+  const u = urlEl?.dataset?.url || "";
+  if (!u) return;
+  try {
+    await navigator.clipboard.writeText(u);
+    if (els.routeInfo) els.routeInfo.textContent = "Link gekopieerd — plak in Safari op je iPhone.";
+  } catch (_) {
+    if (els.routeInfo) els.routeInfo.textContent = u;
+  }
+});
+document.getElementById("lan-toggle")?.addEventListener("change", async (ev) => {
+  const on = !!ev.target.checked;
+  try {
+    const res = await fetch("/api/network/lan", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ enabled: on }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      ev.target.checked = !on;
+      alert(data.error || "LAN wijzigen mislukt");
+      return;
+    }
+    await refreshNetwork();
+    if (data.restart_required) {
+      alert("LAN gewijzigd. Sluit de VIT AI Hub-app en open opnieuw zodat iPhone kan verbinden.");
+    }
+  } catch (err) {
+    ev.target.checked = !on;
+    alert(String(err));
+  }
 });
 
 els.studioSelect?.addEventListener("change", () => {
@@ -362,6 +500,7 @@ els.form.addEventListener("submit", async (ev) => {
   els.prompt.value = "";
   state.messages.push({ role: "user", content: text });
   addBubble("user", text);
+  saveSessionMessages();
   const sendBtn = document.getElementById("send");
   sendBtn.disabled = true;
   try {
@@ -388,6 +527,7 @@ els.form.addEventListener("submit", async (ev) => {
     const content = data.choices?.[0]?.message?.content || "(leeg antwoord)";
     state.messages.push({ role: "assistant", content });
     addBubble("assistant", content, data.vit || null);
+    saveSessionMessages();
     if (data.vit?.orchestrator?.summary && els.routeInfo) {
       els.routeInfo.textContent = data.vit.orchestrator.summary;
     }
@@ -761,10 +901,28 @@ if ("serviceWorker" in navigator) {
 
 ensureLocalToken().then(() => {
   applyPopMode();
+  loadSessionMessages();
+  // re-render saved messages
+  if (els.messages && state.messages.length) {
+    els.messages.innerHTML = "";
+    for (const m of state.messages) {
+      if (m.role === "user" || m.role === "assistant") addBubble(m.role, m.content);
+    }
+  }
   syncEmptyState();
+  if (document.getElementById("chat-title") && state.sessionId) {
+    const short = state.sessionId.replace(/^s-/, "").slice(0, 6);
+    if (new URLSearchParams(location.search).get("pop") === "1") {
+      document.getElementById("chat-title").textContent =
+        new URLSearchParams(location.search).get("view") === "teams"
+          ? "Teams"
+          : `Chat · ${short}`;
+    }
+  }
   ping();
   refreshImportStatus();
   refreshAccounts();
+  refreshNetwork();
   loadPresets();
   loadModels().catch((e) => {
     if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;

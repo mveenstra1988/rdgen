@@ -5,7 +5,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-HOST="${VIT_GATEWAY_HOST:-127.0.0.1}"
+# LAN/iPhone: VIT_LAN_ACCESS=1 of VIT_GATEWAY_HOST=0.0.0.0 in ai-gateway.env
+if [[ "${VIT_LAN_ACCESS:-0}" == "1" ]] || [[ "${VIT_LAN_ACCESS:-}" == "true" ]]; then
+  HOST="${VIT_GATEWAY_HOST:-0.0.0.0}"
+else
+  HOST="${VIT_GATEWAY_HOST:-127.0.0.1}"
+fi
 PORT="${VIT_GATEWAY_PORT:-8787}"
 SECRET_DIR="$HOME/.config/vit/geheimen"
 SECRET_FILE="$SECRET_DIR/ai-gateway.env"

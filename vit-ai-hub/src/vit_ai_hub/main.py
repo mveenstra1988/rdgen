@@ -282,6 +282,38 @@ async def api_studios() -> dict[str, Any]:
     return {"studios": list_studios()}
 
 
+@app.get("/api/network")
+async def api_network(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.network import network_info
+
+    return network_info()
+
+
+@app.post("/api/network/lan")
+async def api_network_lan(request: Request, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.network import set_lan_access
+
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object verwacht")
+    return set_lan_access(bool(body.get("enabled")))
+
+
+@app.get("/api/network/qr.svg")
+async def api_network_qr(url: str = "", _: None = Depends(_auth)) -> HTMLResponse:
+    from vit_ai_hub.network import network_info, qr_svg_for_url
+
+    target = (url or "").strip()
+    if not target:
+        info = network_info()
+        urls = info.get("urls") or []
+        target = (urls[0]["url"] if urls else "") or "http://127.0.0.1:8787/"
+    if not target.startswith("http://") and not target.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Ongeldige URL")
+    svg = qr_svg_for_url(target)
+    return HTMLResponse(svg, media_type="image/svg+xml")
+
+
 @app.get("/api/app/status")
 async def api_app_status() -> dict[str, Any]:
     """Lifecycle info voor de Mac-app / health UI."""
