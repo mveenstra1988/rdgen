@@ -71,8 +71,9 @@ def media_tool_specs() -> list[dict[str, Any]]:
             "function": {
                 "name": "generate_image",
                 "description": (
-                    "Genereer visual: default lokaal SVG/HTML poster (Canva-alt). "
-                    "Met OPENROUTER_API_KEY optioneel cloud image-model."
+                    "Genereer visual. provider=local → SVG/HTML Canva-alt; "
+                    "provider=banana → Google Nano Banana (Gemini image, GEMINI_API_KEY); "
+                    "cloud=true kiest banana als key gezet is."
                 ),
                 "parameters": {
                     "type": "object",
@@ -85,8 +86,54 @@ def media_tool_specs() -> list[dict[str, Any]]:
                         "brand": {"type": "string"},
                         "workspace": {"type": "string"},
                         "cloud": {"type": "boolean"},
+                        "provider": {
+                            "type": "string",
+                            "description": "local | banana",
+                        },
                     },
                     "required": ["prompt"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "nano_banana",
+                "description": (
+                    "Google Nano Banana (Gemini image gen/edit). Vereist GEMINI_API_KEY "
+                    "of GOOGLE_API_KEY. Schrijft PNG naar workspace indien gezet."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {"type": "string"},
+                        "workspace": {"type": "string"},
+                        "filename": {"type": "string"},
+                        "model": {
+                            "type": "string",
+                            "description": "default gemini-nano-banana-2.1",
+                        },
+                    },
+                    "required": ["prompt"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_document",
+                "description": (
+                    "Lees/analyseer een lokaal document (txt/md/json/csv/pdf/html). "
+                    "PDF: tekstextractie best-effort."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "workspace": {"type": "string"},
+                        "max_chars": {"type": "integer"},
+                    },
+                    "required": ["path"],
                 },
             },
         },
@@ -204,6 +251,192 @@ async def describe_image(
     return meta
 
 
+def _gemini_key() -> str:
+    return (
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+        or os.environ.get("GOOGLE_AI_API_KEY")
+        or ""
+    ).strip()
+
+
+def media_capabilities() -> dict[str, Any]:
+    return {
+        "web_search": True,
+        "fetch_url": True,
+        "describe_image": True,
+        "read_document": True,
+        "generate_image_local": True,
+        "nano_banana": bool(_gemini_key()),
+        "video_generate": False,
+        "video_note": "Geen Veo/video-gen in de hub; wel visuals (SVG/Banana) + speak_text.",
+        "gemini_key_set": bool(_gemini_key()),
+        "openrouter_key_set": bool(os.environ.get("OPENROUTER_API_KEY")),
+    }
+
+
+async def nano_banana(
+    prompt: str,
+    *,
+    workspace: str | None = None,
+    filename: str | None = None,
+    model: str | None = None,
+) -> dict[str, Any]:
+    """Google Nano Banana via Gemini generateContent (image output)."""
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return {"ok": False, "error": "lege prompt"}
+    key = _gemini_key()
+    if not key:
+        return {
+            "ok": False,
+            "error": "GEMINI_API_KEY of GOOGLE_API_KEY ontbreekt",
+            "hint": "Zet key in ~/.config/vit/geheimen/ai-gateway.env — Nano Banana = Gemini image.",
+        }
+    mid = (model or os.environ.get("VIT_NANO_BANANA_MODEL") or "gemini-nano-banana-2.1").strip()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{mid}:generateContent"
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+    }
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            r = await client.post(url, params={"key": key}, json=payload)
+        if r.status_code >= 400:
+            # fallback legacy flash-image id
+            if mid == "gemini-nano-banana-2.1":
+                alt = "gemini-2.5-flash-image"
+                url2 = f"https://generativelanguage.googleapis.com/v1beta/models/{alt}:generateContent"
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    r = await client.post(url2, params={"key": key}, json=payload)
+                mid = alt
+            if r.status_code >= 400:
+                return {
+                    "ok": False,
+                    "error": f"Gemini HTTP {r.status_code}",
+                    "detail": (r.text or "")[:600],
+                    "model": mid,
+                }
+        data = r.json()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:400]}
+
+    text_bits: list[str] = []
+    image_b64 = None
+    mime = "image/png"
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+    except Exception:
+        return {"ok": False, "error": "onverwacht Gemini-antwoord", "raw": str(data)[:400]}
+    for part in parts:
+        if part.get("text"):
+            text_bits.append(str(part["text"]))
+        inline = part.get("inlineData") or part.get("inline_data") or {}
+        if inline.get("data"):
+            image_b64 = inline["data"]
+            mime = inline.get("mimeType") or inline.get("mime_type") or mime
+
+    out: dict[str, Any] = {
+        "ok": bool(image_b64),
+        "provider": "nano_banana",
+        "model": mid,
+        "prompt": prompt,
+        "text": "\n".join(text_bits)[:2000] if text_bits else None,
+    }
+    if not image_b64:
+        out["error"] = "geen image in response (check model/quota)"
+        return out
+
+    raw = base64.b64decode(image_b64)
+    ext = ".png" if "png" in mime else ".jpg" if "jpeg" in mime or "jpg" in mime else ".bin"
+    fname = (filename or f"banana-{abs(hash(prompt)) % 10_000_000:x}{ext}").strip()
+    if workspace:
+        from vit_ai_hub.workspace import resolve_in_workspace
+
+        try:
+            target = resolve_in_workspace(fname if "/" in fname else f"vit-media/{fname}", workspace=workspace)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(raw)
+            out["path"] = str(target)
+            out["bytes"] = len(raw)
+        except Exception as exc:
+            out["write_error"] = str(exc)[:300]
+            out["bytes"] = len(raw)
+    else:
+        # schrijf onder hub data/media
+        from vit_ai_hub.config import ROOT
+
+        dest = ROOT / "data" / "media"
+        dest.mkdir(parents=True, exist_ok=True)
+        target = dest / fname
+        target.write_bytes(raw)
+        out["path"] = str(target)
+        out["bytes"] = len(raw)
+    return out
+
+
+def read_document(
+    path: str,
+    *,
+    workspace: str | None = None,
+    max_chars: int = 40_000,
+) -> dict[str, Any]:
+    resolved = _resolve_path(path, workspace)
+    if not resolved:
+        return {"ok": False, "error": f"bestand niet gevonden: {path}"}
+    suffix = resolved.suffix.lower()
+    max_chars = max(1000, min(120_000, int(max_chars or 40_000)))
+    if suffix in {".txt", ".md", ".markdown", ".json", ".csv", ".html", ".htm", ".log", ".py", ".js", ".ts"}:
+        text = resolved.read_text(encoding="utf-8", errors="replace")
+        return {
+            "ok": True,
+            "path": str(resolved),
+            "format": suffix.lstrip("."),
+            "chars": len(text),
+            "truncated": len(text) > max_chars,
+            "content": text[:max_chars],
+        }
+    if suffix == ".pdf":
+        try:
+            from pypdf import PdfReader  # type: ignore
+
+            reader = PdfReader(str(resolved))
+            chunks = []
+            for page in reader.pages[:40]:
+                chunks.append(page.extract_text() or "")
+            text = "\n".join(chunks)
+            return {
+                "ok": True,
+                "path": str(resolved),
+                "format": "pdf",
+                "pages": len(reader.pages),
+                "chars": len(text),
+                "truncated": len(text) > max_chars,
+                "content": text[:max_chars],
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": f"PDF extract mislukt: {exc}",
+                "hint": "pip install pypdf of plak tekst; vision/PDF via Gemini kan later",
+                "path": str(resolved),
+            }
+    if suffix in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+        return {
+            "ok": False,
+            "error": "dit is een afbeelding — gebruik describe_image",
+            "path": str(resolved),
+        }
+    return {
+        "ok": False,
+        "error": f"formaat niet ondersteund: {suffix}",
+        "path": str(resolved),
+        "hint": "Ondersteund: txt/md/json/csv/html/pdf",
+    }
+
+
 async def generate_image(
     prompt: str,
     *,
@@ -214,10 +447,15 @@ async def generate_image(
     brand: str = "VIT",
     workspace: str | None = None,
     cloud: bool = False,
+    provider: str | None = None,
 ) -> dict[str, Any]:
     prompt = (prompt or "").strip()
     if not prompt:
         return {"ok": False, "error": "lege prompt"}
+    prov = (provider or "").strip().lower()
+    if prov in {"banana", "nano_banana", "nano-banana"} or (cloud and _gemini_key() and prov != "local"):
+        return await nano_banana(prompt, workspace=workspace)
+
     # Local Canva-alt path (always works)
     rendered = render_template(
         template or "linkedin-post",
@@ -245,19 +483,17 @@ async def generate_image(
         out["html_preview"] = (rendered.get("html") or "")[:500]
         out["svg"] = rendered.get("svg")
 
-    if cloud:
-        key = os.environ.get("OPENROUTER_API_KEY") or ""
-        if not key:
-            out["cloud"] = {"ok": False, "error": "OPENROUTER_API_KEY ontbreekt"}
-        else:
-            out["cloud"] = {
-                "ok": False,
-                "hint": (
-                    "Cloud image-gen wisselt per model; gebruik local_template output "
-                    "of koppel Flux via LM Studio/MLX. Prompt bewaard."
-                ),
-                "prompt": prompt,
-            }
+    if cloud and not _gemini_key():
+        out["cloud"] = {
+            "ok": False,
+            "error": "GEMINI_API_KEY ontbreekt voor Nano Banana",
+            "hint": "Zet GEMINI_API_KEY voor banana, of gebruik provider=local (SVG).",
+        }
+    elif cloud and _gemini_key():
+        banana = await nano_banana(prompt, workspace=workspace)
+        out["banana"] = banana
+        if banana.get("ok"):
+            out["mode"] = "local_template+banana"
     return out
 
 
@@ -330,6 +566,26 @@ async def run_media_tool(name: str, arguments: dict[str, Any]) -> str:
                 brand=str(arguments.get("brand") or "VIT"),
                 workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
                 cloud=bool(arguments.get("cloud")),
+                provider=(str(arguments["provider"]) if arguments.get("provider") else None),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "nano_banana":
+        return json.dumps(
+            await nano_banana(
+                str(arguments.get("prompt") or ""),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                filename=(str(arguments["filename"]) if arguments.get("filename") else None),
+                model=(str(arguments["model"]) if arguments.get("model") else None),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "read_document":
+        return json.dumps(
+            read_document(
+                str(arguments.get("path") or ""),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                max_chars=int(arguments.get("max_chars") or 40_000),
             ),
             ensure_ascii=False,
         )

@@ -474,8 +474,11 @@ async def _fetch_url(url: str) -> str:
 
 
 def capabilities_manifest() -> dict[str, Any]:
+    from vit_ai_hub.tools.media import media_capabilities
+
     return {
         "chat": True,
+        "media": media_capabilities(),
         "streaming": True,
         "model_picker": True,
         "providers": [
@@ -539,9 +542,17 @@ def capabilities_manifest() -> dict[str, Any]:
             "team-site",
         ],
         "visual_canva_alt": True,
-        "figma_alt": "Penpot + design studio + visual templates",
+        "figma_alt": "FigCraft (ArtCraft) + Penpot + design-in-code",
         "canva_alt": "studio Visual + visual_render/generate_image (HTML/SVG)",
-        "media_tools": ["visual_render", "generate_image", "describe_image", "speak_text"],
+        "nano_banana": "tool nano_banana / generate_image provider=banana (GEMINI_API_KEY)",
+        "media_tools": [
+            "visual_render",
+            "generate_image",
+            "nano_banana",
+            "describe_image",
+            "read_document",
+            "speak_text",
+        ],
         "app_lifecycle": "open .app starts hub; quit stops hub (session mode)",
         "pwa": True,
         "multi_window": True,

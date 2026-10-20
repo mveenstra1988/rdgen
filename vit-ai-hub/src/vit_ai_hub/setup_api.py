@@ -20,6 +20,9 @@ ALLOWED_KEYS = {
     "OPENROUTER_API_KEY",
     "DEEPSEEK_API_KEY",
     "XAI_API_KEY",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
+    "VIT_NANO_BANANA_MODEL",
     "BRIDGE_API_KEY",
     "BRIDGE_BASE_URL",
     "OMNIROUTE_API_KEY",
@@ -35,6 +38,10 @@ GUIDE_TARGETS: dict[str, dict[str, str]] = {
     "openrouter_keys": {
         "url": "https://openrouter.ai/keys",
         "label": "OpenRouter API keys",
+    },
+    "gemini_keys": {
+        "url": "https://aistudio.google.com/apikey",
+        "label": "Gemini / Nano Banana API key",
     },
     "deepseek_keys": {
         "url": "https://platform.deepseek.com/api_keys",

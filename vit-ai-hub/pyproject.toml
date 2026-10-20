@@ -1,6 +1,6 @@
 [project]
 name = "vit-ai-hub"
-version = "2.2.0"
+version = "2.2.1"
 description = "Lokale VIT AI Hub met privacyfilter en multi-provider modelpicker"
 requires-python = ">=3.11"
 dependencies = [

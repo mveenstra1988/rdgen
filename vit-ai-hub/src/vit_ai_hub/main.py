@@ -1548,6 +1548,13 @@ async def api_mac_profile(profile: str = "m5-max-128", _: None = Depends(_auth))
     }
 
 
+@app.get("/api/media/status")
+async def api_media_status(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.tools.media import media_capabilities
+
+    return {"ok": True, **media_capabilities()}
+
+
 @app.get("/docs/MAC_M5_MAX.md")
 async def docs_mac_m5() -> FileResponse:
     path = ROOT / "docs" / "MAC_M5_MAX.md"

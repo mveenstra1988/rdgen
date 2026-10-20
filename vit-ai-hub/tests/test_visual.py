@@ -29,7 +29,14 @@ def test_visual_studio_and_tools():
     assert "visual" in ids
     assert "Canva" in (studio_system_prompt("visual") or "")
     names = {t["function"]["name"] for t in tool_specs()}
-    assert {"visual_render", "generate_image", "describe_image", "speak_text"} <= names
+    assert {
+        "visual_render",
+        "generate_image",
+        "describe_image",
+        "speak_text",
+        "nano_banana",
+        "read_document",
+    } <= names
 
 
 def test_classify_visual_and_site():
