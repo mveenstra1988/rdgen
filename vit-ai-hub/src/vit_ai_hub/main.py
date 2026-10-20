@@ -602,7 +602,13 @@ async def _handle_chat(body: ChatCompletionRequest):
             break
 
     auto_plan = None
-    is_auto = (requested_model or "").strip().lower() in {"vit/auto", "auto", "vit/smart", ""}
+    req_l = (requested_model or "").strip().lower()
+    is_max = req_l == "vit/max"
+    is_auto = req_l in {"vit/auto", "auto", "vit/smart", "vit/max", ""}
+    if is_max and not body.vit_tradeoff:
+        body.vit_tradeoff = "quality"
+    if is_max and body.vit_critic is None:
+        body.vit_critic = True
     if is_auto and not body.vit_skip_orchestrator:
         try:
             _, auto_plan = router_engine.resolve_smart(
@@ -611,7 +617,7 @@ async def _handle_chat(body: ChatCompletionRequest):
                 workspace=body.workspace,
                 force_local=False,
                 allow_team=body.vit_auto_team,
-                tradeoff=body.vit_tradeoff,
+                tradeoff=body.vit_tradeoff or ("quality" if is_max else None),
             )
             # Auto multi-agent: complexe taken → team met per-rol model
             if auto_plan.use_team and auto_plan.team_id and not body.stream:
@@ -638,6 +644,17 @@ async def _handle_chat(body: ChatCompletionRequest):
     studio_prompt = studio_system_prompt(body.studio)
     if studio_prompt:
         prefix.append({"role": "system", "content": studio_prompt})
+    try:
+        from vit_ai_hub.orchestrator.quality import quality_system_addon
+
+        tradeoff_eff = (
+            (body.vit_tradeoff or (auto_plan.tradeoff if auto_plan else None) or "quality")
+        )
+        q_addon = quality_system_addon(studio=body.studio, tradeoff=tradeoff_eff)
+        if q_addon:
+            prefix.append({"role": "system", "content": q_addon})
+    except Exception:
+        pass
     prefix.append(
         {
             "role": "system",
@@ -736,6 +753,15 @@ async def _handle_chat(body: ChatCompletionRequest):
     }
     if body.temperature is not None:
         payload["temperature"] = body.temperature
+    else:
+        # M5/coding defaults: code strakker, chat creatiever
+        st = (body.studio or "").lower()
+        if st in {"software", "self", "ops"}:
+            payload["temperature"] = 0.3
+        elif st in {"marketing", "socials", "visual", "webdesign"}:
+            payload["temperature"] = 0.7
+        else:
+            payload["temperature"] = 0.55
     if body.max_tokens is not None:
         payload["max_tokens"] = body.max_tokens
 
@@ -836,6 +862,65 @@ async def _handle_chat(body: ChatCompletionRequest):
         except Exception as exc:
             critic_meta = {"used": False, "error": str(exc)}
 
+    # Second opinion (quality stack) — ander model verbetert concept
+    second_meta: dict[str, Any] | None = None
+    if (
+        auto_plan
+        and not body.vit_skip_orchestrator
+        and not body.stream
+        and not (auto_plan.use_team if auto_plan else False)
+    ):
+        try:
+            from vit_ai_hub.orchestrator.quality import (
+                pick_opinion_model,
+                run_second_opinion,
+                want_second_opinion,
+            )
+
+            if want_second_opinion(
+                auto_plan.intent,
+                tradeoff=auto_plan.tradeoff or body.vit_tradeoff or "quality",
+                use_team=bool(auto_plan.use_team),
+            ) or is_max:
+                draft2 = ""
+                try:
+                    draft2 = data["choices"][0]["message"].get("content") or ""
+                except Exception:
+                    draft2 = ""
+
+                async def chat_once2(model: str, messages: list[dict[str, Any]]) -> str:
+                    fake = ChatCompletionRequest(
+                        model=model,
+                        messages=[ChatMessage(**m) for m in messages],
+                        vit_enable_tools=False,
+                        stream=False,
+                        vit_skip_orchestrator=True,
+                        vit_auto_team=False,
+                        vit_critic=False,
+                    )
+                    out = await _handle_chat(fake)
+                    if isinstance(out, JSONResponse):
+                        out = json.loads(out.body.decode())
+                    try:
+                        return out["choices"][0]["message"].get("content") or ""
+                    except Exception:
+                        return ""
+
+                opinion_model = pick_opinion_model(
+                    decision.model, auto_plan.fallbacks if auto_plan else None
+                )
+                if opinion_model:
+                    second_meta = await run_second_opinion(
+                        task=last_user,
+                        draft=draft2,
+                        opinion_model=opinion_model,
+                        chat_once=chat_once2,
+                    )
+                    if second_meta.get("used") and second_meta.get("final"):
+                        data["choices"][0]["message"]["content"] = second_meta["final"]
+        except Exception as exc:
+            second_meta = {"used": False, "error": str(exc)}
+
     # rehydrate assistant content
     try:
         content = data["choices"][0]["message"].get("content")
@@ -889,6 +974,14 @@ async def _handle_chat(body: ChatCompletionRequest):
         "agent_rounds": tool_rounds,
         "tool_trace": tool_trace[-40:] if isinstance(tool_trace, list) else None,
         "agent_max_rounds": _tool_max_rounds(body.studio),
+        "second_opinion": second_meta,
+        "quality_stack": {
+            "critic": bool(critic_meta and critic_meta.get("used")),
+            "second_opinion": bool(second_meta and second_meta.get("used")),
+            "shared_memory": bool(shared_memory),
+            "knowledge": bool(knowledge),
+            "max_mode": is_max,
+        },
     }
     return JSONResponse(data)
 
@@ -1037,7 +1130,22 @@ async def _chat_with_tools(
             except json.JSONDecodeError:
                 args = {}
             result = await run_tool(name, args)
-            tool_trace.append({"round": i + 1, "tool": name, "ok": "error" not in (result or "")[:80]})
+            entry: dict[str, Any] = {
+                "round": i + 1,
+                "tool": name,
+                "ok": '"error"' not in (result or "")[:120] and "'error'" not in (result or "")[:80],
+            }
+            if name in {"search_replace", "write_workspace_file", "read_workspace_file"}:
+                entry["path"] = str(args.get("path") or "")[:200]
+            if name == "search_replace":
+                old_s = str(args.get("old_str") or "")
+                new_s = str(args.get("new_str") or "")
+                entry["diff"] = {
+                    "path": entry.get("path"),
+                    "old": old_s[:2000],
+                    "new": new_s[:2000],
+                }
+            tool_trace.append(entry)
             payload["messages"].append(
                 {
                     "role": "tool",
@@ -1360,6 +1468,26 @@ async def import_zips_now(_: None = Depends(_auth)) -> dict[str, Any]:
             except Exception as exc:
                 out["errors"].append({"source": label, "file": str(path), "error": str(exc)})
     return out
+
+
+@app.get("/api/mac/profile")
+async def api_mac_profile(profile: str = "m5-max-128", _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.mac_profile import get_profile, hub_overrides_for_profile, list_profiles
+
+    return {
+        "ok": True,
+        "profiles": list_profiles(),
+        "active": get_profile(profile),
+        "hub_overrides": hub_overrides_for_profile(profile),
+    }
+
+
+@app.get("/docs/MAC_M5_MAX.md")
+async def docs_mac_m5() -> FileResponse:
+    path = ROOT / "docs" / "MAC_M5_MAX.md"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="doc ontbreekt")
+    return FileResponse(path, media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/api/memory/stats")

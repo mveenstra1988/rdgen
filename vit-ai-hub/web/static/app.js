@@ -92,7 +92,10 @@ const els = {
 
 function friendlyModelLabel(m) {
   if (!m) return "Model";
-  if (m.id === "vit/auto" || m.virtual) return "Slim (kiest zelf)";
+  if (m.id === "vit/max") return "Max kwaliteit";
+  if (m.id === "vit/auto" || m.id === "vit/smart") return "Slim (kiest zelf)";
+  if (m.virtual === "vit/max") return "Max kwaliteit";
+  if (m.virtual) return "Slim (kiest zelf)";
   if (m.local && /heavy/i.test(m.id + m.name)) return "Lokaal · krachtig";
   if (m.local) return "Lokaal · snel";
   if (/claude/i.test(m.id + (m.name || ""))) return `Claude · ${(m.name || m.id).replace(/^.*\//, "").slice(0, 28)}`;
@@ -320,21 +323,76 @@ function addBubble(role, text, meta = null) {
     tag.className = `tag ${meta.local ? "local" : "cloud"}`;
     if (meta.pii_forced_local) tag.classList.add("warn");
     const orch = meta.orchestrator;
+    const qs = meta.quality_stack || {};
     const bits = [
       meta.auto_team ? "team" : null,
       orch?.intent?.kind || null,
       meta.local ? "lokaal" : meta.backend,
       meta.pii_forced_local ? "privacy→lokaal" : null,
+      qs.critic ? "critic" : null,
+      qs.second_opinion ? "2e mening" : null,
+      qs.max_mode ? "max" : null,
     ];
     tag.textContent = bits.filter(Boolean).join(" · ");
     div.appendChild(tag);
   }
   const body = document.createElement("div");
+  body.className = "bubble-body";
   body.textContent = text;
   div.appendChild(body);
+  const patches = (meta?.tool_trace || []).filter((t) => t.diff && t.diff.path);
+  const fenced = extractDiffFences(text);
+  if (patches.length || fenced.length) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "diff-btn";
+    btn.textContent = `Toon diffs (${patches.length + fenced.length})`;
+    btn.addEventListener("click", () => showDiffPanel(patches, fenced));
+    div.appendChild(btn);
+  }
   els.messages.appendChild(div);
   els.messages.scrollTop = els.messages.scrollHeight;
   syncEmptyState();
+}
+
+function extractDiffFences(text) {
+  const out = [];
+  const re = /```(?:diff|patch)?\n([\s\S]*?)```/gi;
+  let m;
+  while ((m = re.exec(text || ""))) {
+    const block = m[1].trim();
+    if (block.includes("---") || block.includes("@@") || block.startsWith("+") || block.startsWith("-")) {
+      out.push(block);
+    }
+  }
+  return out;
+}
+
+function showDiffPanel(patches, fences) {
+  let panel = document.getElementById("diff-panel");
+  if (!panel) {
+    panel = document.createElement("aside");
+    panel.id = "diff-panel";
+    panel.className = "diff-panel";
+    panel.innerHTML = `<header><strong>Wijzigingen</strong><button type="button" id="diff-close" class="icon-btn" aria-label="Sluiten">✕</button></header><div id="diff-body"></div>`;
+    document.body.appendChild(panel);
+    panel.querySelector("#diff-close")?.addEventListener("click", () => panel.classList.remove("on"));
+  }
+  const body = panel.querySelector("#diff-body");
+  body.innerHTML = "";
+  for (const p of patches) {
+    const art = document.createElement("article");
+    art.innerHTML = `<h4>${escapeHtml(p.diff.path || "file")}</h4>
+      <pre class="diff-old">${escapeHtml(p.diff.old || "")}</pre>
+      <pre class="diff-new">${escapeHtml(p.diff.new || "")}</pre>`;
+    body.appendChild(art);
+  }
+  for (const f of fences) {
+    const art = document.createElement("article");
+    art.innerHTML = `<h4>diff</h4><pre class="diff-fence">${escapeHtml(f)}</pre>`;
+    body.appendChild(art);
+  }
+  panel.classList.add("on");
 }
 
 async function loadModels() {
@@ -561,6 +619,14 @@ els.form.addEventListener("submit", async (ev) => {
       if (data.vit?.orchestrator?.summary) bits.push(data.vit.orchestrator.summary);
       if (data.vit?.tool_trace?.length) {
         bits.push(`Agent ${data.vit.agent_rounds || data.vit.tool_trace.length} tool-rondes`);
+      }
+      const qs = data.vit?.quality_stack;
+      if (qs?.critic || qs?.second_opinion) {
+        bits.push(
+          ["critic", "2e mening", qs.max_mode ? "max" : null].filter((x, i) =>
+            i === 0 ? qs.critic : i === 1 ? qs.second_opinion : qs.max_mode
+          ).join("+") || "quality"
+        );
       }
       if (bits.length) els.routeInfo.textContent = bits.join(" · ");
     }
@@ -802,6 +868,33 @@ els.importZipsNow?.addEventListener("click", async () => {
     els.importZipsNow.disabled = false;
   }
 });
+
+async function refreshMacProfile() {
+  const box = document.getElementById("mac-profile-box");
+  if (!box) return;
+  try {
+    const res = await fetch("/api/mac/profile", { headers: headers() });
+    const data = await res.json();
+    const p = data.active || {};
+    const daily = p.models?.daily || {};
+    const quality = p.models?.quality_local || {};
+    const heavy = p.models?.heavy_moe || {};
+    const lm = p.lm_studio || {};
+    box.textContent = [
+      p.name || "M5 Max 128GB",
+      `Daily: ${daily.id_hint || "?"} (${daily.format || "MLX"})`,
+      `Quality: ${quality.id_hint || "?"}`,
+      `Heavy: ${heavy.id_hint || "?"} on-demand`,
+      `LM Studio: ${lm.backend || "MLX"} · ctx ${lm.context_start || 16384}`,
+      `Hub: vit/auto of vit/max · critic + second opinion`,
+      ...(p.checklist || []).slice(0, 3).map((c) => `• ${c}`),
+    ].join("\n");
+  } catch {
+    box.textContent = "Profiel niet geladen.";
+  }
+}
+
+document.getElementById("mac-profile-refresh")?.addEventListener("click", () => refreshMacProfile());
 
 async function refreshKnowList() {
   if (!els.knowList) return;
@@ -1090,6 +1183,7 @@ ensureLocalToken().then(async () => {
   refreshKnowList();
   refreshAccounts();
   refreshNetwork();
+  refreshMacProfile();
   loadPresets();
   loadModels().catch((e) => {
     if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;

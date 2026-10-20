@@ -10,11 +10,16 @@ from vit_ai_hub.config import load_yaml_config
 from vit_ai_hub.orchestrator.intent import Intent
 
 
-def critic_enabled(intent: Intent) -> bool:
+def critic_enabled(intent: Intent, *, tradeoff: str | None = None) -> bool:
     cfg = load_yaml_config().get("orchestrator") or {}
     if not cfg.get("critic", True):
         return False
-    # alleen bij hogere inzet — kosten/latency sparen
+    t = (tradeoff or cfg.get("tradeoff") or "quality").lower()
+    # quality-modus: critic vaker aan
+    if t == "quality":
+        if intent.kind in {"simple"} and intent.complexity == "low":
+            return False
+        return True
     if intent.kind in {"simple", "chat", "ops"} and intent.complexity == "low":
         return False
     return intent.complexity in {"medium", "high"} or intent.kind in {
@@ -32,7 +37,7 @@ def critic_enabled(intent: Intent) -> bool:
 
 def max_rounds() -> int:
     cfg = load_yaml_config().get("orchestrator") or {}
-    return max(0, min(2, int(cfg.get("critic_rounds") or 1)))
+    return max(0, min(3, int(cfg.get("critic_rounds") or 1)))
 
 
 _PASS = re.compile(r"\b(PASS|GOEDGEKEURD|APPROVED)\b", re.I)
@@ -74,7 +79,7 @@ async def run_critic_loop(
     chat_once(model, messages) -> assistant text
     Max 1–2 rounds. Bij pass: draft behouden. Bij fail: revise.
     """
-    if not critic_enabled(intent) or max_rounds() < 1:
+    if max_rounds() < 1:
         return {"used": False, "final": draft, "rounds": []}
 
     current = draft

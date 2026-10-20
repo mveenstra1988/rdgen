@@ -640,6 +640,72 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 }
 .lan-qr img, .lan-qr svg { width: min(200px, 100%); height: auto; }
 
+.diff-btn {
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+}
+.diff-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.diff-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 100vw);
+  height: 100vh;
+  background: var(--bg-elevated, #fff);
+  border-left: 1px solid var(--line);
+  z-index: 80;
+  transform: translateX(105%);
+  transition: transform 0.22s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.08);
+}
+.diff-panel.on { transform: none; }
+.diff-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+#diff-body {
+  overflow: auto;
+  padding: 0.75rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+#diff-body h4 { margin: 0 0 0.35rem; font-size: 0.85rem; }
+.diff-old, .diff-new, .diff-fence {
+  margin: 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+.diff-old { background: #fde8e8; }
+.diff-new { background: #e7f6ea; margin-top: 0.35rem; }
+.diff-fence { background: var(--accent-soft); }
+
+.mac-profile-box {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
 .knowledge-browser { margin-top: 0.85rem; }
 .know-list {
   display: flex;

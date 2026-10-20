@@ -1,4 +1,4 @@
-# Roadmap status (2.0)
+# Roadmap status (2.1)
 
 ## Ingebouwd
 - [x] vit/auto orchestrator: intent → beste model + auto-team + per-rol models (incl. lokaal)
@@ -33,6 +33,9 @@
 - [x] Self-improve studio + team
 - [x] MCP stdio runtime tools in chat
 - [x] Ops layer: Proxmox / Nextcloud / Gromox / Mailcow / ServiceHub / UniFi / Backup / automation-hub
+- [x] vit/max + critic (2 rondes) + second opinion quality stack
+- [x] Inline diff-panel (search_replace + ```diff```)
+- [x] M5 Max 128GB Mac-profiel + docs (`docs/MAC_M5_MAX.md`, `/api/mac/profile`)
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)
@@ -40,5 +43,4 @@
 - [ ] VIT Mail deep IPC (niet alleen openen) als app dat expose’t
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
-- [ ] Inline diff-viewer in GUI (nog dichter bij Cursor)
 - [ ] IDE/LSP-bridge (tabs, breakpoints) — optioneel naast chat-agent

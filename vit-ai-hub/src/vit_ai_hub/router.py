@@ -91,20 +91,21 @@ class ModelRouter:
         requested = (model or settings.vit_default_model or "vit/auto").strip()
         local = self._first_local()
 
-        if requested in {"vit/auto", "auto", "vit/smart"}:
+        if requested in {"vit/auto", "auto", "vit/smart", "vit/max"}:
             # Zonder prompt-context: lokaal-first. Met orchestrator wordt dit in main overschreven.
+            virt = "vit/max" if requested == "vit/max" else "vit/auto"
             if force_local:
                 if not local:
                     raise RuntimeError("Geen lokale backend beschikbaar voor fail-closed route")
                 target = settings.vit_local_light_model or "local-model"
-                return RouteDecision(backend=local, model=target, local=True, virtual="vit/auto")
+                return RouteDecision(backend=local, model=target, local=True, virtual=virt)
             if local:
                 target = settings.vit_local_light_model or "local-model"
-                return RouteDecision(backend=local, model=target, local=True, virtual="vit/auto")
+                return RouteDecision(backend=local, model=target, local=True, virtual=virt)
             cloud = self.backends.get("bridge") or self.backends.get("openrouter")
             if not cloud:
                 raise RuntimeError("Geen backend voor vit/auto")
-            return RouteDecision(backend=cloud, model="claude-sonnet-4", local=False, virtual="vit/auto")
+            return RouteDecision(backend=cloud, model="claude-sonnet-4", local=False, virtual=virt)
 
         if requested == "vit/local-light":
             if not local:
@@ -191,7 +192,7 @@ class ModelRouter:
             tradeoff=tradeoff,
         )
         decision = self.resolve(plan.model, force_local=force_local)
-        decision.virtual = "vit/auto"
+        decision.virtual = getattr(decision, "virtual", None) or "vit/auto"
         return decision, plan
 
 

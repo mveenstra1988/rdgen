@@ -112,7 +112,7 @@ def plan_request(
         except Exception:
             use_team = False
 
-    use_critic = bool(enabled and not use_team and critic_enabled(intent))
+    use_critic = bool(enabled and not use_team and critic_enabled(intent, tradeoff=tradeoff))
     studio_out = intent.suggested_studio or studio
     summary = _summarize(intent, pick, use_team, fallbacks, tradeoff, use_critic, strength)
 

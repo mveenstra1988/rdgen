@@ -4,8 +4,11 @@ gateway:
   bind_localhost_only: true
 
 memory_budget:
+  # Profiel: MacBook M5 Max 128GB / 2TB — zie docs/MAC_M5_MAX.md
+  profile: m5-max-128
   reserve_apps_gb: 48
-  light_model_hint: "Qwen3.6-35B-A3B or similar MoE ~20GB"
+  light_model_hint: "Qwen3.6-35B-A3B MLX 4/6-bit (~20-30GB) — daily"
+  heavy_model_hint: "Qwen3.8-27B MLX 6-bit of 120B MoE Q4 on-demand"
   heavy_unload: true
 
 pii:
@@ -118,10 +121,12 @@ virtual_models:
     name: Auto smart (intent → beste model + team indien nodig)
   - id: vit/smart
     name: Smart (zelfde als Auto)
+  - id: vit/max
+    name: Max kwaliteit (auto + critic + second opinion)
   - id: vit/local-light
-    name: Lokaal light
+    name: "Lokaal light (M5 Qwen3.6-35B-A3B MLX)"
   - id: vit/local-heavy
-    name: Lokaal heavy (on-demand)
+    name: "Lokaal heavy (M5 27B of 120B MoE on-demand)"
 
 orchestrator:
   enabled: true
@@ -130,13 +135,15 @@ orchestrator:
   # quality | cost | latency (RouteLLM/NotDiamond-achtige tradeoff)
   tradeoff: quality
   # strength < weak_threshold → cheap/local (RouteLLM strong/weak)
-  weak_threshold: 0.4
+  weak_threshold: 0.35
   # OpenRouter-style fallback chain length (excl. primary)
-  max_fallbacks: 3
+  max_fallbacks: 4
   fallback_extra: []
   # Maker-checker / critic loop na single-model antwoorden
   critic: true
-  critic_rounds: 1
+  critic_rounds: 2
+  # Tweede model verbetert concept (quality tradeoff)
+  second_opinion: true
   telemetry: true
   # Optionele vaste model-ids per intent (leeg = dynamisch kiezen)
   models: {}
