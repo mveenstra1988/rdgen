@@ -33,8 +33,8 @@
         .join("");
     }
     if (step === steps.length - 1) refreshProbe();
-    // VIT-apps step index (0-based): welkom=0 … vit=7
     if (titles[step] === "VIT-apps") refreshVitWizard();
+    if (titles[step] === "Claude/GPT") refreshBridgeStatus();
   }
 
   function collectSecrets() {
@@ -148,7 +148,10 @@
         d.openrouter_key ? "✓ OpenRouter (gratis + meer)" : "○ OpenRouter key",
         d.gemini_key ? "✓ Gemini / Nano Banana" : "○ Gemini key (beelden)",
         d.deepseek_key ? "✓ DeepSeek direct" : "○ DeepSeek (via OpenRouter kan ook)",
-        d.bridge_up ? "✓ Claude/ChatGPT bridge :8317" : "○ Bridge — log in via stap 5",
+        d.bridge_up ? "✓ Bridge draait :8317" : "○ Bridge nog uit",
+        d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — log in via stap 5",
+        d.chatgpt_logged_in ? "✓ ChatGPT/Codex ingelogd" : "○ ChatGPT — log in via stap 5",
+        d.bridge_key ? "✓ Bridge-key (auto)" : "○ Bridge-key",
         d.omniroute_up ? "✓ OmniRoute :20128" : "○ OmniRoute optioneel",
         d.xai_key ? "✓ Grok" : "○ Grok optioneel",
         `VIT-apps: ${d.vit_apps_installed || 0}/${d.vit_apps_count || 0} geïnstalleerd`,
@@ -238,47 +241,109 @@
   );
   overlay.querySelector("#wiz-vit-refresh")?.addEventListener("click", () => refreshVitWizard());
 
+  async function refreshBridgeStatus() {
+    const box = overlay.querySelector("#wiz-bridge-status");
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    try {
+      const res = await fetch("/api/bridge/status");
+      const d = await res.json();
+      if (box) {
+        box.textContent = [
+          d.installed ? "✓ Bridge geïnstalleerd" : "○ Bridge nog niet geïnstalleerd",
+          d.api_key_configured ? "✓ Key automatisch aangemaakt" : "○ Key volgt bij klaarzetten",
+          d.running ? "✓ Bridge draait (:8317)" : "○ Bridge uit",
+          d.claude_logged_in ? "✓ Claude ingelogd" : "○ Claude — knop 2",
+          d.chatgpt_logged_in ? "✓ ChatGPT ingelogd" : "○ ChatGPT — knop 3",
+          d.ready ? "→ Klaar: hub gebruikt je abos" : d.hint || "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+      if (msg && d.ready) msg.textContent = "Alles gekoppeld — ga door naar de volgende stap.";
+    } catch (e) {
+      if (box) box.textContent = String(e);
+    }
+  }
+
+  overlay.querySelector("#wiz-bridge-bootstrap")?.addEventListener("click", async () => {
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    if (msg) msg.textContent = "Bridge installeren + key aanmaken…";
+    try {
+      const res = await fetch("/api/bridge/bootstrap", { method: "POST" });
+      const data = await res.json();
+      if (msg) {
+        msg.textContent =
+          data.ok || data.start?.ok
+            ? "Bridge klaar — log nu in bij Claude en/of ChatGPT."
+            : data.install?.error || data.error || "Bootstrap deels mislukt (check status)";
+      }
+      await refreshBridgeStatus();
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    }
+  });
+
+  async function doBridgeLogin(provider) {
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    if (msg) msg.textContent = `Browser opent voor ${provider}…`;
+    try {
+      const res = await fetch("/api/bridge/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      const data = await res.json();
+      if (msg) {
+        msg.textContent = data.ok
+          ? data.hint || "Log in in de browser, daarna ↻ Status."
+          : data.error || "Login starten mislukt";
+      }
+      await refreshBridgeStatus();
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    }
+  }
+
+  overlay.querySelector("#wiz-bridge-login-claude")?.addEventListener("click", () =>
+    doBridgeLogin("claude")
+  );
+  overlay.querySelector("#wiz-bridge-login-gpt")?.addEventListener("click", () =>
+    doBridgeLogin("chatgpt")
+  );
+  overlay.querySelector("#wiz-bridge-refresh")?.addEventListener("click", () => refreshBridgeStatus());
+  overlay.querySelector("#wiz-bridge-start")?.addEventListener("click", async () => {
+    const msg = overlay.querySelector("#wiz-bridge-msg");
+    try {
+      const res = await fetch("/api/bridge/start", { method: "POST" });
+      const data = await res.json();
+      if (msg) msg.textContent = data.ok ? "Bridge gestart." : data.error || "Start mislukt";
+      await refreshBridgeStatus();
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
+    }
+  });
+
   overlay.querySelector("#wiz-save-bridge")?.addEventListener("click", async () => {
     const msg = overlay.querySelector("#wiz-bridge-msg");
     await saveSecrets(msg);
-    const slots = [
-      {
-        url: overlay.querySelector("#wiz-bridge-url-1")?.value || "http://127.0.0.1:8317/v1",
-        key: overlay.querySelector("#wiz-bridge")?.value || "",
-        label: "Bridge #1",
-      },
-      {
-        url: overlay.querySelector("#wiz-bridge-url-2")?.value || "",
-        key: overlay.querySelector("#wiz-bridge-key-2")?.value || "",
-        label: "Bridge #2",
-      },
-      {
-        url: overlay.querySelector("#wiz-bridge-url-3")?.value || "",
-        key: overlay.querySelector("#wiz-bridge-key-3")?.value || "",
-        label: "Bridge #3",
-      },
-    ];
-    let n = 0;
-    for (const s of slots) {
-      if (!s.url.trim()) continue;
-      try {
-        const res = await fetch("/api/accounts/bridge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: s.label,
-            base_url: s.url.trim(),
-            api_key: s.key,
-            tags: ["claude", "chatgpt"],
-            enabled: true,
-          }),
-        });
-        if (res.ok) n += 1;
-      } catch (_) {
-        /* ignore */
-      }
+    const url = overlay.querySelector("#wiz-bridge-url-1")?.value || "http://127.0.0.1:8317/v1";
+    const key = overlay.querySelector("#wiz-bridge")?.value || "";
+    try {
+      const res = await fetch("/api/accounts/bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: "Bridge handmatig",
+          base_url: url.trim(),
+          api_key: key,
+          tags: ["claude", "chatgpt"],
+          enabled: true,
+        }),
+      });
+      if (msg) msg.textContent = res.ok ? "Handmatig opgeslagen." : "Opslaan mislukt";
+    } catch (e) {
+      if (msg) msg.textContent = String(e);
     }
-    if (msg) msg.textContent = `${n} bridge-abo(s) in pool. Bij uitputting → volgende automatisch.`;
   });
 
   overlay.querySelector("#wiz-copy-url")?.addEventListener("click", async () => {
@@ -308,6 +373,12 @@
 
   overlay.querySelector("#wiz-finish")?.addEventListener("click", async () => {
     await saveSecrets(null);
+    // Bridge keys/start best-effort als gebruiker al heeft ingelogd
+    try {
+      await fetch("/api/bridge/bootstrap", { method: "POST" });
+    } catch (_) {
+      /* ignore */
+    }
     await fetch("/api/setup/complete", { method: "POST" });
     overlay.classList.add("hidden");
     history.replaceState({}, "", "/");

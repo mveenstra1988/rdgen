@@ -1,8 +1,8 @@
-# Morgen — VIT AI Hub 2.5.1
+# Morgen — VIT AI Hub 2.5.2
 
-1. ⚙ → **Uitbreidingen** → tabs Skills / MCP / Apps
-2. Skills: chip-template · upload SKILL.md · Importeer Claude/Cursor
-3. MCP: chip-presets · plak mcp.json · handmatig
-4. Apps: Slack/Notion/Cursor/… chips of zelf koppelen
+1. Open `dist/VIT-AI-Hub-2.5.2-mac.dmg` → wizard
+2. Stap **Claude & ChatGPT**: «Bridge klaarzetten» → «Log in bij Claude» → «Log in bij ChatGPT»
+3. Geen bridge-URL/key invullen — hub doet dat zelf
+4. Status toont ✓ Claude / ✓ ChatGPT / ✓ Bridge draait
 
-2.5.1: makkelijk skills/MCP/apps toevoegen
+2.5.2: automatische abo-bridge + OAuth in installatie

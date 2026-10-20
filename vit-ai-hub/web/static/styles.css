@@ -527,6 +527,15 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 .wiz-rail li.done { color: var(--ink); opacity: 0.7; }
 .wiz-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .wiz-actions .primary { width: auto; flex: 1 1 auto; min-width: 7rem; }
+.wiz-advanced {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.wiz-advanced summary {
+  cursor: pointer;
+  margin-bottom: 0.45rem;
+}
 .wiz-copy {
   margin: 0; padding: 0.55rem 0.65rem;
   background: var(--bg); border-radius: 8px; border: 1px solid var(--line);

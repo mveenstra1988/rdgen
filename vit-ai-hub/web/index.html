@@ -101,30 +101,29 @@
       </section>
 
       <section data-step class="wiz-step">
-        <h3>5 · Claude / ChatGPT / Codex</h3>
-        <p class="muted tiny">Log in via de knoppen (Claude, Claude Code, ChatGPT, Codex). Bridges → hub wisselt bij quota.</p>
-        <label class="field"><span>Bridge #1 URL</span>
-          <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
-        <label class="field"><span>Bridge #1 key</span>
-          <input id="wiz-bridge" type="password" autocomplete="off" placeholder="vaak leeg" /></label>
-        <label class="field"><span>Bridge #2 URL</span>
-          <input id="wiz-bridge-url-2" type="text" placeholder="http://127.0.0.1:8318/v1" autocomplete="off" /></label>
-        <label class="field"><span>Bridge #2 key</span>
-          <input id="wiz-bridge-key-2" type="password" autocomplete="off" /></label>
-        <label class="field"><span>Bridge #3 URL</span>
-          <input id="wiz-bridge-url-3" type="text" placeholder="http://127.0.0.1:8319/v1" autocomplete="off" /></label>
-        <label class="field"><span>Bridge #3 key</span>
-          <input id="wiz-bridge-key-3" type="password" autocomplete="off" /></label>
+        <h3>5 · Claude &amp; ChatGPT (inloggen)</h3>
+        <p class="muted tiny">Jij logt in in de browser. De hub installeert de bridge, maakt de key aan en koppelt alles zelf.</p>
+        <pre id="wiz-bridge-status" class="wiz-pre">Laden…</pre>
         <div class="wiz-actions">
-          <button type="button" class="ghost" data-guide="claude">Claude app</button>
-          <button type="button" class="ghost" data-guide="claude_code">Claude Code</button>
-          <button type="button" class="ghost" data-guide="chatgpt">ChatGPT</button>
-          <button type="button" class="ghost" data-guide="codex">Codex</button>
-          <button type="button" class="ghost" data-guide="codex_cli">Codex CLI</button>
-          <button type="button" class="ghost" data-guide="bridge_docs">Bridge docs</button>
-          <button type="button" id="wiz-save-bridge" class="primary">Abos opslaan</button>
+          <button type="button" id="wiz-bridge-bootstrap" class="primary wiz-hero">1 · Bridge klaarzetten</button>
         </div>
-        <p class="muted tiny" id="wiz-bridge-msg">Log eerst in bij Claude/ChatGPT/Codex, start daarna je bridge (:8317).</p>
+        <div class="wiz-actions">
+          <button type="button" id="wiz-bridge-login-claude" class="primary">2 · Log in bij Claude</button>
+          <button type="button" id="wiz-bridge-login-gpt" class="primary">3 · Log in bij ChatGPT</button>
+        </div>
+        <div class="wiz-actions">
+          <button type="button" id="wiz-bridge-refresh" class="ghost">↻ Status</button>
+          <button type="button" id="wiz-bridge-start" class="ghost">Bridge starten</button>
+        </div>
+        <p class="muted tiny" id="wiz-bridge-msg">Geen bridge-URL of key invullen — dat doet de hub.</p>
+        <details class="wiz-advanced">
+          <summary>Geavanceerd (handmatig, meestal niet nodig)</summary>
+          <label class="field"><span>Bridge URL</span>
+            <input id="wiz-bridge-url-1" type="text" value="http://127.0.0.1:8317/v1" autocomplete="off" /></label>
+          <label class="field"><span>Bridge key</span>
+            <input id="wiz-bridge" type="password" autocomplete="off" placeholder="wordt auto gevuld" /></label>
+          <button type="button" id="wiz-save-bridge" class="ghost">Handmatig opslaan</button>
+        </details>
       </section>
 
       <section data-step class="wiz-step">

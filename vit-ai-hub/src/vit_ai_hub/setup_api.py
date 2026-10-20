@@ -304,6 +304,14 @@ def probe_providers() -> dict[str, Any]:
         vit_suite = {}
 
     gemini = bool(secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY"))
+    bridge_detail: dict[str, Any] = {}
+    try:
+        from vit_ai_hub.bridge import bridge_status
+
+        bridge_detail = bridge_status()
+        bridge_up = bridge_up or bool(bridge_detail.get("running"))
+    except Exception:
+        bridge_detail = {}
     return {
         **status,
         "bridge_up": bridge_up,
@@ -312,7 +320,10 @@ def probe_providers() -> dict[str, Any]:
         "deepseek_key": bool(secrets.get("DEEPSEEK_API_KEY")),
         "xai_key": bool(secrets.get("XAI_API_KEY")),
         "gemini_key": gemini,
-        "bridge_key": bool(secrets.get("BRIDGE_API_KEY")),
+        "bridge_key": bool(secrets.get("BRIDGE_API_KEY") or bridge_detail.get("api_key_configured")),
+        "bridge": bridge_detail,
+        "claude_logged_in": bool(bridge_detail.get("claude_logged_in")),
+        "chatgpt_logged_in": bool(bridge_detail.get("chatgpt_logged_in")),
         "cursor_base_url": "http://127.0.0.1:8787/v1",
         "vit_apps_installed": vit_suite.get("installed", 0),
         "vit_apps_count": vit_suite.get("count", 0),

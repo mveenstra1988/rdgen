@@ -182,6 +182,58 @@ async def api_setup_a11y() -> dict[str, Any]:
     return open_accessibility_settings()
 
 
+@app.get("/api/bridge/status")
+async def api_bridge_status(request: Request) -> dict[str, Any]:
+    """Claude/ChatGPT bridge status (localhost setup + authenticated)."""
+    from vit_ai_hub.bridge import bridge_status
+
+    _localhost_only(request)
+    return bridge_status()
+
+
+@app.post("/api/bridge/bootstrap")
+async def api_bridge_bootstrap(request: Request) -> dict[str, Any]:
+    """Installeer CLIProxyAPI, schrijf keys, start bridge — zonder handmatige bridge-key."""
+    from vit_ai_hub.bridge import bootstrap_bridge
+
+    _localhost_only(request)
+    return bootstrap_bridge()
+
+
+@app.post("/api/bridge/login")
+async def api_bridge_login(request: Request) -> dict[str, Any]:
+    """Start OAuth: body.provider = claude | chatgpt."""
+    from vit_ai_hub.bridge import start_login, start_bridge, bridge_status
+
+    _localhost_only(request)
+    body: dict[str, Any] = {}
+    try:
+        raw = await request.json()
+        if isinstance(raw, dict):
+            body = raw
+    except Exception:
+        body = {}
+    out = start_login(str(body.get("provider") or "claude"))
+    # best-effort start bridge after kicking login
+    if out.get("ok"):
+        try:
+            start_bridge()
+        except Exception:
+            pass
+    out["status"] = bridge_status()
+    return out
+
+
+@app.post("/api/bridge/start")
+async def api_bridge_start(request: Request) -> dict[str, Any]:
+    from vit_ai_hub.bridge import start_bridge, bridge_status
+
+    _localhost_only(request)
+    out = start_bridge()
+    out["status"] = bridge_status()
+    return out
+
+
 @app.post("/api/setup/open-guide")
 async def api_setup_open_guide(request: Request) -> dict[str, Any]:
     from vit_ai_hub.setup_api import open_guide
