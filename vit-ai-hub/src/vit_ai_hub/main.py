@@ -7,12 +7,17 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+try:
+    import eval_type_backport  # noqa: F401 — Python 3.9 + pydantic
+except ImportError:
+    pass
 
 from vit_ai_hub import __version__
 from vit_ai_hub.catalog import collect_models
@@ -44,25 +49,25 @@ class ChatMessage(BaseModel):
 
 
 class ChatCompletionRequest(BaseModel):
-    model: str | None = None
-    messages: list[ChatMessage]
-    temperature: float | None = None
-    max_tokens: int | None = None
+    model: Optional[str] = None
+    messages: List[ChatMessage]
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
     stream: bool = False
-    tools: list[dict[str, Any]] | None = None
-    tool_choice: Any | None = None
+    tools: Optional[List[Dict[str, Any]]] = None
+    tool_choice: Optional[Any] = None
     vit_enable_tools: bool = False
-    studio: str | None = None
-    workspace: str | None = None
-    vit_auto_team: bool | None = None  # None = config default; False = nooit auto-team
+    studio: Optional[str] = None
+    workspace: Optional[str] = None
+    vit_auto_team: Optional[bool] = None  # None = config default; False = nooit auto-team
     vit_skip_orchestrator: bool = False  # True = geen intent/team (interne team-stappen)
-    vit_tradeoff: str | None = None  # quality | cost | latency
-    vit_critic: bool | None = None  # None = config/auto; False = skip critic
-    vit_session_id: str | None = None  # gedeeld geheugen / conversatie over modelwissel
-    agent_mode: str | None = None  # agent | plan | ask (Cursor/Claude Code parity)
+    vit_tradeoff: Optional[str] = None  # quality | cost | latency
+    vit_critic: Optional[bool] = None  # None = config/auto; False = skip critic
+    vit_session_id: Optional[str] = None  # gedeeld geheugen / conversatie over modelwissel
+    agent_mode: Optional[str] = None  # agent | plan | ask (Cursor/Claude Code parity)
 
 
-def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
+def _auth(authorization: Optional[str] = Header(default=None), x_api_key: Optional[str] = Header(default=None)) -> None:
     token = get_settings().vit_gateway_token
     if not token:
         return
