@@ -703,10 +703,50 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
   color: var(--ink);
   letter-spacing: 0.02em;
 }
+.ext-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.45rem 0 0.65rem;
+}
+.ext-tab {
+  flex: 1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ext-tab.on {
+  background: var(--accent-soft, #e8f2d8);
+  color: var(--accent-deep, #3d6b0f);
+  border-color: transparent;
+}
+.ext-pane { display: none; flex-direction: column; gap: 0.45rem; }
+.ext-pane.on { display: flex; }
+.ext-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.35rem;
+}
+.ext-chip {
+  font-size: 0.68rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ext-chip:hover { border-color: var(--accent-deep, #5a8f12); }
+.ext-chip:disabled { opacity: 0.5; cursor: wait; }
 #fold-ext textarea {
   width: 100%;
   resize: vertical;
-  min-height: 4.5rem;
+  min-height: 3.5rem;
   font-family: var(--mono);
   font-size: 0.72rem;
   border: 1px solid var(--line);

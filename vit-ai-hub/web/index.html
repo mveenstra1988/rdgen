@@ -413,48 +413,71 @@
       <details class="side-fold" open id="fold-ext">
         <summary>Uitbreidingen</summary>
         <div class="fold-body">
-          <p class="muted tiny">Skills, MCP-servers en extra apps — zelf toevoegen.</p>
+          <p class="muted tiny">Skills · MCP · apps — één klik of upload.</p>
           <pre id="ext-overview" class="mac-profile-box muted">Laden…</pre>
-
-          <h4 class="ext-h">Skill toevoegen</h4>
-          <label class="field"><span>Naam</span>
-            <input id="ext-skill-name" type="text" placeholder="mijn-skill" autocomplete="off" /></label>
-          <label class="field"><span>Beschrijving</span>
-            <input id="ext-skill-desc" type="text" placeholder="Wat doet deze skill?" autocomplete="off" /></label>
-          <label class="field"><span>Inhoud (markdown)</span>
-            <textarea id="ext-skill-body" rows="4" placeholder="Instructies voor de agent…"></textarea></label>
-          <div class="side-actions">
-            <button type="button" id="ext-skill-add" class="primary">Skill opslaan</button>
-            <button type="button" id="ext-skill-refresh" class="ghost">↻ Skills</button>
+          <div class="ext-tabs" role="tablist">
+            <button type="button" class="ext-tab on" data-ext-tab="skills">Skills</button>
+            <button type="button" class="ext-tab" data-ext-tab="mcp">MCP</button>
+            <button type="button" class="ext-tab" data-ext-tab="apps">Apps</button>
           </div>
-          <pre id="ext-skills-list" class="meta tiny muted account-list"></pre>
 
-          <h4 class="ext-h">MCP-server</h4>
-          <label class="field"><span>Naam</span>
-            <input id="ext-mcp-name" type="text" placeholder="filesystem" autocomplete="off" /></label>
-          <label class="field"><span>Command</span>
-            <input id="ext-mcp-cmd" type="text" placeholder="npx" autocomplete="off" /></label>
-          <label class="field"><span>Args</span>
-            <input id="ext-mcp-args" type="text" placeholder="-y @modelcontextprotocol/server-filesystem /pad" autocomplete="off" /></label>
-          <label class="field"><span>URL (SSE, optioneel)</span>
-            <input id="ext-mcp-url" type="text" placeholder="https://…" autocomplete="off" /></label>
-          <div class="side-actions">
-            <button type="button" id="ext-mcp-add" class="primary">MCP toevoegen</button>
-            <button type="button" id="ext-mcp-refresh" class="ghost">↻ MCP</button>
+          <div class="ext-pane on" data-ext-pane="skills">
+            <p class="muted tiny">Templates of upload SKILL.md</p>
+            <div id="ext-skill-presets" class="ext-chips"></div>
+            <label class="field"><span>Of upload SKILL.md</span>
+              <input id="ext-skill-file" type="file" accept=".md,text/markdown,text/plain" /></label>
+            <label class="field"><span>Naam</span>
+              <input id="ext-skill-name" type="text" placeholder="mijn-skill" autocomplete="off" /></label>
+            <label class="field"><span>Beschrijving</span>
+              <input id="ext-skill-desc" type="text" placeholder="Wat doet deze skill?" autocomplete="off" /></label>
+            <label class="field"><span>Inhoud</span>
+              <textarea id="ext-skill-body" rows="3" placeholder="Instructies…"></textarea></label>
+            <div class="side-actions">
+              <button type="button" id="ext-skill-add" class="primary">Opslaan</button>
+              <button type="button" id="ext-skill-import" class="ghost">Importeer Claude/Cursor</button>
+              <button type="button" id="ext-skill-refresh" class="ghost">↻</button>
+            </div>
+            <pre id="ext-skills-list" class="meta tiny muted account-list"></pre>
           </div>
-          <pre id="ext-mcp-list" class="meta tiny muted account-list"></pre>
 
-          <h4 class="ext-h">Extra app</h4>
-          <label class="field"><span>Weergavenaam</span>
-            <input id="ext-app-name" type="text" placeholder="Slack" autocomplete="off" /></label>
-          <label class="field"><span>macOS app-naam</span>
-            <input id="ext-app-launch" type="text" placeholder="Slack" autocomplete="off" /></label>
-          <label class="field"><span>Aliassen</span>
-            <input id="ext-app-aliases" type="text" placeholder="chat, slack app" autocomplete="off" /></label>
-          <label class="field"><span>Web (fallback)</span>
-            <input id="ext-app-web" type="url" placeholder="https://…" autocomplete="off" /></label>
-          <div class="side-actions">
-            <button type="button" id="ext-app-add" class="primary">App koppelen</button>
+          <div class="ext-pane" data-ext-pane="mcp">
+            <p class="muted tiny">Preset of plak Cursor <code>mcp.json</code></p>
+            <div id="ext-mcp-presets" class="ext-chips"></div>
+            <label class="field"><span>Plak mcp.json</span>
+              <textarea id="ext-mcp-json" rows="3" placeholder='{"mcpServers":{"…":{"command":"npx","args":[]}}}'></textarea></label>
+            <div class="side-actions">
+              <button type="button" id="ext-mcp-json-add" class="primary">JSON importeren</button>
+            </div>
+            <h4 class="ext-h">Handmatig</h4>
+            <label class="field"><span>Naam</span>
+              <input id="ext-mcp-name" type="text" placeholder="filesystem" autocomplete="off" /></label>
+            <label class="field"><span>Command</span>
+              <input id="ext-mcp-cmd" type="text" placeholder="npx" autocomplete="off" /></label>
+            <label class="field"><span>Args</span>
+              <input id="ext-mcp-args" type="text" placeholder="-y @modelcontextprotocol/server-filesystem /pad" autocomplete="off" /></label>
+            <label class="field"><span>URL (SSE)</span>
+              <input id="ext-mcp-url" type="text" placeholder="https://…" autocomplete="off" /></label>
+            <div class="side-actions">
+              <button type="button" id="ext-mcp-add" class="primary">MCP toevoegen</button>
+              <button type="button" id="ext-mcp-refresh" class="ghost">↻</button>
+            </div>
+            <pre id="ext-mcp-list" class="meta tiny muted account-list"></pre>
+          </div>
+
+          <div class="ext-pane" data-ext-pane="apps">
+            <p class="muted tiny">Koppel Mac-apps die de agent mag openen</p>
+            <div id="ext-app-presets" class="ext-chips"></div>
+            <label class="field"><span>Weergavenaam</span>
+              <input id="ext-app-name" type="text" placeholder="Slack" autocomplete="off" /></label>
+            <label class="field"><span>macOS app-naam</span>
+              <input id="ext-app-launch" type="text" placeholder="Slack" autocomplete="off" /></label>
+            <label class="field"><span>Aliassen</span>
+              <input id="ext-app-aliases" type="text" placeholder="chat, slack" autocomplete="off" /></label>
+            <label class="field"><span>Web</span>
+              <input id="ext-app-web" type="url" placeholder="https://…" autocomplete="off" /></label>
+            <div class="side-actions">
+              <button type="button" id="ext-app-add" class="primary">App koppelen</button>
+            </div>
           </div>
           <p class="muted tiny" id="ext-msg"></p>
         </div>

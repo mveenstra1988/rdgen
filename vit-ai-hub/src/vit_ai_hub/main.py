@@ -1412,6 +1412,28 @@ async def api_add_skill(body: dict[str, Any], _: None = Depends(_auth)) -> dict[
     )
 
 
+@app.post("/api/skills/template")
+async def api_skill_template(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.extensions import add_skill_template
+
+    return add_skill_template(str(body.get("id") or body.get("template") or ""))
+
+
+@app.post("/api/skills/upload")
+async def api_skill_upload(
+    file: UploadFile = File(...),
+    _: None = Depends(_auth),
+) -> dict[str, Any]:
+    from vit_ai_hub.extensions import import_skill_markdown
+
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("utf-8", errors="replace")
+    return import_skill_markdown(text, filename=file.filename or "")
+
+
 @app.post("/api/import/skills")
 async def api_import_skills(_: None = Depends(_auth)) -> dict[str, Any]:
     from vit_ai_hub.importing.skills import harvest_skills
@@ -1443,7 +1465,19 @@ async def api_mcp_servers(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.post("/api/mcp/servers")
 async def api_mcp_add(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
-    from vit_ai_hub.extensions import add_mcp_server
+    from vit_ai_hub.extensions import add_mcp_server, add_mcp_preset, import_mcp_json
+
+    # preset: {"preset":"filesystem"}
+    if body.get("preset"):
+        return add_mcp_preset(
+            str(body["preset"]),
+            extra_args=str(body.get("extra_args") or ""),
+            env=body.get("env") if isinstance(body.get("env"), dict) else None,
+        )
+    # paste Cursor mcp.json
+    if body.get("mcpServers") or body.get("json"):
+        raw = body.get("json") if body.get("json") else body
+        return import_mcp_json(raw if isinstance(raw, (dict, str)) else str(raw))
 
     args = body.get("args")
     return add_mcp_server(
@@ -1478,8 +1512,10 @@ async def api_ext_apps(_: None = Depends(_auth)) -> dict[str, Any]:
 
 @app.post("/api/extensions/apps")
 async def api_ext_apps_add(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
-    from vit_ai_hub.extensions import add_custom_app
+    from vit_ai_hub.extensions import add_app_preset, add_custom_app
 
+    if body.get("preset"):
+        return add_app_preset(str(body["preset"]))
     return add_custom_app(
         name=str(body.get("name") or ""),
         app_name=str(body.get("app_name") or body.get("app") or ""),

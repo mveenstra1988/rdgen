@@ -14,6 +14,91 @@ HUB_MCP = ROOT / "data" / "mcp.json"
 HUB_SKILLS_DIR = ROOT / "data" / "skills"
 CUSTOM_APPS = ROOT / "data" / "custom_apps.json"
 
+# One-click MCP presets (stdio; user kan args aanpassen)
+MCP_PRESETS: dict[str, dict[str, Any]] = {
+    "filesystem": {
+        "label": "Filesystem",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", str(Path.home())],
+        "blurb": "Lees/schrijf bestanden (home)",
+    },
+    "memory": {
+        "label": "Memory (MCP)",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-memory"],
+        "blurb": "Persistente knowledge graph",
+    },
+    "fetch": {
+        "label": "Fetch",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-fetch"],
+        "blurb": "HTTP fetch tool",
+    },
+    "github": {
+        "label": "GitHub",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "blurb": "Repos GITHUB_PERSONAL_ACCESS_TOKEN in env",
+        "env_hint": "GITHUB_PERSONAL_ACCESS_TOKEN",
+    },
+    "brave-search": {
+        "label": "Brave Search",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+        "blurb": "Web search · BRAVE_API_KEY",
+        "env_hint": "BRAVE_API_KEY",
+    },
+    "sqlite": {
+        "label": "SQLite",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", str(Path.home() / "Library/Application Support")],
+        "blurb": "SQLite queries",
+    },
+}
+
+APP_PRESETS: list[dict[str, Any]] = [
+    {"name": "Slack", "app_name": "Slack", "aliases": "slack,chat", "web": "https://app.slack.com"},
+    {"name": "Notion", "app_name": "Notion", "aliases": "notion", "web": "https://www.notion.so"},
+    {"name": "Figma", "app_name": "Figma", "aliases": "figma", "web": "https://www.figma.com"},
+    {"name": "Spotify", "app_name": "Spotify", "aliases": "spotify,muziek"},
+    {"name": "Terminal", "app_name": "Terminal", "aliases": "terminal,shell"},
+    {"name": "Finder", "app_name": "Finder", "aliases": "finder"},
+    {"name": "Safari", "app_name": "Safari", "aliases": "safari"},
+    {"name": "Chrome", "app_name": "Google Chrome", "aliases": "chrome,browser"},
+    {"name": "VS Code", "app_name": "Visual Studio Code", "aliases": "vscode,code"},
+    {"name": "Cursor", "app_name": "Cursor", "aliases": "cursor"},
+]
+
+SKILL_TEMPLATES: list[dict[str, str]] = [
+    {
+        "id": "code-review",
+        "name": "Code review",
+        "description": "Scherpe PR/diff review",
+        "content": (
+            "Review diffs op bugs, security, performance en leesbaarheid.\n"
+            "Output: (1) kritiek (2) verbeteringen (3) nitpicks. Geen lof zonder inhoud."
+        ),
+    },
+    {
+        "id": "commit-msg",
+        "name": "Commit message",
+        "description": "Conventional commits NL/EN",
+        "content": (
+            "Schrijf één commit message: type(scope): subject.\n"
+            "Types: feat, fix, docs, refactor, test, chore. Max 72 tekens subject."
+        ),
+    },
+    {
+        "id": "nl-zakelijk",
+        "name": "NL zakelijk",
+        "description": "Nederlandse B2B toon",
+        "content": (
+            "Schrijf in helder Nederlands, kort, geen corporate fluff.\n"
+            "Spreekbaar in een salesgesprek. Geen anglicismen tenzij nodig."
+        ),
+    },
+]
+
 
 def _slug(name: str) -> str:
     s = re.sub(r"[^a-zA-Z0-9._-]+", "-", (name or "").strip()).strip("-").lower()
@@ -260,4 +345,116 @@ def extensions_overview() -> dict[str, Any]:
         "skills": {"count": len(skills.get("catalog") or []), "on_disk": len(skills.get("on_disk") or [])},
         "mcp": {"count": len((mcp.get("hub_servers") or {})), "active_path": (mcp.get("active") or {}).get("path")},
         "custom_apps": {"count": len(apps.get("apps") or [])},
+        "presets": {
+            "mcp": [
+                {"id": k, "label": v["label"], "blurb": v.get("blurb", ""), "env_hint": v.get("env_hint")}
+                for k, v in MCP_PRESETS.items()
+            ],
+            "apps": APP_PRESETS,
+            "skills": SKILL_TEMPLATES,
+        },
     }
+
+
+def add_mcp_preset(preset_id: str, *, extra_args: str = "", env: dict[str, str] | None = None) -> dict[str, Any]:
+    key = (preset_id or "").strip().lower()
+    preset = MCP_PRESETS.get(key)
+    if not preset:
+        return {"ok": False, "error": f"onbekend preset: {preset_id}", "known": sorted(MCP_PRESETS)}
+    args = list(preset.get("args") or [])
+    if extra_args.strip():
+        args.extend(a for a in extra_args.split() if a)
+    return add_mcp_server(
+        name=key,
+        command=str(preset["command"]),
+        args=args,
+        env=env,
+    )
+
+
+def import_mcp_json(raw: str | dict[str, Any]) -> dict[str, Any]:
+    """Plak Cursor/Claude mcp.json ({mcpServers:{...}})."""
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            return {"ok": False, "error": f"ongeldige JSON: {exc}"}
+    else:
+        data = raw
+    servers = data.get("mcpServers") or data.get("servers") or data
+    if not isinstance(servers, dict):
+        return {"ok": False, "error": "verwacht object mcpServers"}
+    added = []
+    errors = []
+    for name, cfg in servers.items():
+        if not isinstance(cfg, dict):
+            errors.append({"name": name, "error": "geen object"})
+            continue
+        out = add_mcp_server(
+            name=str(name),
+            command=str(cfg.get("command") or ""),
+            args=cfg.get("args") or [],
+            url=str(cfg.get("url") or ""),
+            env=cfg.get("env") if isinstance(cfg.get("env"), dict) else None,
+        )
+        if out.get("ok"):
+            added.append(out["name"])
+        else:
+            errors.append({"name": name, "error": out.get("error")})
+    return {"ok": bool(added), "added": added, "errors": errors, "count": len(added)}
+
+
+def import_skill_markdown(text: str, *, filename: str = "") -> dict[str, Any]:
+    """SKILL.md of losse markdown → skill."""
+    raw = (text or "").strip()
+    if not raw:
+        return {"ok": False, "error": "lege inhoud"}
+    name = Path(filename).stem if filename else ""
+    description = ""
+    body = raw
+    if raw.startswith("---"):
+        parts = raw.split("---", 2)
+        if len(parts) >= 3:
+            fm, body = parts[1], parts[2].strip()
+            for line in fm.splitlines():
+                if ":" in line:
+                    k, _, v = line.partition(":")
+                    k, v = k.strip().lower(), v.strip().strip("\"'")
+                    if k in {"name", "title"} and v:
+                        name = v
+                    elif k in {"description", "desc"} and v:
+                        description = v
+    if not name:
+        for line in body.splitlines():
+            if line.startswith("# "):
+                name = line[2:].strip()
+                break
+    if not name:
+        name = "imported-skill"
+    return add_skill(name=name, description=description, content=body, promote_agent=True)
+
+
+def add_skill_template(template_id: str) -> dict[str, Any]:
+    tid = (template_id or "").strip().lower()
+    for t in SKILL_TEMPLATES:
+        if t["id"] == tid or t["name"].lower() == tid:
+            return add_skill(
+                name=t["name"],
+                description=t["description"],
+                content=t["content"],
+                promote_agent=True,
+            )
+    return {"ok": False, "error": f"onbekende template: {template_id}", "known": [t["id"] for t in SKILL_TEMPLATES]}
+
+
+def add_app_preset(name: str) -> dict[str, Any]:
+    q = (name or "").strip().lower()
+    for p in APP_PRESETS:
+        if p["name"].lower() == q or _slug(p["name"]) == _slug(name):
+            return add_custom_app(
+                name=p["name"],
+                app_name=p.get("app_name") or p["name"],
+                aliases=p.get("aliases") or "",
+                web=p.get("web") or "",
+            )
+    return {"ok": False, "error": f"onbekende app-preset: {name}", "known": [p["name"] for p in APP_PRESETS]}

@@ -1,9 +1,8 @@
-# Morgen — VIT AI Hub 2.5.0
+# Morgen — VIT AI Hub 2.5.1
 
-1. Open `dist/VIT-AI-Hub-2.5.0-mac.dmg` of `/?wizard=1`
-2. Wizard: Gemini-key + Claude/Code/Codex/ChatGPT login → auto-save per stap
-3. Composer: Agent | Plan | Ask · of typ `/plan` `/ask`
-4. Projectmap zetten → AGENTS.md/CLAUDE.md laden automatisch
-5. Sidebar Uitbreidingen: skills / MCP / apps
+1. ⚙ → **Uitbreidingen** → tabs Skills / MCP / Apps
+2. Skills: chip-template · upload SKILL.md · Importeer Claude/Cursor
+3. MCP: chip-presets · plak mcp.json · handmatig
+4. Apps: Slack/Notion/Cursor/… chips of zelf koppelen
 
-Zie `docs/PARITY.md` voor wat wel/niet 1:1 is met Cursor/Claude Code.
+2.5.1: makkelijk skills/MCP/apps toevoegen

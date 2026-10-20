@@ -956,6 +956,28 @@ async function refreshVitApps() {
 
 document.getElementById("vit-apps-refresh")?.addEventListener("click", () => refreshVitApps());
 
+function extMsg(text) {
+  const msg = document.getElementById("ext-msg");
+  if (msg) msg.textContent = text || "";
+}
+
+function renderExtChips(hostId, items, onClick) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  host.innerHTML = "";
+  for (const item of items || []) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ext-chip";
+    btn.textContent = item.label || item.name || item.id;
+    btn.title = item.blurb || item.description || "";
+    btn.addEventListener("click", () => onClick(item, btn));
+    host.appendChild(btn);
+  }
+}
+
+let _extPresets = { mcp: [], apps: [], skills: [] };
+
 async function refreshExtensions() {
   const ov = document.getElementById("ext-overview");
   const skillsBox = document.getElementById("ext-skills-list");
@@ -969,56 +991,185 @@ async function refreshExtensions() {
     const overview = await ovRes.json();
     const skills = await skRes.json();
     const mcp = await mcpRes.json();
+    _extPresets = overview.presets || _extPresets;
     if (ov) {
       ov.textContent = [
-        `Skills: ${overview.skills?.count ?? 0} in catalogus · ${overview.skills?.on_disk ?? 0} op schijf`,
-        `MCP: ${overview.mcp?.count ?? 0} hub-managed`,
-        `Extra apps: ${overview.custom_apps?.count ?? 0}`,
+        `Skills: ${overview.skills?.count ?? 0} · MCP: ${overview.mcp?.count ?? 0} · Apps: ${overview.custom_apps?.count ?? 0}`,
+        "Klik een chip → klaar. Of upload / plak JSON.",
       ].join("\n");
     }
+    renderExtChips("ext-skill-presets", _extPresets.skills, async (t, btn) => {
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/skills/template", {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ id: t.id }),
+        });
+        const data = await res.json();
+        extMsg(data.ok ? `Skill «${data.name}» toegevoegd` : data.error || "mislukt");
+        if (data.ok) refreshExtensions();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    renderExtChips("ext-mcp-presets", _extPresets.mcp, async (p, btn) => {
+      btn.disabled = true;
+      try {
+        const res = await fetch("/api/mcp/servers", {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ preset: p.id }),
+        });
+        const data = await res.json();
+        extMsg(
+          data.ok
+            ? `MCP «${data.name}» · ${p.env_hint ? "zet " + p.env_hint + " in secrets" : "klaar"}`
+            : data.error || "mislukt"
+        );
+        if (data.ok) refreshExtensions();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    renderExtChips(
+      "ext-app-presets",
+      (_extPresets.apps || []).map((a) => ({ ...a, label: a.name, id: a.name })),
+      async (a, btn) => {
+        btn.disabled = true;
+        try {
+          const res = await fetch("/api/extensions/apps", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({ preset: a.name }),
+          });
+          const data = await res.json();
+          extMsg(data.ok ? `App «${data.app?.name}» gekoppeld` : data.error || "mislukt");
+          if (data.ok) {
+            refreshExtensions();
+            refreshVitApps();
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      }
+    );
     if (skillsBox) {
-      const rows = (skills.catalog || skills.skills || []).slice(0, 12);
+      const rows = (skills.catalog || skills.skills || []).slice(0, 16);
       skillsBox.textContent = rows.length
-        ? rows.map((s) => `• ${s.name}${s.description ? " — " + s.description.slice(0, 48) : ""}`).join("\n")
-        : "Nog geen skills — voeg er één toe of importeer.";
+        ? rows.map((s) => `• ${s.name}${s.description ? " — " + s.description.slice(0, 40) : ""}`).join("\n")
+        : "Nog geen skills — kies een template of upload SKILL.md.";
     }
     if (mcpBox) {
       const servers = mcp.active?.servers || Object.keys(mcp.hub_servers || {}).map((n) => ({ name: n }));
       mcpBox.textContent = servers.length
         ? servers.map((s) => `• ${s.name}${s.command ? " · " + s.command : s.has_url ? " · url" : ""}`).join("\n")
-        : "Nog geen MCP — voeg command of URL toe.";
+        : "Nog geen MCP — klik een preset.";
     }
   } catch {
     if (ov) ov.textContent = "Uitbreidingen niet geladen.";
   }
 }
 
+document.querySelectorAll("[data-ext-tab]").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const id = tab.getAttribute("data-ext-tab");
+    document.querySelectorAll("[data-ext-tab]").forEach((t) => t.classList.toggle("on", t === tab));
+    document.querySelectorAll("[data-ext-pane]").forEach((p) => {
+      p.classList.toggle("on", p.getAttribute("data-ext-pane") === id);
+    });
+  });
+});
+
 document.getElementById("ext-skill-add")?.addEventListener("click", async () => {
-  const msg = document.getElementById("ext-msg");
-  const name = document.getElementById("ext-skill-name")?.value || "";
-  const description = document.getElementById("ext-skill-desc")?.value || "";
-  const content = document.getElementById("ext-skill-body")?.value || "";
   try {
     const res = await fetch("/api/skills", {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ name, description, content }),
+      body: JSON.stringify({
+        name: document.getElementById("ext-skill-name")?.value || "",
+        description: document.getElementById("ext-skill-desc")?.value || "",
+        content: document.getElementById("ext-skill-body")?.value || "",
+      }),
     });
     const data = await res.json();
-    if (msg) msg.textContent = data.ok ? `Skill «${data.name}» opgeslagen` : data.error || "mislukt";
+    extMsg(data.ok ? `Skill «${data.name}» opgeslagen` : data.error || "mislukt");
     if (data.ok) {
-      document.getElementById("ext-skill-name").value = "";
-      document.getElementById("ext-skill-desc").value = "";
-      document.getElementById("ext-skill-body").value = "";
+      ["ext-skill-name", "ext-skill-desc", "ext-skill-body"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
       refreshExtensions();
     }
   } catch (e) {
-    if (msg) msg.textContent = String(e);
+    extMsg(String(e));
+  }
+});
+
+document.getElementById("ext-skill-file")?.addEventListener("change", async (ev) => {
+  const file = ev.target?.files?.[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const h = headers();
+    delete h["Content-Type"];
+    const res = await fetch("/api/skills/upload", { method: "POST", headers: h, body: fd });
+    const data = await res.json();
+    extMsg(data.ok ? `Geüpload: «${data.name}»` : data.error || "upload mislukt");
+    if (data.ok) refreshExtensions();
+  } catch (e) {
+    extMsg(String(e));
+  }
+  ev.target.value = "";
+});
+
+document.getElementById("ext-skill-import")?.addEventListener("click", async () => {
+  extMsg("Claude/Cursor skills importeren…");
+  try {
+    const res = await fetch("/api/import/skills", { method: "POST", headers: headers() });
+    const data = await res.json();
+    extMsg(
+      `Import: ${data.found || 0} gevonden · ${data.skills?.written || 0} nieuw` +
+        (data.agents_promoted ? ` · ${data.agents_promoted.written || 0} agents` : "")
+    );
+    refreshExtensions();
+  } catch (e) {
+    extMsg(String(e));
+  }
+});
+
+document.getElementById("ext-mcp-json-add")?.addEventListener("click", async () => {
+  const raw = document.getElementById("ext-mcp-json")?.value || "";
+  try {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      extMsg("Ongeldige JSON");
+      return;
+    }
+    const res = await fetch("/api/mcp/servers", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(parsed),
+    });
+    const data = await res.json();
+    extMsg(
+      data.ok || data.added?.length
+        ? `MCP geïmporteerd: ${(data.added || [data.name]).filter(Boolean).join(", ")}`
+        : data.error || "mislukt"
+    );
+    if (data.ok || data.added?.length) {
+      document.getElementById("ext-mcp-json").value = "";
+      refreshExtensions();
+    }
+  } catch (e) {
+    extMsg(String(e));
   }
 });
 
 document.getElementById("ext-mcp-add")?.addEventListener("click", async () => {
-  const msg = document.getElementById("ext-msg");
   try {
     const res = await fetch("/api/mcp/servers", {
       method: "POST",
@@ -1031,7 +1182,7 @@ document.getElementById("ext-mcp-add")?.addEventListener("click", async () => {
       }),
     });
     const data = await res.json();
-    if (msg) msg.textContent = data.ok ? `MCP «${data.name}» toegevoegd` : data.error || "mislukt";
+    extMsg(data.ok ? `MCP «${data.name}» toegevoegd` : data.error || "mislukt");
     if (data.ok) {
       ["ext-mcp-name", "ext-mcp-cmd", "ext-mcp-args", "ext-mcp-url"].forEach((id) => {
         const el = document.getElementById(id);
@@ -1040,12 +1191,11 @@ document.getElementById("ext-mcp-add")?.addEventListener("click", async () => {
       refreshExtensions();
     }
   } catch (e) {
-    if (msg) msg.textContent = String(e);
+    extMsg(String(e));
   }
 });
 
 document.getElementById("ext-app-add")?.addEventListener("click", async () => {
-  const msg = document.getElementById("ext-msg");
   try {
     const res = await fetch("/api/extensions/apps", {
       method: "POST",
@@ -1058,7 +1208,7 @@ document.getElementById("ext-app-add")?.addEventListener("click", async () => {
       }),
     });
     const data = await res.json();
-    if (msg) msg.textContent = data.ok ? `App «${data.app?.name}» gekoppeld` : data.error || "mislukt";
+    extMsg(data.ok ? `App «${data.app?.name}» gekoppeld` : data.error || "mislukt");
     if (data.ok) {
       ["ext-app-name", "ext-app-launch", "ext-app-aliases", "ext-app-web"].forEach((id) => {
         const el = document.getElementById(id);
@@ -1068,7 +1218,7 @@ document.getElementById("ext-app-add")?.addEventListener("click", async () => {
       refreshVitApps();
     }
   } catch (e) {
-    if (msg) msg.textContent = String(e);
+    extMsg(String(e));
   }
 });
 
