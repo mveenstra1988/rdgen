@@ -148,7 +148,25 @@
     const box = overlay.querySelector("#wiz-bridge-status");
     const msg = overlay.querySelector("#wiz-bridge-msg");
     try {
-      // Geen await op install-auto — anders lijkt de UI dood
+      // Eerst health — anders "Failed to fetch" zonder uitleg
+      let healthOk = false;
+      try {
+        const h = await fetch("/health", { cache: "no-store" });
+        healthOk = h.ok;
+      } catch (_) {
+        healthOk = false;
+      }
+      if (!healthOk) {
+        if (box) {
+          box.textContent =
+            "HUB OFFLINE — server draait niet.\n" +
+            "Sluit dit venster. In Terminal:\n" +
+            "  bash /tmp/vit-fix.sh\n" +
+            "(eerst: curl -L -o /tmp/vit-fix.sh … zie chat)";
+        }
+        setMsg("Hub offline. Start opnieuw via Terminal (vit-fix.sh).");
+        return;
+      }
       const res = await fetch("/api/setup/probe");
       const d = await res.json();
       applyToken(d);
