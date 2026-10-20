@@ -140,16 +140,21 @@ async def run_team(
         }
 
     if mode == "board":
-        # iedereen parallel-achtig (sequentieel in process, zelfde brief), daarna lead synthesize
-        board_outs: list[dict[str, Any]] = []
-        for m in members:
+        # echte parallelle board-run, daarna lead synthesize
+        import asyncio
+
+        async def _board_member(m: dict[str, Any]) -> dict[str, Any]:
             agent = get_agent(m["agent_id"])
             label = m.get("label") or (agent or {}).get("name") or m["agent_id"]
-            out = await _run_one(
+            return await _run_one(
                 m["agent_id"],
                 f"{task}\n\nGeef jouw specialisten-bijdrage (kort en bruikbaar).",
                 label,
             )
+
+        board_results = await asyncio.gather(*[_board_member(m) for m in members])
+        board_outs: list[str] = []
+        for out in board_results:
             steps.append(out)
             if out.get("ok") and out.get("content"):
                 board_outs.append(f"## {out.get('agent_name')}\n{out['content']}")

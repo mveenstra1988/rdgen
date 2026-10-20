@@ -192,6 +192,64 @@ def list_skills(*, limit: int = 200) -> list[dict[str, Any]]:
     return out
 
 
+def list_conversations(
+    *,
+    limit: int = 40,
+    source: str | None = None,
+    q: str | None = None,
+) -> list[dict[str, Any]]:
+    """Recente geïmporteerde chats (ChatGPT/Claude/…) voor browser + reopen."""
+    if not CONVERSATIONS.is_file():
+        return []
+    q_lower = (q or "").strip().lower()
+    src = (source or "").strip().lower() or None
+    rows: list[dict[str, Any]] = []
+    with CONVERSATIONS.open(encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if src and str(row.get("source") or "").lower() != src:
+                continue
+            title = str(row.get("title") or "Untitled")
+            if q_lower and q_lower not in title.lower() and q_lower not in json.dumps(
+                row.get("messages") or [], ensure_ascii=False
+            ).lower():
+                continue
+            msgs = row.get("messages") or []
+            preview = ""
+            for m in msgs[:2]:
+                preview += f"{m.get('role')}: {str(m.get('content') or '')[:120]} "
+            rows.append(
+                {
+                    "id": row.get("id"),
+                    "source": row.get("source"),
+                    "title": title,
+                    "updated_at": row.get("updated_at") or row.get("imported_at"),
+                    "message_count": len(msgs),
+                    "preview": preview.strip()[:240],
+                }
+            )
+    rows.sort(key=lambda r: float(r.get("updated_at") or 0), reverse=True)
+    return rows[: max(1, min(200, limit))]
+
+
+def get_imported_conversation(conv_id: str) -> dict[str, Any] | None:
+    cid = (conv_id or "").strip()
+    if not cid or not CONVERSATIONS.is_file():
+        return None
+    with CONVERSATIONS.open(encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("id") == cid:
+                return row
+    return None
+
+
 def log_import(summary: dict[str, Any]) -> None:
     _append_jsonl(IMPORT_LOG, [{**summary, "ts": time.time()}])
 

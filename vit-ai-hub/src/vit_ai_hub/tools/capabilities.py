@@ -142,7 +142,7 @@ def tool_specs() -> list[dict[str, Any]]:
                 "type": "function",
                 "function": {
                     "name": "write_workspace_file",
-                    "description": "Schrijf/update een tekstbestand in de allowlisted workspace (geen .env/secrets).",
+                    "description": "Schrijf/update een tekstbestand in de allowlisted workspace (geen .env/secrets). Prefer search_replace voor kleine edits.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -159,8 +159,69 @@ def tool_specs() -> list[dict[str, Any]]:
             {
                 "type": "function",
                 "function": {
+                    "name": "search_replace",
+                    "description": "Cursor-achtige gerichte patch: vervang exacte old_str door new_str in een bestand.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "old_str": {"type": "string"},
+                            "new_str": {"type": "string"},
+                            "replace_all": {"type": "boolean"},
+                            "workspace": {"type": "string"},
+                        },
+                        "required": ["path", "old_str", "new_str"],
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "codebase_search",
+                    "description": "@codebase: zoek tekst/symbolen in de workspace (ripgrep).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "glob": {"type": "string", "description": "bijv. *.py"},
+                            "workspace": {"type": "string"},
+                            "limit": {"type": "integer"},
+                        },
+                        "required": ["query"],
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "git_commit",
+                    "description": "Veilige git add + commit in workspace (geen force/hard reset).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "message": {"type": "string"},
+                            "paths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Optioneel: alleen deze paden stagen",
+                            },
+                            "workspace": {"type": "string"},
+                        },
+                        "required": ["message"],
+                    },
+                },
+            }
+        )
+        tools.append(
+            {
+                "type": "function",
+                "function": {
                     "name": "run_in_workspace",
-                    "description": "Run allowlisted commando in workspace (pytest, npm, git status/diff, …).",
+                    "description": "Run allowlisted commando (pytest, npm, git status/diff/add/commit/push, rg, …). Geen force-git.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -291,6 +352,44 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
                 str(arguments.get("path", "")).strip(),
                 content,
                 workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "search_replace":
+        from vit_ai_hub.workspace import search_replace
+
+        return json.dumps(
+            search_replace(
+                str(arguments.get("path", "")).strip(),
+                str(arguments.get("old_str", "")),
+                str(arguments.get("new_str", "")),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                replace_all=bool(arguments.get("replace_all")),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "codebase_search":
+        from vit_ai_hub.workspace import codebase_search
+
+        return json.dumps(
+            codebase_search(
+                str(arguments.get("query", "")).strip(),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                glob=(str(arguments["glob"]) if arguments.get("glob") else None),
+                limit=int(arguments.get("limit") or 40),
+            ),
+            ensure_ascii=False,
+        )
+    if name == "git_commit":
+        from vit_ai_hub.workspace import git_commit
+
+        paths = arguments.get("paths")
+        path_list = [str(p) for p in paths] if isinstance(paths, list) else None
+        return json.dumps(
+            git_commit(
+                str(arguments.get("message", "")).strip(),
+                workspace=(str(arguments["workspace"]) if arguments.get("workspace") else None),
+                paths=path_list,
             ),
             ensure_ascii=False,
         )

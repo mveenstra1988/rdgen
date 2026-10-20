@@ -15,15 +15,16 @@ Doel: Claude.ai, ChatGPT Plus en Cursor zo ver mogelijk vervangen door **VIT AI 
 
 ## Cursor (IDE-agent)
 
-De hub-GUI is géén volledige Cursor-vervanger (geen inline diffs in je editor).
+**2.0 in de hub:** studio **Code** = lange agent-loop (zoek → patch → test → commit), parallel teams, geen force-git. Dat dekt veel dagelijks agent-werk.
+
+Nog niet: inline diffs in een IDE, LSP, breakpoints. Voor editor-diepte: Continue/Zed → hub (`vit/auto`).
 
 **Pad naar exit:**
 1. Hub draaien (`:8787`)
-2. Knop **Continue→hub** of `scripts/export-continue-config.sh`
-3. VS Code of **Zed** + Continue-extensie → model `vit/auto`
-4. Studio **Software** + workspace `~/Projects/...` voor agent-achtig werk in de hub zelf
+2. Studio **Code** + projectpad — of knop **Continue→hub**
+3. VS Code/**Zed** + Continue als je tabs/LSP wilt
 
-**Opzeggen Cursor** pas als Continue/Zed + studio Software je dagelijkse flow dekt (refs, edits, tests).
+**Opzeggen Cursor** als Code-studio (of Continue→hub) je refs/edits/tests dekt.
 
 ## Figma
 

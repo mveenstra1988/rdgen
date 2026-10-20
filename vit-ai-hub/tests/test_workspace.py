@@ -1,6 +1,14 @@
 from pathlib import Path
 
-from vit_ai_hub.workspace import list_workspace_dir, read_workspace_file, run_in_workspace, write_workspace_file
+from vit_ai_hub.workspace import (
+    codebase_search,
+    git_commit,
+    list_workspace_dir,
+    read_workspace_file,
+    run_in_workspace,
+    search_replace,
+    write_workspace_file,
+)
 
 
 def test_write_read_roundtrip(tmp_path, monkeypatch):
@@ -41,6 +49,31 @@ def test_run_allowlist(tmp_path, monkeypatch):
     assert "4" in ok.get("stdout", "")
 
 
+def test_search_replace_and_codebase(tmp_path, monkeypatch):
+    import vit_ai_hub.workspace as ws
+
+    monkeypatch.setattr(ws, "default_roots", lambda: [tmp_path])
+    write_workspace_file("mod.py", "def foo():\n    return 1\n", workspace=str(tmp_path))
+    patch = search_replace(
+        "mod.py",
+        "return 1",
+        "return 2",
+        workspace=str(tmp_path),
+    )
+    assert patch["ok"] and patch["replacements"] == 1
+    assert "return 2" in read_workspace_file("mod.py", workspace=str(tmp_path))["content"]
+    hits = codebase_search("return 2", workspace=str(tmp_path))
+    assert hits.get("ok") and hits.get("count", 0) >= 1
+
+
+def test_git_force_denied(tmp_path, monkeypatch):
+    import vit_ai_hub.workspace as ws
+
+    monkeypatch.setattr(ws, "default_roots", lambda: [tmp_path])
+    denied = run_in_workspace("git push --force", workspace=str(tmp_path))
+    assert "error" in denied
+
+
 def test_studio_list():
     from vit_ai_hub.studio import list_studios, studio_system_prompt
 
@@ -51,3 +84,5 @@ def test_studio_list():
     assert "Penpot" in (studio_system_prompt("design") or "")
     assert "Proxmox" in (studio_system_prompt("ops") or "")
     assert "GEO" in (studio_system_prompt("seo") or "")
+    soft = studio_system_prompt("software") or ""
+    assert "search_replace" in soft and "codebase_search" in soft

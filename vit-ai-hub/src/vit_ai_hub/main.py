@@ -761,7 +761,7 @@ async def _handle_chat(body: ChatCompletionRequest):
         from vit_ai_hub.orchestrator.cascade import cascade_chat
 
         async def _one(dec, pl):
-            return await _chat_with_tools(dec, pl)
+            return await _chat_with_tools(dec, pl, studio=body.studio)
 
         def _res(mid: str):
             return router_engine.resolve(mid, force_local=force_local)
@@ -777,9 +777,9 @@ async def _handle_chat(body: ChatCompletionRequest):
             )
             decision = _res(cascade_meta.get("used_model") or decision.model)
         except Exception:
-            data = await _chat_with_tools(decision, payload)
+            data = await _chat_with_tools(decision, payload, studio=body.studio)
     else:
-        data = await _chat_with_tools(decision, payload)
+        data = await _chat_with_tools(decision, payload, studio=body.studio)
 
     # Maker-checker (critic) — Azure evaluator-optimizer pattern
     want_critic = False
@@ -868,6 +868,8 @@ async def _handle_chat(body: ChatCompletionRequest):
         except Exception as exc:
             memory_save = {"ok": False, "error": str(exc)}
 
+    tool_trace = data.pop("_vit_tool_trace", None)
+    tool_rounds = data.pop("_vit_tool_rounds", None)
     data["vit"] = {
         "backend": decision.backend.name,
         "model": decision.model,
@@ -884,6 +886,9 @@ async def _handle_chat(body: ChatCompletionRequest):
         "session_id": session_id,
         "shared_memory": bool(shared_memory),
         "memory_save": memory_save,
+        "agent_rounds": tool_rounds,
+        "tool_trace": tool_trace[-40:] if isinstance(tool_trace, list) else None,
+        "agent_max_rounds": _tool_max_rounds(body.studio),
     }
     return JSONResponse(data)
 
@@ -991,15 +996,36 @@ async def _handle_auto_team(body: ChatCompletionRequest, task: str, auto_plan) -
     return JSONResponse(data)
 
 
-async def _chat_with_tools(decision, payload: dict[str, Any], max_rounds: int = 4) -> dict[str, Any]:
+def _tool_max_rounds(studio: str | None, model: str | None = None) -> int:
+    """Software/self/apps: lange Cursor-achtige agent-loop; overig korter."""
+    s = (studio or "").strip().lower()
+    if s in {"software", "self", "apps", "webdesign"}:
+        return 28
+    if s in {"ops", "visual"}:
+        return 12
+    return 8
+
+
+async def _chat_with_tools(
+    decision,
+    payload: dict[str, Any],
+    max_rounds: int | None = None,
+    *,
+    studio: str | None = None,
+) -> dict[str, Any]:
+    rounds = max_rounds if max_rounds is not None else _tool_max_rounds(studio)
     data = await decision.backend.chat_completions(payload)
-    for _ in range(max_rounds):
+    tool_trace: list[dict[str, Any]] = []
+    for i in range(rounds):
         try:
             message = data["choices"][0]["message"]
         except Exception:
+            data["_vit_tool_trace"] = tool_trace
             return data
         tool_calls = message.get("tool_calls") or []
         if not tool_calls:
+            data["_vit_tool_trace"] = tool_trace
+            data["_vit_tool_rounds"] = i
             return data
         payload["messages"] = list(payload["messages"]) + [message]
         for call in tool_calls:
@@ -1011,6 +1037,7 @@ async def _chat_with_tools(decision, payload: dict[str, Any], max_rounds: int = 
             except json.JSONDecodeError:
                 args = {}
             result = await run_tool(name, args)
+            tool_trace.append({"round": i + 1, "tool": name, "ok": "error" not in (result or "")[:80]})
             payload["messages"].append(
                 {
                     "role": "tool",
@@ -1019,6 +1046,8 @@ async def _chat_with_tools(decision, payload: dict[str, Any], max_rounds: int = 
                 }
             )
         data = await decision.backend.chat_completions(payload)
+    data["_vit_tool_trace"] = tool_trace
+    data["_vit_tool_rounds"] = rounds
     return data
 
 
@@ -1290,6 +1319,47 @@ async def import_upload(
 @app.get("/api/knowledge/search")
 async def api_knowledge_search(q: str = "", _: None = Depends(_auth)) -> dict[str, Any]:
     return {"query": q, "hits": search_knowledge(q, limit=20)}
+
+
+@app.get("/api/knowledge/conversations")
+async def api_knowledge_conversations(
+    q: str = "",
+    source: str = "",
+    limit: int = 40,
+    _: None = Depends(_auth),
+) -> dict[str, Any]:
+    from vit_ai_hub.importing.store import list_conversations
+
+    return {
+        "ok": True,
+        "items": list_conversations(limit=limit, source=source or None, q=q or None),
+    }
+
+
+@app.get("/api/knowledge/conversations/{conv_id}")
+async def api_knowledge_conversation_get(conv_id: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.importing.store import get_imported_conversation
+
+    row = get_imported_conversation(conv_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="conversatie niet gevonden")
+    return {"ok": True, "conversation": row}
+
+
+@app.post("/api/import/zips-now")
+async def import_zips_now(_: None = Depends(_auth)) -> dict[str, Any]:
+    """Importeer alle gevonden ChatGPT/Claude export-zips nu (zonder wachten)."""
+    from vit_ai_hub.importing.pipeline import find_export_zips, import_file
+
+    found = find_export_zips()
+    out: dict[str, Any] = {"ok": True, "chatgpt": [], "claude": [], "errors": []}
+    for label in ("chatgpt", "claude"):
+        for path in (found.get(label) or [])[:5]:
+            try:
+                out[label].append({"file": str(path), **import_file(path, source=label)})
+            except Exception as exc:
+                out["errors"].append({"source": label, "file": str(path), "error": str(exc)})
+    return out
 
 
 @app.get("/api/memory/stats")

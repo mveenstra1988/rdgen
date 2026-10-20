@@ -76,6 +76,9 @@ const els = {
   localDetect: document.getElementById("local-detect"),
   requestExports: document.getElementById("request-exports"),
   waitExports: document.getElementById("wait-exports"),
+  importZipsNow: document.getElementById("import-zips-now"),
+  knowQ: document.getElementById("know-q"),
+  knowList: document.getElementById("know-list"),
   chatgptLive: document.getElementById("chatgpt-live"),
   claudeLive: document.getElementById("claude-live"),
   syncStart: document.getElementById("sync-start"),
@@ -553,8 +556,13 @@ els.form.addEventListener("submit", async (ev) => {
     state.messages.push({ role: "assistant", content });
     addBubble("assistant", content, data.vit || null);
     saveSessionMessages();
-    if (data.vit?.orchestrator?.summary && els.routeInfo) {
-      els.routeInfo.textContent = data.vit.orchestrator.summary;
+    if (els.routeInfo) {
+      const bits = [];
+      if (data.vit?.orchestrator?.summary) bits.push(data.vit.orchestrator.summary);
+      if (data.vit?.tool_trace?.length) {
+        bits.push(`Agent ${data.vit.agent_rounds || data.vit.tool_trace.length} tool-rondes`);
+      }
+      if (bits.length) els.routeInfo.textContent = bits.join(" · ");
     }
   } catch (err) {
     addBubble("system", String(err));
@@ -765,12 +773,121 @@ els.waitExports?.addEventListener("click", async () => {
         (data.timed_out ? " (timeout, opnieuw klikken als zip later binnenkomt)" : "")
     );
     await refreshImportStatus();
+    await refreshKnowList();
   } catch (err) {
     addBubble("system", `Wait-import mislukt: ${err}`);
   } finally {
     els.waitExports.disabled = false;
     els.waitExports.textContent = "Wacht op zips & importeer";
   }
+});
+
+els.importZipsNow?.addEventListener("click", async () => {
+  els.importZipsNow.disabled = true;
+  try {
+    const res = await fetch("/api/import/zips-now", { method: "POST", headers: headers() });
+    const data = await res.json();
+    const n =
+      (data.chatgpt?.length || 0) + (data.claude?.length || 0);
+    addBubble(
+      "system",
+      `Zips geïmporteerd: ${n}` +
+        (data.errors?.length ? ` · fouten: ${data.errors.length}` : "")
+    );
+    await refreshImportStatus();
+    await refreshKnowList();
+  } catch (err) {
+    addBubble("system", `Zip-import mislukt: ${err}`);
+  } finally {
+    els.importZipsNow.disabled = false;
+  }
+});
+
+async function refreshKnowList() {
+  if (!els.knowList) return;
+  const q = els.knowQ?.value?.trim() || "";
+  try {
+    const res = await fetch(
+      `/api/knowledge/conversations?limit=30&q=${encodeURIComponent(q)}`,
+      { headers: headers() }
+    );
+    const data = await res.json();
+    els.knowList.innerHTML = "";
+    const items = data.items || [];
+    if (!items.length) {
+      els.knowList.innerHTML = `<p class="muted tiny">Nog geen chats. Migreer of upload een export-zip.</p>`;
+      return;
+    }
+    for (const item of items) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "know-item";
+      b.innerHTML = `<strong>${escapeHtml(item.title || "Chat")}</strong>
+        <small>${escapeHtml(item.source || "")} · ${item.message_count || 0} msgs · ${escapeHtml(item.preview || "")}</small>`;
+      b.addEventListener("click", () => openImportedConversation(item.id));
+      els.knowList.appendChild(b);
+    }
+  } catch (_) {
+    els.knowList.innerHTML = `<p class="muted tiny">Kon kennislijst niet laden.</p>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function openImportedConversation(id) {
+  try {
+    const res = await fetch(`/api/knowledge/conversations/${encodeURIComponent(id)}`, {
+      headers: headers(),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.detail || "niet gevonden");
+    const conv = data.conversation || {};
+    const msgs = (conv.messages || []).filter(
+      (m) => m.role === "user" || m.role === "assistant"
+    );
+    if (!msgs.length) {
+      addBubble("system", "Deze chat heeft geen berichten.");
+      return;
+    }
+    // Nieuwe sessie zodat modelwissel-geheugen schoon blijft per heropende chat
+    const sid = `s-imp-${String(id).slice(0, 8)}`;
+    state.sessionId = sid;
+    state.messages = msgs.map((m) => ({
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : String(m.content || ""),
+    }));
+    try {
+      const params = new URLSearchParams(location.search);
+      params.set("session", sid);
+      history.replaceState(null, "", `${location.pathname}?${params.toString()}${location.hash || ""}`);
+    } catch (_) {
+      /* ignore */
+    }
+    if (els.messages) {
+      els.messages.innerHTML = "";
+      for (const m of state.messages) addBubble(m.role, m.content);
+    }
+    saveSessionMessages();
+    syncEmptyState();
+    openSettings(false);
+    if (els.routeInfo) {
+      els.routeInfo.textContent = `Hervat: ${conv.title || "chat"} (${conv.source || "import"})`;
+    }
+  } catch (err) {
+    addBubble("system", `Open chat mislukt: ${err}`);
+  }
+}
+
+let _knowTimer = null;
+els.knowQ?.addEventListener("input", () => {
+  clearTimeout(_knowTimer);
+  _knowTimer = setTimeout(() => refreshKnowList(), 220);
 });
 
 els.importUpload?.addEventListener("click", async () => {
@@ -970,6 +1087,7 @@ ensureLocalToken().then(async () => {
   }
   ping();
   refreshImportStatus();
+  refreshKnowList();
   refreshAccounts();
   refreshNetwork();
   loadPresets();

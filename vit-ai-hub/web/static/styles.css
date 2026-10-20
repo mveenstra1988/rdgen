@@ -640,6 +640,34 @@ button:disabled { opacity: 0.55; cursor: wait; transform: none; }
 }
 .lan-qr img, .lan-qr svg { width: min(200px, 100%); height: auto; }
 
+.knowledge-browser { margin-top: 0.85rem; }
+.know-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 0.35rem;
+}
+.know-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.know-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+.know-item strong { font-size: 0.82rem; font-weight: 600; }
+.know-item small { font-size: 0.7rem; opacity: 0.72; line-height: 1.3; }
+
 @media (max-width: 560px) {
   .brand-text .muted { display: none; }
   .empty-state h3 { font-size: 1.45rem; }

@@ -434,6 +434,7 @@
             <button type="button" id="sync-once" class="ghost">Sync nu</button>
             <button type="button" id="request-exports" class="ghost">Export starten</button>
             <button type="button" id="wait-exports" class="ghost">Wacht op zips</button>
+            <button type="button" id="import-zips-now" class="ghost">Zips nu</button>
           </div>
           <label class="field">
             <span>Upload zip/json</span>
@@ -446,6 +447,14 @@
               <option value="claude">Claude</option>
             </select>
             <button type="button" id="import-upload" class="ghost">Importeer</button>
+          </div>
+          <div class="knowledge-browser">
+            <label class="field">
+              <span>Geïmporteerde chats</span>
+              <input id="know-q" type="search" placeholder="Zoek titel of tekst…" autocomplete="off" />
+            </label>
+            <div id="know-list" class="know-list" aria-live="polite"></div>
+            <p class="muted tiny">Open = laad in huidige chat (Claude/ChatGPT-geschiedenis hergebruiken).</p>
           </div>
           <p class="muted tiny"><a href="/?wizard=1">Setup opnieuw</a></p>
         </div>

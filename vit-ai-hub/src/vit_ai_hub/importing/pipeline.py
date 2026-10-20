@@ -110,16 +110,15 @@ def import_all_one_click() -> dict[str, Any]:
         results["errors"].append({"source": "local_mac", "error": str(exc)})
 
     found = find_export_zips()
-    for path in found.get("chatgpt") or []:
+    # Importeer tot 3 nieuwste zips per bron (vollediger dan alleen de laatste)
+    for path in (found.get("chatgpt") or [])[:3]:
         try:
             results["chatgpt"].append(chatgpt.import_from_path(path))
-            break  # nieuwste is genoeg voor one-click
         except Exception as exc:
             results["errors"].append({"source": "chatgpt", "file": str(path), "error": str(exc)})
-    for path in found.get("claude") or []:
+    for path in (found.get("claude") or [])[:3]:
         try:
             results["claude"].append(claude.import_from_path(path))
-            break
         except Exception as exc:
             results["errors"].append({"source": "claude", "file": str(path), "error": str(exc)})
 

@@ -1,4 +1,4 @@
-# Roadmap status (1.5)
+# Roadmap status (2.0)
 
 ## Ingebouwd
 - [x] vit/auto orchestrator: intent → beste model + auto-team + per-rol models (incl. lokaal)
@@ -20,6 +20,12 @@
 - [x] One-click Mac package + wizard (0.6+)
 - [x] Studio-modi: chat / software / webdesign / apps / design / ops
 - [x] Workspace read/write/run (allowlist) — Cursor-achtig in de hub
+- [x] Lange agent-loop (tot 28 rondes in Code/Self) + tool-trace
+- [x] search_replace + codebase_search + git_commit (veilig, geen force)
+- [x] Parallel board-runs (asyncio.gather)
+- [x] Geïmporteerde-chat browser + reopen in GUI
+- [x] Multi-zip import (tot 3 per bron) + Zips nu
+- [x] Gedeeld geheugen over modelwissel (1.9)
 - [x] Continue.dev export (Cursor-exit pad)
 - [x] Penpot open + install-script (Figma-alt)
 - [x] Visuele agent-teams (webdesign / apps / infra presets + custom builder + run)
@@ -35,4 +41,4 @@
 - [ ] Chrome extension bridge voor volledige tab/DOM
 - [ ] Warm-pool light/heavy model op stroom/batterij
 - [ ] Inline diff-viewer in GUI (nog dichter bij Cursor)
-- [ ] Parallel board-runs (asyncio.gather) i.p.v. sequentieel
+- [ ] IDE/LSP-bridge (tabs, breakpoints) — optioneel naast chat-agent

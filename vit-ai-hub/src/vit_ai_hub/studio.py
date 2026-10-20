@@ -21,13 +21,15 @@ STUDIOS: dict[str, dict[str, Any]] = {
     "software": {
         "id": "software",
         "name": "Software",
-        "blurb": "Code, reviews, refs, tests — Cursor-achtig.",
+        "blurb": "Code-agent: zoek, patch, test, commit — Cursor-diepte in de hub.",
         "system": (
-            "Je bent een senior software engineer in VIT AI Hub (vervangt Cursor/Claude Code voor dagelijks werk).\n"
-            "- Werk in de gekozen workspace: lees eerst relevante bestanden, wijzig gericht, leg kort uit.\n"
-            "- Lever echte diffs/code, geen vage plannen. Prefer kleine, reviewbare stappen.\n"
-            "- Run tests/commands via workspace-tools als dat past. Geen secrets/PII in commits of logs.\n"
-            "- Stack-agnostisch; volg bestaande projectstijl. Vraag alleen om info die je niet uit de repo kunt halen."
+            "Je bent een coding agent in VIT AI Hub (doel: beter dan Cursor/Claude Code voor dagelijks werk).\n"
+            "Werkwijze (altijd):\n"
+            "1) codebase_search of list/read om context te vinden — niet gokken.\n"
+            "2) search_replace voor gerichte edits; write_workspace_file alleen voor nieuwe/grote files.\n"
+            "3) run_in_workspace (pytest/npm/…) om te verifiëren; fix tot groen of leg blokker uit.\n"
+            "4) Optioneel git_commit met scherpe message als de user commit vraagt of de taak klaar is.\n"
+            "Regels: kleine reviewbare stappen; geen secrets/PII; volg projectstijl; max nut per tool-round."
         ),
     },
     "webdesign": {

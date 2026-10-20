@@ -29,10 +29,25 @@ _SAFE_PREFIXES = (
     "git status",
     "git diff",
     "git log",
+    "git show",
+    "git branch",
+    "git add ",
+    "git commit ",
+    "git checkout ",
+    "git switch ",
+    "git pull",
+    "git fetch",
+    "git push",
     "ls ",
     "ls\t",
     "rg ",
     "find ",
+)
+
+_GIT_DENY = re.compile(
+    r"(--force|-f\b)|reset\s+--hard|clean\s+-|push\s+.*--force|"
+    r"filter-branch|rebase\s+.*-i|push\s+.*:|checkout\s+--\s+\.|checkout\s+\.",
+    re.I,
 )
 
 _DENIED_WRITE = re.compile(
@@ -176,6 +191,184 @@ def write_workspace_file(
     return {"ok": True, "path": str(target), "bytes": len(content.encode("utf-8"))}
 
 
+def search_replace(
+    path: str,
+    old_str: str,
+    new_str: str,
+    *,
+    workspace: str | None = None,
+    replace_all: bool = False,
+) -> dict[str, Any]:
+    """Gerichte patch (Cursor-achtig) i.p.v. heel bestand herschrijven."""
+    if not old_str:
+        return {"error": "old_str mag niet leeg zijn"}
+    try:
+        target = resolve_in_workspace(path, workspace=workspace)
+    except (ValueError, PermissionError) as exc:
+        return {"error": str(exc)}
+    if _DENIED_WRITE.search(str(target)):
+        return {"error": "schrijven naar dit pad geweigerd (secrets/git)"}
+    if not target.is_file():
+        return {"error": "bestand niet gevonden", "path": str(target)}
+    text = target.read_text(encoding="utf-8", errors="replace")
+    count = text.count(old_str)
+    if count == 0:
+        return {"error": "old_str niet gevonden", "path": str(target)}
+    if count > 1 and not replace_all:
+        return {
+            "error": f"old_str komt {count}x voor — maak unieker of zet replace_all=true",
+            "path": str(target),
+            "matches": count,
+        }
+    if replace_all:
+        updated = text.replace(old_str, new_str)
+        n = count
+    else:
+        updated = text.replace(old_str, new_str, 1)
+        n = 1
+    target.write_text(updated, encoding="utf-8")
+    return {
+        "ok": True,
+        "path": str(target),
+        "replacements": n,
+        "bytes": len(updated.encode("utf-8")),
+    }
+
+
+def codebase_search(
+    query: str,
+    *,
+    workspace: str | None = None,
+    glob: str | None = None,
+    limit: int = 40,
+) -> dict[str, Any]:
+    """@codebase-achtig: ripgrep over workspace (geen embeddings)."""
+    q = (query or "").strip()
+    if not q:
+        return {"error": "lege query"}
+    try:
+        cwd = resolve_in_workspace(".", workspace=workspace) if workspace else resolve_in_workspace(".")
+    except (ValueError, PermissionError) as exc:
+        return {"error": str(exc)}
+    if not cwd.is_dir():
+        return {"error": f"cwd bestaat niet: {cwd}"}
+    limit = max(1, min(80, limit))
+    cmd = ["rg", "-n", "--hidden", "--glob", "!.git", "--glob", "!node_modules", "--glob", "!.venv", "-m", "5", q]
+    if glob:
+        cmd.extend(["--glob", glob])
+    cmd.append(str(cwd))
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(cwd),
+        )
+    except FileNotFoundError:
+        # fallback: python walk
+        return _codebase_search_py(q, cwd, limit=limit, glob=glob)
+    except subprocess.TimeoutExpired:
+        return {"error": "timeout"}
+    lines = [ln for ln in (proc.stdout or "").splitlines() if ln.strip()][:limit]
+    hits = []
+    for ln in lines:
+        # path:line:text
+        parts = ln.split(":", 2)
+        if len(parts) >= 3:
+            hits.append({"path": parts[0], "line": parts[1], "text": parts[2][:400]})
+        else:
+            hits.append({"raw": ln[:500]})
+    return {"ok": True, "query": q, "cwd": str(cwd), "hits": hits, "count": len(hits)}
+
+
+def _codebase_search_py(query: str, cwd: Path, *, limit: int, glob: str | None) -> dict[str, Any]:
+    q_lower = query.lower()
+    hits: list[dict[str, Any]] = []
+    skip_dirs = {".git", "node_modules", ".venv", "__pycache__", "dist", "build"}
+    for root, dirs, files in os.walk(cwd):
+        dirs[:] = [d for d in dirs if d not in skip_dirs and not d.startswith(".")]
+        for name in files:
+            if len(hits) >= limit:
+                break
+            if glob and not Path(name).match(glob.replace("**/", "")):
+                continue
+            path = Path(root) / name
+            if path.suffix.lower() not in {
+                ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".swift",
+                ".md", ".json", ".toml", ".yml", ".yaml", ".css", ".html", ".sh",
+            }:
+                continue
+            try:
+                if path.stat().st_size > 400_000:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            for i, line in enumerate(text.splitlines(), 1):
+                if q_lower in line.lower():
+                    hits.append({"path": str(path), "line": str(i), "text": line[:400]})
+                    if len(hits) >= limit:
+                        break
+        if len(hits) >= limit:
+            break
+    return {"ok": True, "query": query, "cwd": str(cwd), "hits": hits, "count": len(hits), "engine": "py"}
+
+
+def git_commit(
+    message: str,
+    *,
+    workspace: str | None = None,
+    paths: list[str] | None = None,
+) -> dict[str, Any]:
+    """Veilige git add + commit (geen force/reset)."""
+    msg = (message or "").strip()
+    if not msg or len(msg) < 3:
+        return {"error": "commit message te kort"}
+    if _GIT_DENY.search(msg):
+        return {"error": "ongeoorloofde tokens in message"}
+    try:
+        cwd = resolve_in_workspace(".", workspace=workspace) if workspace else resolve_in_workspace(".")
+    except (ValueError, PermissionError) as exc:
+        return {"error": str(exc)}
+    if not (cwd / ".git").exists() and not any((p / ".git").exists() for p in cwd.parents):
+        # allow if git rev-parse works
+        probe = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+        )
+        if probe.returncode != 0:
+            return {"error": "geen git repo", "cwd": str(cwd)}
+    add_cmd = ["git", "add", "--"]
+    if paths:
+        for p in paths:
+            try:
+                resolved = resolve_in_workspace(p, workspace=workspace or str(cwd))
+            except (ValueError, PermissionError) as exc:
+                return {"error": str(exc)}
+            add_cmd.append(str(resolved))
+    else:
+        add_cmd.append("-A")
+    add = subprocess.run(add_cmd, cwd=str(cwd), capture_output=True, text=True)
+    if add.returncode != 0:
+        return {"error": "git add mislukt", "stderr": (add.stderr or "")[-4000:]}
+    commit = subprocess.run(
+        ["git", "commit", "-m", msg],
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+    )
+    return {
+        "ok": commit.returncode == 0,
+        "returncode": commit.returncode,
+        "cwd": str(cwd),
+        "stdout": (commit.stdout or "")[-8000:],
+        "stderr": (commit.stderr or "")[-4000:],
+    }
+
+
 def run_in_workspace(
     command: str,
     *,
@@ -187,7 +380,9 @@ def run_in_workspace(
         return {"error": "leeg commando"}
     if any(x in cmd for x in (";", "&&", "||", "|", "`", "$(", "\n", "\r")):
         return {"error": "shell-ketens/pipes niet toegestaan"}
-    lowered = cmd if cmd.startswith("git ") else cmd
+    if cmd.startswith("git ") and _GIT_DENY.search(cmd):
+        return {"error": "gevaarlijke git-vlag geweigerd (force/hard reset/clean)"}
+    lowered = cmd
     ok = False
     for prefix in _SAFE_PREFIXES:
         if lowered == prefix.strip() or lowered.startswith(prefix):
@@ -211,7 +406,7 @@ def run_in_workspace(
             cwd=str(cwd),
             capture_output=True,
             text=True,
-            timeout=max(5, min(timeout_sec, 180)),
+            timeout=max(5, min(timeout_sec, 300)),
             env={**os.environ, "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
         )
     except subprocess.TimeoutExpired:
