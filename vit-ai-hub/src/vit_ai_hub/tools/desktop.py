@@ -28,6 +28,8 @@ KNOWN_APPS = {
     "zoom": ["zoom.us", "Zoom"],
     "lm studio": ["LM Studio"],
     "penpot": ["Penpot", "penpot-desktop"],
+    "figcraft": ["FigCraft", "Figcraft"],
+    "artcraft": ["FigCraft", "ArtCraft"],
     "figma": ["Figma"],
     "vscode": ["Visual Studio Code", "Code"],
     "code": ["Visual Studio Code", "Code"],
@@ -225,6 +227,45 @@ def open_penpot(*, local: bool = True) -> dict[str, Any]:
     }
 
 
+def open_figcraft() -> dict[str, Any]:
+    """Open FigCraft (ArtCraft) — gratis open-source Figma-alternatief (Rust, lokaal)."""
+    download = "https://github.com/storytold/figcraft/releases"
+    site = "https://getartcraft.com"
+    if not _darwin():
+        return {
+            "ok": False,
+            "error": "Open FigCraft op je Mac",
+            "download": download,
+            "site": site,
+            "hint": "FigCraft = ArtCraft Figma-alt; alpha, offline, geen account.",
+        }
+    # Probeer native app
+    for app in ("FigCraft", "Figcraft"):
+        r = subprocess.run(["open", "-a", app], capture_output=True, text=True)
+        if r.returncode == 0:
+            return {
+                "ok": True,
+                "app": app,
+                "mode": "app",
+                "hint": "FigCraft geopend. .fig-import is nog alpha/best-effort.",
+            }
+    # Spotlight path
+    spot = spotlight_search("FigCraft")
+    for p in spot.get("paths") or []:
+        if p.endswith(".app") and "figcraft" in p.lower():
+            r = subprocess.run(["open", p], capture_output=True, text=True)
+            if r.returncode == 0:
+                return {"ok": True, "path": p, "mode": "app", "hint": "FigCraft via Spotlight."}
+    r = subprocess.run(["open", download], capture_output=True, text=True)
+    return {
+        "ok": r.returncode == 0,
+        "mode": "download",
+        "url": download,
+        "site": site,
+        "hint": "FigCraft niet geïnstalleerd — releases geopend. Installeer .dmg, daarna opnieuw open_figcraft.",
+    }
+
+
 def run_shell_safe(command: str) -> dict[str, Any]:
     """Zeer beperkt: alleen allowlist van veilige lokale commands."""
     allowed_prefixes = (
@@ -377,6 +418,17 @@ def desktop_tool_specs() -> list[dict[str, Any]]:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "open_figcraft",
+                "description": (
+                    "Open FigCraft (ArtCraft) — gratis open-source Figma-alternatief. "
+                    "Native Mac-app of GitHub releases als niet geïnstalleerd."
+                ),
+                "parameters": {"type": "object", "properties": {}},
+            },
+        },
     ]
 
 
@@ -396,6 +448,7 @@ async def run_desktop_tool(name: str, arguments: dict[str, Any]) -> str:
         "list_running_apps": lambda: list_running_apps(),
         "run_shell_safe": lambda: run_shell_safe(str(arguments.get("command", ""))),
         "open_penpot": lambda: open_penpot(local=bool(arguments.get("local", True))),
+        "open_figcraft": lambda: open_figcraft(),
     }
     fn = dispatch.get(name)
     if not fn:

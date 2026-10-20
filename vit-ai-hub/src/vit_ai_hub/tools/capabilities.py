@@ -415,6 +415,7 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         "list_running_apps",
         "run_shell_safe",
         "open_penpot",
+        "open_figcraft",
     }
     if name in desktop_names:
         from vit_ai_hub.tools.desktop import run_desktop_tool

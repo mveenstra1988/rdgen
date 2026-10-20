@@ -30,11 +30,12 @@ Nog niet: inline diffs in een IDE, LSP, breakpoints. Voor editor-diepte: Continu
 
 | Optie | Wanneer |
 |-------|---------|
-| **Design-in-code** (studio Webdesign) | Sites/landings — vaak beter dan Figma |
-| **Penpot** lokaal (`scripts/install-penpot-mac.sh`) | Design files / met designers delen |
+| **Design-in-code** (studio Webdesign) | Sites/landings — vaak sneller dan Figma |
+| **FigCraft (ArtCraft)** | Gratis open-source Figma-achtig (Rust); knop FigCraft / `open_figcraft` — nog alpha |
+| **Penpot** lokaal (`scripts/install-penpot-mac.sh`) | Volwassener voor teams/cloud |
 | Penpot cloud | Snel proberen zonder Docker |
 
-Figma-abo is zelden nodig als je vooral zelf bouwt.
+Figma-abo is zelden nodig als je vooral zelf bouwt. FigCraft = ArtCraft’s Figma-kloon (geen Figma Inc.).
 
 ## Aanbevolen volgorde
 

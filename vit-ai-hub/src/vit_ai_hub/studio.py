@@ -58,14 +58,14 @@ STUDIOS: dict[str, dict[str, Any]] = {
     },
     "design": {
         "id": "design",
-        "name": "Design (Penpot)",
-        "blurb": "Figma-alternatief: Penpot + design-to-code.",
+        "name": "Design (FigCraft/Penpot)",
+        "blurb": "Figma-vrij: FigCraft (ArtCraft) of Penpot + design-to-code.",
         "system": (
-            "Je helpt met UI/UX via Penpot (open-source Figma-alternatief) en design-to-code.\n"
-            "- Penpot: componenten, auto-layout-achtige flex, design tokens, export SVG/PNG.\n"
-            "- Vertaal frames naar schone HTML/CSS/React. Geen pixel-perfect obsessie zonder nut.\n"
-            "- Als Penpot lokaal draait (docker) of cloud: open_penpot tool gebruiken. "
-            "Anders: design tokens + HTML-proto als sneller pad."
+            "Je helpt met UI/UX zonder Figma-abo — FigCraft (ArtCraft) of Penpot + design-to-code.\n"
+            "- FigCraft: gratis open-source Figma-achtig (Rust, offline); open_figcraft. Nog alpha; .fig-import best-effort.\n"
+            "- Penpot: volwassener voor teams/cloud; open_penpot (lokaal :9001 of design.penpot.app).\n"
+            "- Default voor sites: design-in-code (studio Webdesign) — vaak sneller dan een design-file.\n"
+            "- Vertaal frames naar schone HTML/CSS/React. Figma alleen als de klant het eist."
         ),
     },
     "marketing": {

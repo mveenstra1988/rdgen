@@ -63,6 +63,7 @@ const els = {
   refresh: document.getElementById("refresh-models"),
   newChat: document.getElementById("new-chat"),
   exportContinue: document.getElementById("export-continue"),
+  openFigcraft: document.getElementById("open-figcraft"),
   openPenpot: document.getElementById("open-penpot"),
   opsStatusBtn: document.getElementById("ops-status-btn"),
   opsStatusBox: document.getElementById("ops-status-box"),
@@ -538,6 +539,20 @@ els.exportContinue?.addEventListener("click", async () => {
         ? `Continue-config geschreven: ${data.path}\n${(data.next || []).join("\n")}`
         : JSON.stringify(data)
     );
+  } catch (err) {
+    addBubble("system", String(err));
+  }
+});
+
+els.openFigcraft?.addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/tools/open_figcraft", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    addBubble("system", typeof data === "string" ? data : JSON.stringify(data, null, 2));
   } catch (err) {
     addBubble("system", String(err));
   }
