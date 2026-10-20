@@ -55,12 +55,15 @@ def tool_specs() -> list[dict[str, Any]]:
                 "type": "function",
                 "function": {
                     "name": "memory_write",
-                    "description": "Sla een lokaal geheugenfeit op (geen secrets/klant-PII).",
+                    "description": (
+                        "Sla een feit op in het gedeelde hub-geheugen (model-agnostisch; "
+                        "blijft bij modelwissel). Geen secrets/klant-PII."
+                    ),
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "key": {"type": "string"},
-                            "value": {"type": "string"},
+                            "key": {"type": "string", "description": "Korte tag/label"},
+                            "value": {"type": "string", "description": "Te onthouden feit"},
                         },
                         "required": ["key", "value"],
                     },
@@ -72,10 +75,16 @@ def tool_specs() -> list[dict[str, Any]]:
                 "type": "function",
                 "function": {
                     "name": "memory_read",
-                    "description": "Lees lokale geheugenfeiten (optioneel filter op key).",
+                    "description": (
+                        "Zoek in gedeeld hub-geheugen (alle modellen delen dit). "
+                        "Optioneel filter op key/tag of vrije query."
+                    ),
                     "parameters": {
                         "type": "object",
-                        "properties": {"key": {"type": "string"}},
+                        "properties": {
+                            "key": {"type": "string"},
+                            "query": {"type": "string"},
+                        },
                     },
                 },
             }
@@ -206,25 +215,46 @@ async def run_tool(name: str, arguments: dict[str, Any]) -> str:
         scanned = pii.process(f"{key} {value}", destination_local=False)
         if scanned.has_pii:
             return json.dumps({"error": "Memory weigert PII/secrets."}, ensure_ascii=False)
-        with MEMORY_PATH.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps({"ts": time.time(), "key": key, "value": value}, ensure_ascii=False) + "\n")
-        return json.dumps({"ok": True, "key": key})
+        from vit_ai_hub.memory import pin_memory
+
+        result = pin_memory(value, kind="fact", tags=key or "note")
+        # legacy jsonl append for backwards compat
+        try:
+            with MEMORY_PATH.open("a", encoding="utf-8") as fh:
+                fh.write(
+                    json.dumps(
+                        {"ts": time.time(), "key": key, "value": value, "id": result.get("id")},
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except OSError:
+            pass
+        return json.dumps({**result, "key": key, "shared": True}, ensure_ascii=False)
     if name == "memory_read":
         key = str(arguments.get("key") or "").strip()
-        rows = []
-        if MEMORY_PATH.is_file():
-            for line in MEMORY_PATH.read_text(encoding="utf-8").splitlines():
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if key and row.get("key") != key:
-                    continue
-                rows.append(row)
+        query = str(arguments.get("query") or key or "").strip()
+        from vit_ai_hub.memory import search_memories
         from vit_ai_hub.importing.store import stats as kstats
 
+        items = search_memories(query, limit=40)
+        if key and not query:
+            items = [i for i in items if key in (i.get("tags") or "")]
         return json.dumps(
-            {"items": rows[-50:], "imported_knowledge": kstats()},
+            {
+                "items": [
+                    {
+                        "id": i.get("id"),
+                        "key": i.get("tags") or "",
+                        "value": i.get("content"),
+                        "kind": i.get("kind"),
+                        "model": i.get("model"),
+                    }
+                    for i in items
+                ],
+                "shared": True,
+                "imported_knowledge": kstats(),
+            },
             ensure_ascii=False,
         )
     if name == "knowledge_search":

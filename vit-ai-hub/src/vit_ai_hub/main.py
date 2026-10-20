@@ -57,6 +57,7 @@ class ChatCompletionRequest(BaseModel):
     vit_skip_orchestrator: bool = False  # True = geen intent/team (interne team-stappen)
     vit_tradeoff: str | None = None  # quality | cost | latency
     vit_critic: bool | None = None  # None = config/auto; False = skip critic
+    vit_session_id: str | None = None  # gedeeld geheugen / conversatie over modelwissel
 
 
 def _auth(authorization: str | None = Header(default=None), x_api_key: str | None = Header(default=None)) -> None:
@@ -624,12 +625,29 @@ async def _handle_chat(body: ChatCompletionRequest):
     # First pass: assume possibly cloud; if PII blocks, force local
     provisional = router_engine.resolve(requested_model, force_local=False)
     knowledge = knowledge_context_block(last_user, limit=8)
+    shared_memory = None
+    try:
+        from vit_ai_hub.memory import context_block as memory_context_block
+
+        shared_memory = memory_context_block(last_user, limit=8)
+    except Exception:
+        shared_memory = None
     prefix: list[dict[str, Any]] = []
     from vit_ai_hub.studio import studio_system_prompt
 
     studio_prompt = studio_system_prompt(body.studio)
     if studio_prompt:
         prefix.append({"role": "system", "content": studio_prompt})
+    prefix.append(
+        {
+            "role": "system",
+            "content": (
+                "Gedeeld geheugen is model-agnostisch: bij wisselen van model blijft "
+                "conversatie + opgeslagen feiten bestaan. Gebruik memory_write voor "
+                "blijvende voorkeuren; noem geen geheugenverlies bij modelwissel."
+            ),
+        }
+    )
     if auto_plan and not body.vit_skip_orchestrator:
         prefix.append(
             {
@@ -672,6 +690,8 @@ async def _handle_chat(body: ChatCompletionRequest):
                 ),
             }
         )
+    if shared_memory:
+        prefix.append({"role": "system", "content": shared_memory})
     if knowledge:
         prefix.append({"role": "system", "content": knowledge})
     if prefix:
@@ -824,6 +844,30 @@ async def _handle_chat(body: ChatCompletionRequest):
     except Exception:
         pass
 
+    session_id = (body.vit_session_id or "").strip() or None
+    memory_save: dict[str, Any] | None = None
+    if session_id:
+        try:
+            from vit_ai_hub.memory import save_conversation
+
+            reply = ""
+            try:
+                reply = data["choices"][0]["message"].get("content") or ""
+            except Exception:
+                reply = ""
+            # Original user turns (without injected system prefix)
+            user_turns = [m.model_dump() for m in body.messages if m.role in {"user", "assistant"}]
+            if reply:
+                user_turns = [*user_turns, {"role": "assistant", "content": reply}]
+            memory_save = save_conversation(
+                session_id,
+                user_turns,
+                model=decision.model,
+                studio=body.studio,
+            )
+        except Exception as exc:
+            memory_save = {"ok": False, "error": str(exc)}
+
     data["vit"] = {
         "backend": decision.backend.name,
         "model": decision.model,
@@ -837,6 +881,9 @@ async def _handle_chat(body: ChatCompletionRequest):
         "orchestrator": auto_plan.to_dict() if auto_plan else None,
         "cascade": cascade_meta or None,
         "critic": critic_meta,
+        "session_id": session_id,
+        "shared_memory": bool(shared_memory),
+        "memory_save": memory_save,
     }
     return JSONResponse(data)
 
@@ -885,6 +932,22 @@ async def _handle_auto_team(body: ChatCompletionRequest, task: str, auto_plan) -
         else ""
     )
     content = header + (final or "(geen team-output)")
+    session_id = (body.vit_session_id or "").strip() or None
+    memory_save: dict[str, Any] | None = None
+    if session_id:
+        try:
+            from vit_ai_hub.memory import save_conversation
+
+            user_turns = [m.model_dump() for m in body.messages if m.role in {"user", "assistant"}]
+            user_turns = [*user_turns, {"role": "assistant", "content": content}]
+            memory_save = save_conversation(
+                session_id,
+                user_turns,
+                model="vit/auto",
+                studio=auto_plan.studio or body.studio,
+            )
+        except Exception as exc:
+            memory_save = {"ok": False, "error": str(exc)}
     data = {
         "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
         "object": "chat.completion",
@@ -904,6 +967,8 @@ async def _handle_auto_team(body: ChatCompletionRequest, task: str, auto_plan) -
             "studio": auto_plan.studio or body.studio,
             "workspace": body.workspace,
             "auto_team": True,
+            "session_id": session_id,
+            "memory_save": memory_save,
             "team": {
                 "id": team_result.get("team_id"),
                 "name": team_result.get("team_name"),
@@ -1225,6 +1290,43 @@ async def import_upload(
 @app.get("/api/knowledge/search")
 async def api_knowledge_search(q: str = "", _: None = Depends(_auth)) -> dict[str, Any]:
     return {"query": q, "hits": search_knowledge(q, limit=20)}
+
+
+@app.get("/api/memory/stats")
+async def api_memory_stats(_: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.memory import memory_stats
+
+    return {"ok": True, **memory_stats()}
+
+
+@app.get("/api/memory/search")
+async def api_memory_search(q: str = "", _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.memory import search_memories
+
+    return {"query": q, "items": search_memories(q, limit=30)}
+
+
+@app.post("/api/memory/pin")
+async def api_memory_pin(body: dict[str, Any], _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.memory import pin_memory
+
+    content = str(body.get("content") or body.get("value") or "").strip()
+    tags = str(body.get("tags") or body.get("key") or "").strip()
+    pii = get_pii_engine()
+    scanned = pii.process(content, destination_local=False)
+    if scanned.has_pii:
+        raise HTTPException(status_code=400, detail="Memory weigert PII/secrets")
+    return pin_memory(content, kind=str(body.get("kind") or "fact"), tags=tags)
+
+
+@app.get("/api/memory/conversation/{session_id}")
+async def api_memory_conversation(session_id: str, _: None = Depends(_auth)) -> dict[str, Any]:
+    from vit_ai_hub.memory import get_conversation
+
+    conv = get_conversation(session_id)
+    if not conv:
+        return {"ok": False, "session_id": session_id, "messages": []}
+    return {"ok": True, **conv}
 
 
 def run() -> None:

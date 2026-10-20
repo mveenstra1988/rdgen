@@ -1,8 +1,7 @@
-# Morgen — VIT AI Hub 1.8.1
+# Morgen — VIT AI Hub 1.9.0
 
-1. Open `dist/VIT-AI-Hub-1.8.1-mac.dmg` → Applications
-2. ⚙ → **iPhone / PWA** → LAN-modus → herstart app
-3. Scan QR op iPhone → Safari → Zet op beginscherm
-4. Desktop: **⧉** / **▦** = aparte chat- of teams-vensters naast elkaar
+1. Open `dist/VIT-AI-Hub-1.9.0-mac.dmg` → Applications
+2. Start de app; chat zoals gewoond
+3. Wissel zo vaak je wilt van model — chat + geheugen blijven
 
-1.8.1: LAN/QR voor iPhone · onafhankelijke sessie-vensters
+1.9.0: gedeeld SQLite-geheugen over alle modellen · sessie blijft bij modelwissel

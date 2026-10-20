@@ -352,22 +352,46 @@ async function ping() {
   }
 }
 
+function noteModelSwitch(prevId) {
+  const next = selectedModel();
+  if (!prevId || prevId === next) {
+    updateMeta();
+    return;
+  }
+  const label = friendlyModelLabel(state.models.find((x) => x.id === next)) || next;
+  if (els.routeInfo) {
+    els.routeInfo.textContent = `Model → ${label}. Chat + geheugen blijven (sessie ${state.sessionId.replace(/^s-/, "").slice(0, 8)}).`;
+  }
+  updateMeta();
+}
+
 els.modelFilter?.addEventListener("input", () => renderModels(els.modelFilter.value));
 els.modelSelect?.addEventListener("change", () => {
+  const prev = els.modelFriendly?.value;
   if (els.modelFriendly) els.modelFriendly.value = els.modelSelect.value;
-  updateMeta();
+  noteModelSwitch(prev);
 });
 els.modelFriendly?.addEventListener("change", () => {
+  const prev = els.modelSelect?.value;
   if (els.modelSelect) els.modelSelect.value = els.modelFriendly.value;
-  updateMeta();
+  noteModelSwitch(prev);
 });
 els.refresh?.addEventListener("click", () => loadModels().catch((e) => addBubble("system", String(e))));
 els.newChat?.addEventListener("click", () => {
+  const sid = `s-${Math.random().toString(36).slice(2, 10)}`;
+  state.sessionId = sid;
   state.messages = [];
   if (els.messages) els.messages.innerHTML = "";
+  try {
+    const params = new URLSearchParams(location.search);
+    params.set("session", sid);
+    history.replaceState(null, "", `${location.pathname}?${params.toString()}${location.hash || ""}`);
+  } catch (_) {
+    /* ignore */
+  }
   saveSessionMessages();
   syncEmptyState();
-  if (els.routeInfo) els.routeInfo.textContent = "Nieuwe chat — privacyfilter blijft aan.";
+  if (els.routeInfo) els.routeInfo.textContent = "Nieuwe chat — geheugen blijft gedeeld over alle modellen.";
   els.prompt?.focus();
 });
 
@@ -513,6 +537,7 @@ els.form.addEventListener("submit", async (ev) => {
         vit_enable_tools: els.tools.checked,
         vit_auto_team: els.autoTeam ? els.autoTeam.checked : true,
         vit_tradeoff: els.tradeoff?.value || "quality",
+        vit_session_id: state.sessionId,
         stream: false,
         studio: els.studioSelect?.value || "chat",
         workspace: els.workspace?.value.trim() || null,
@@ -899,9 +924,33 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
 
-ensureLocalToken().then(() => {
+async function hydrateFromServer() {
+  if (state.messages.length) return;
+  try {
+    const res = await fetch(`/api/memory/conversation/${encodeURIComponent(state.sessionId)}`, {
+      headers: headers(),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok || !Array.isArray(data.messages) || !data.messages.length) return;
+    state.messages = data.messages.filter((m) => m.role === "user" || m.role === "assistant");
+    saveSessionMessages();
+    if (els.messages) {
+      els.messages.innerHTML = "";
+      for (const m of state.messages) addBubble(m.role, m.content);
+    }
+    if (els.routeInfo && data.models?.length) {
+      els.routeInfo.textContent = `Hervat · modellen in deze chat: ${data.models.join(", ")}`;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+ensureLocalToken().then(async () => {
   applyPopMode();
   loadSessionMessages();
+  await hydrateFromServer();
   // re-render saved messages
   if (els.messages && state.messages.length) {
     els.messages.innerHTML = "";
