@@ -65,12 +65,35 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Python check
-if ! command -v python3 >/dev/null 2>&1; then
-  fail_dialog "python3 ontbreekt. Installeer Xcode Command Line Tools:\\n  xcode-select --install"
+# Beste Python kiezen (Homebrew 3.12/3.11 vóór Xcode 3.9)
+pick_python() {
+  local c
+  for c in \
+    /opt/homebrew/bin/python3.12 \
+    /usr/local/bin/python3.12 \
+    /opt/homebrew/bin/python3.11 \
+    /usr/local/bin/python3.11 \
+    /opt/homebrew/bin/python3.10 \
+    /usr/local/bin/python3.10 \
+    /opt/homebrew/bin/python3 \
+    /usr/local/bin/python3 \
+    python3.12 python3.11 python3.10 python3
+  do
+    if command -v "$c" >/dev/null 2>&1 || [[ -x "$c" ]]; then
+      if "$c" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null; then
+        echo "$c"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+PYTHON_BIN="$(pick_python || true)"
+if [[ -z "${PYTHON_BIN}" ]]; then
+  fail_dialog "Geen Python ≥3.9 gevonden.\\nInstalleer: brew install python@3.12\\nof: xcode-select --install"
 fi
-PYVER="$(python3 -c 'import sys; print("%d.%d"%sys.version_info[:2])' 2>/dev/null || echo "0.0")"
-log "python3=$PYVER root=$ROOT"
+PYVER="$("$PYTHON_BIN" -c 'import sys; print("%d.%d"%sys.version_info[:2])' 2>/dev/null || echo "0.0")"
+log "python=$PYTHON_BIN ($PYVER) root=$ROOT"
 
 if [[ ! -f "$SECRET_FILE" ]]; then
   cp "$ROOT/.env.example" "$SECRET_FILE"
@@ -99,26 +122,37 @@ req_hash() {
 ensure_deps() {
   local need=0 h
   h="$(req_hash)"
+  # Oude venv op Python 3.9 zonder backport → opnieuw
+  if [[ -d "$ROOT/.venv" ]]; then
+    if ! "$ROOT/.venv/bin/python" -c "import eval_type_backport, fastapi, uvicorn" 2>/dev/null; then
+      log "venv incompleet of oud — opnieuw aanmaken"
+      rm -rf "$ROOT/.venv"
+      rm -f "$DEPS_MARKER"
+      need=1
+    fi
+  fi
   if [[ ! -d "$ROOT/.venv" ]]; then need=1
   elif [[ ! -f "$DEPS_MARKER" ]]; then need=1
   elif [[ "$(cat "$DEPS_MARKER" 2>/dev/null || true)" != "$h" ]]; then need=1
-  elif ! "$ROOT/.venv/bin/python" -c "import fastapi,uvicorn" 2>/dev/null; then need=1
   fi
   if [[ "$need" != "1" ]]; then
     log "deps OK (cache)"
     return 0
   fi
-  log "deps installeren…"
+  log "deps installeren met $PYTHON_BIN…"
   if [[ "$(uname -s)" == "Darwin" ]]; then
     osascript -e 'display notification "Eenmalig: packages installeren…" with title "VIT AI Hub"' 2>/dev/null || true
   fi
   if [[ ! -d "$ROOT/.venv" ]]; then
-    python3 -m venv "$ROOT/.venv" >>"$LOG_FILE" 2>&1 || fail_dialog "venv aanmaken mislukt (vaak: xcode-select --install)"
+    "$PYTHON_BIN" -m venv "$ROOT/.venv" >>"$LOG_FILE" 2>&1 || fail_dialog "venv aanmaken mislukt\\nProbeer: brew install python@3.12"
   fi
   # shellcheck disable=SC1091
   source "$ROOT/.venv/bin/activate"
   if ! pip -q install -r "$REQ_FILE" >>"$LOG_FILE" 2>&1; then
     fail_dialog "pip install mislukt. Zie log."
+  fi
+  if ! python -c "import eval_type_backport, fastapi, uvicorn" 2>/dev/null; then
+    fail_dialog "Packages niet geladen (eval_type_backport/fastapi)."
   fi
   echo "$h" >"$DEPS_MARKER"
   log "deps klaar"

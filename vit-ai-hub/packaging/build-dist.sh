@@ -2,7 +2,7 @@
 # Bouwt zip + DMG: één .app die hub start/stopt.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VIT_PKG_VERSION:-2.6.5}"
+VERSION="${VIT_PKG_VERSION:-2.6.6}"
 DIST="$ROOT/dist"
 STAGE="$DIST/VIT-AI-Hub-${VERSION}"
 APP_NAME="VIT AI Hub"
