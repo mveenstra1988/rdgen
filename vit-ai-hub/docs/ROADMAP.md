@@ -36,6 +36,7 @@
 - [x] vit/max + critic (2 rondes) + second opinion quality stack
 - [x] Inline diff-panel (search_replace + ```diff```)
 - [x] M5 Max 128GB Mac-profiel + docs (`docs/MAC_M5_MAX.md`, `/api/mac/profile`)
+- [x] Local-prep: EXEC_BRIEF (repo/kennis/geheugen) vóór cloud → minder tokens/rondes
 
 ## Later (nog scherper)
 - [ ] Native Swift AX sidebar-klik (betrouwbaarder dan pijltjes)

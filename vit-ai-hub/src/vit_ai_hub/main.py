@@ -638,6 +638,45 @@ async def _handle_chat(body: ChatCompletionRequest):
         shared_memory = memory_context_block(last_user, limit=8)
     except Exception:
         shared_memory = None
+
+    # Lokale prep: repo/kennis/geheugen → EXEC_BRIEF (minder tokens voor Claude/GPT)
+    prep_meta: dict[str, Any] | None = None
+    use_prep = False
+    try:
+        from vit_ai_hub.orchestrator.local_prep import build_exec_brief, should_local_prep
+
+        use_prep = should_local_prep(
+            destination_local=bool(provisional.local),
+            studio=body.studio,
+            task=last_user,
+            skip=bool(body.vit_skip_orchestrator),
+        )
+        # Ook prep als auto/max naar cloud kan (provisional nog niet final)
+        if not use_prep and is_auto and not provisional.local:
+            use_prep = should_local_prep(
+                destination_local=False,
+                studio=body.studio,
+                task=last_user,
+                skip=bool(body.vit_skip_orchestrator),
+            )
+        if use_prep:
+            recent_users = [
+                m.get("content")
+                for m in messages
+                if m.get("role") == "user" and isinstance(m.get("content"), str)
+            ][-4:]
+            prep_meta = build_exec_brief(
+                task=last_user,
+                workspace=body.workspace,
+                studio=body.studio,
+                knowledge=knowledge,
+                memory=shared_memory,
+                recent_user_turns=[str(x) for x in recent_users if x],
+            )
+    except Exception as exc:
+        prep_meta = {"ok": False, "error": str(exc)}
+        use_prep = False
+
     prefix: list[dict[str, Any]] = []
     from vit_ai_hub.studio import studio_system_prompt
 
@@ -681,10 +720,13 @@ async def _handle_chat(body: ChatCompletionRequest):
 
         migrated = runtime_system_addons()
         if migrated:
+            # Met prep: migratie-addons inkorten (tokens sparen voor cloud)
+            if use_prep and prep_meta and prep_meta.get("ok"):
+                migrated = migrated[:2500] + ("…" if len(migrated) > 2500 else "")
             prefix.append({"role": "system", "content": migrated})
     except Exception:
         pass
-    if body.workspace:
+    if body.workspace and not (use_prep and prep_meta and prep_meta.get("ok")):
         prefix.append(
             {
                 "role": "system",
@@ -707,10 +749,22 @@ async def _handle_chat(body: ChatCompletionRequest):
                 ),
             }
         )
-    if shared_memory:
-        prefix.append({"role": "system", "content": shared_memory})
-    if knowledge:
-        prefix.append({"role": "system", "content": knowledge})
+    if use_prep and prep_meta and prep_meta.get("ok") and prep_meta.get("brief"):
+        prefix.append({"role": "system", "content": prep_meta["system_note"]})
+        prefix.append({"role": "system", "content": prep_meta["brief"]})
+        # Brief bevat al geheugen/kennis-kern — geen dubbele dump
+    else:
+        if shared_memory:
+            prefix.append({"role": "system", "content": shared_memory})
+        if knowledge:
+            prefix.append({"role": "system", "content": knowledge})
+    # Cloud/token-save: houd alleen recente turns + laatst user (prefix apart)
+    if use_prep and prep_meta and prep_meta.get("ok") and not provisional.local:
+        slim: list[dict[str, Any]] = []
+        for m in messages:
+            if m.get("role") in {"user", "assistant"}:
+                slim.append(m)
+        messages = slim[-8:] if len(slim) > 8 else slim
     if prefix:
         messages = [*prefix, *messages]
     safe_messages, pii_result = pii.process_messages(messages, destination_local=provisional.local)
@@ -975,12 +1029,24 @@ async def _handle_chat(body: ChatCompletionRequest):
         "tool_trace": tool_trace[-40:] if isinstance(tool_trace, list) else None,
         "agent_max_rounds": _tool_max_rounds(body.studio),
         "second_opinion": second_meta,
+        "local_prep": (
+            {
+                "used": bool(use_prep and prep_meta and prep_meta.get("ok")),
+                "files": (prep_meta or {}).get("files"),
+                "est_tokens": (prep_meta or {}).get("est_tokens"),
+                "est_tokens_without_prep": (prep_meta or {}).get("est_tokens_without_prep"),
+                "chars": (prep_meta or {}).get("chars"),
+            }
+            if prep_meta
+            else None
+        ),
         "quality_stack": {
             "critic": bool(critic_meta and critic_meta.get("used")),
             "second_opinion": bool(second_meta and second_meta.get("used")),
             "shared_memory": bool(shared_memory),
             "knowledge": bool(knowledge),
             "max_mode": is_max,
+            "local_prep": bool(use_prep and prep_meta and prep_meta.get("ok")),
         },
     }
     return JSONResponse(data)

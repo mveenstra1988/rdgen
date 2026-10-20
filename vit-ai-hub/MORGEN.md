@@ -1,8 +1,7 @@
-# Morgen — VIT AI Hub 2.1.0
+# Morgen — VIT AI Hub 2.2.0
 
-1. Open `dist/VIT-AI-Hub-2.1.0-mac.dmg` → Applications  
-2. LM Studio: **MLX** + Qwen3.6-35B-A3B (daily); zie ⚙ → **Jouw Mac**  
-3. Model **Max kwaliteit** of Slim + voorkeur Beste kwaliteit  
-4. Zet `VIT_LOCAL_LIGHT_MODEL` / `VIT_LOCAL_HEAVY_MODEL` op exacte LM Studio-ids  
+1. Open `dist/VIT-AI-Hub-2.2.0-mac.dmg`
+2. Gebruik Slim / Max — hub doet **lokaal-prep** (repo/kennis → EXEC_BRIEF) vóór Claude/GPT
+3. Resultaat: zelfde/betere output, minder cloud-tokens, minder zoekrondes
 
-2.1.0: vit/max · critic+second opinion · inline diffs · M5 Max 128GB-profiel
+2.2.0: local-prep pipeline voor snellere cloud-uitvoering

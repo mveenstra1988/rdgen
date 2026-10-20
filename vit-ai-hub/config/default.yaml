@@ -122,7 +122,7 @@ virtual_models:
   - id: vit/smart
     name: Smart (zelfde als Auto)
   - id: vit/max
-    name: Max kwaliteit (auto + critic + second opinion)
+    name: Max kwaliteit (lokaal-prep + auto + critic + second opinion)
   - id: vit/local-light
     name: "Lokaal light (M5 Qwen3.6-35B-A3B MLX)"
   - id: vit/local-heavy
@@ -144,6 +144,9 @@ orchestrator:
   critic_rounds: 2
   # Tweede model verbetert concept (quality tradeoff)
   second_opinion: true
+  # Lokaal voorbereiden (repo/kennis/geheugen → EXEC_BRIEF) vóór cloud = minder tokens
+  local_prep: true
+  local_prep_max_chars: 10000
   telemetry: true
   # Optionele vaste model-ids per intent (leeg = dynamisch kiezen)
   models: {}

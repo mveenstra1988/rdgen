@@ -636,12 +636,17 @@ els.form.addEventListener("submit", async (ev) => {
         bits.push(`Agent ${data.vit.agent_rounds || data.vit.tool_trace.length} tool-rondes`);
       }
       const qs = data.vit?.quality_stack;
-      if (qs?.critic || qs?.second_opinion) {
-        bits.push(
-          ["critic", "2e mening", qs.max_mode ? "max" : null].filter((x, i) =>
-            i === 0 ? qs.critic : i === 1 ? qs.second_opinion : qs.max_mode
-          ).join("+") || "quality"
-        );
+      if (qs?.critic || qs?.second_opinion || qs?.local_prep) {
+        const qbits = [];
+        if (qs.local_prep) qbits.push("lokaal-prep");
+        if (qs.critic) qbits.push("critic");
+        if (qs.second_opinion) qbits.push("2e mening");
+        if (qs.max_mode) qbits.push("max");
+        if (qbits.length) bits.push(qbits.join("+"));
+      }
+      const lp = data.vit?.local_prep;
+      if (lp?.used && lp.est_tokens && lp.est_tokens_without_prep) {
+        bits.push(`~${lp.est_tokens} tok prep (was ~${lp.est_tokens_without_prep})`);
       }
       if (bits.length) els.routeInfo.textContent = bits.join(" · ");
     }

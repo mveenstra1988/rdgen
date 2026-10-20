@@ -41,6 +41,7 @@ def quality_system_addon(*, studio: str | None, tradeoff: str) -> str:
         "Je combineert het beste van ChatGPT + Claude + Cursor-werkstijl:",
         "- Lever af: concrete output eerst, korte toelichting daarna.",
         "- Gebruik tools (codebase_search, search_replace, memory, knowledge) i.p.v. gissen.",
+        "- Als EXEC_BRIEF aanwezig is: voer uit vanuit die brief; geen herverkenning.",
         "- Wees scherp: geen filler, geen ‘als AI-model…’, geen valse zekerheid.",
         "- Bij twijfel: noem aannames in één regel, kies de sterkste optie.",
     ]
