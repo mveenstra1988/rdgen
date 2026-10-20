@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VIT AI Hub · Veenstra IT</title>
+  <meta name="theme-color" content="#111111" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="VIT AI" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="wizard" class="wizard hidden" aria-modal="true" role="dialog">
+    <div class="wizard-card wizard-card-wide">
+      <div class="wizard-top">
+        <img class="brand-logo brand-logo-wiz" src="/static/logo-wordmark.png" width="296" height="64" alt="Veenstra IT" />
+        <div>
+          <h2>AI Hub</h2>
+          <p class="muted">Alleen inloggen · de rest doet de installatie. <span id="wiz-progress">1 / 3</span></p>
+        </div>
+      </div>
+      <ol class="wiz-rail" id="wiz-rail" aria-hidden="true"></ol>
+
+      <section data-step class="wiz-step active">
+        <h3>Jij logt in · wij doen de rest</h3>
+        <p>Claude, ChatGPT, Cursor en Gemini. Bridge, keys, migratie, Cursor-koppeling en defaults gaan automatisch.</p>
+        <ul class="wiz-list">
+          <li>Geen OpenRouter / OmniRoute / bridge-URL invullen</li>
+          <li>Privacyfilter, kennis-import en skills/MCP worden gezet</li>
+          <li>Daarna gewoon chatten met <strong>vit/auto</strong></li>
+        </ul>
+        <pre id="wiz-status" class="wiz-pre">Laden…</pre>
+        <pre id="wiz-auto-log" class="wiz-pre wiz-auto-log hidden">Installatie start bij «Start»…</pre>
+        <button type="button" id="wiz-start" class="primary wiz-hero">Start — rest gaat vanzelf</button>
+        <p class="muted tiny">Overslaan mag; je kunt later opnieuw openen via Setup.</p>
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>Inloggen (4×)</h3>
+        <p class="muted tiny">Klik elke knop · browser/app opent · klaar. Geen keys of URLs behalve Gemini (Google geeft alleen een API key).</p>
+        <pre id="wiz-bridge-status" class="wiz-pre">Installatie bezig…</pre>
+        <div class="wiz-login-grid">
+          <button type="button" id="wiz-bridge-login-claude" class="primary wiz-login">Log in bij Claude</button>
+          <button type="button" id="wiz-bridge-login-gpt" class="primary wiz-login">Log in bij ChatGPT</button>
+          <button type="button" id="wiz-login-cursor" class="primary wiz-login">Open Cursor</button>
+          <button type="button" id="wiz-login-gemini" class="primary wiz-login">Log in bij Gemini</button>
+        </div>
+        <label class="field"><span>Gemini API key <span class="muted">(plak na Google-login)</span></span>
+          <input id="wiz-gemini" type="password" autocomplete="off" placeholder="AIza…" /></label>
+        <p class="muted tiny" id="wiz-bridge-msg">Bridge en Cursor-config worden automatisch gezet.</p>
+        <div class="wiz-actions">
+          <button type="button" id="wiz-bridge-refresh" class="ghost">↻ Status</button>
+        </div>
+        <!-- hidden advanced fields kept for JS collectSecrets compat -->
+        <input id="wiz-bridge" type="hidden" value="" />
+        <input id="wiz-openrouter" type="hidden" value="" />
+        <input id="wiz-deepseek" type="hidden" value="" />
+        <input id="wiz-xai" type="hidden" value="" />
+        <input id="wiz-omni" type="hidden" value="" />
+        <input id="wiz-light" type="hidden" value="" />
+        <input id="wiz-heavy" type="hidden" value="" />
+        <input id="wiz-banana-model" type="hidden" value="" />
+      </section>
+
+      <section data-step class="wiz-step">
+        <h3>Klaar</h3>
+        <pre id="wiz-final" class="wiz-pre">Controleer…</pre>
+        <button type="button" id="wiz-probe" class="ghost">Opnieuw controleren</button>
+        <ul class="wiz-list">
+          <li>Kies <strong>vit/auto</strong> en typ gewoon</li>
+          <li>Studio links · Teams-tab voor agents</li>
+        </ul>
+        <button type="button" id="wiz-finish" class="primary wiz-hero">Naar de app</button>
+      </section>
+
+      <div class="wizard-nav">
+        <button type="button" id="wiz-back" class="ghost">Terug</button>
+        <button type="button" id="wiz-skip" class="ghost">Overslaan</button>
+        <button type="button" id="wiz-next" class="primary">Volgende</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app" id="app-root">
+    <header class="chrome">
+      <div class="brand">
+        <img class="brand-logo" src="/static/logo-mark.png" width="34" height="34" alt="Veenstra IT" />
+        <div class="brand-text">
+          <h1>AI Hub</h1>
+          <p class="muted" id="health">…</p>
+        </div>
+      </div>
+      <div class="chrome-center chrome-extra">
+        <div class="view-tabs" role="tablist">
+          <button type="button" class="view-tab on" data-view="chat">Chat</button>
+          <button type="button" class="view-tab" data-view="teams">Teams</button>
+        </div>
+      </div>
+      <div class="chrome-actions">
+        <span class="pill" id="privacy-pill" title="Klantgegevens blijven lokaal">Privacy aan</span>
+        <button type="button" class="icon-btn" id="pop-chat" title="Nieuwe chat in apart venster">⧉</button>
+        <button type="button" class="icon-btn" id="pop-teams" title="Teams in apart venster">▦</button>
+        <button type="button" class="icon-btn" id="open-settings" title="Instellingen" aria-label="Instellingen">⚙</button>
+      </div>
+    </header>
+    <div id="offline-banner" class="offline-banner hidden" role="status">
+      <span id="offline-banner-text">Hub offline — de server draait niet.</span>
+      <button type="button" id="offline-retry" class="primary">Opnieuw proberen</button>
+    </div>
+
+    <main class="main">
+      <div id="view-chat" class="view-pane on">
+        <div class="status-bar">
+          <h2 id="chat-title">Chat</h2>
+          <p class="muted" id="route-info">Klaar — typ je vraag, of kies een starter.</p>
+        </div>
+        <section id="messages" class="messages" aria-live="polite"></section>
+        <div id="empty-state" class="empty-state on">
+          <h3>Wat wil je maken?</h3>
+          <p>Één plek voor chat, pitches, sites, socials en visuals. De hub kiest het beste model en team.</p>
+          <div id="empty-presets" class="empty-presets" aria-label="Starters"></div>
+        </div>
+        <div id="presets" class="presets" hidden aria-hidden="true"></div>
+        <div class="composer-shell">
+          <div class="composer-meta">
+            <label class="chip-select" title="Agent-modus (Cursor/Claude Code)">
+              <span>Agent</span>
+              <select id="agent-mode">
+                <option value="agent" selected>Agent</option>
+                <option value="plan">Plan</option>
+                <option value="ask">Ask</option>
+                <option value="debug">Debug</option>
+              </select>
+            </label>
+            <label class="chip-select" title="Werkmodus">
+              <span>Studio</span>
+              <select id="studio-select">
+                <option value="chat">Algemeen</option>
+                <option value="software">Code</option>
+                <option value="webdesign">Website</option>
+                <option value="apps">Apps</option>
+                <option value="design">Design (FigCraft/Penpot)</option>
+                <option value="marketing">Marketing</option>
+                <option value="socials">Socials</option>
+                <option value="seo">SEO / GEO</option>
+                <option value="visual">Visual</option>
+                <option value="ops">Ops</option>
+                <option value="self">Hub verbeteren</option>
+              </select>
+            </label>
+            <label class="chip-select" title="Model — Slim kiest automatisch">
+              <span>Model</span>
+              <select id="model-select-friendly"></select>
+            </label>
+            <label class="chip-select chrome-extra" title="Projectmap (optioneel)">
+              <span>Project</span>
+              <input id="workspace" type="text" placeholder="optioneel…" autocomplete="off" />
+            </label>
+            <button type="button" id="new-chat" class="ghost" style="border-radius:999px;padding:0.35rem 0.75rem;font-size:0.78rem">Nieuw</button>
+          </div>
+          <form id="composer" class="composer">
+            <div id="slash-menu" class="slash-menu hidden" role="listbox"></div>
+            <textarea id="prompt" rows="2" placeholder="/plan · /ask · /debug · /review · /doctor …"></textarea>
+            <label class="attach-btn" title="Afbeelding bijvoegen">
+              <input id="prompt-image" type="file" accept="image/*" hidden />
+              <span>🖼</span>
+            </label>
+            <button type="submit" id="send">Stuur</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="view-teams" class="view-pane teams-view">
+        <div class="teams-layout">
+          <section class="teams-col">
+            <div class="teams-head">
+              <h3>Teams</h3>
+              <button type="button" id="team-new" class="primary">+ Team</button>
+            </div>
+            <div id="teams-list" class="teams-list"></div>
+            <div class="teams-head" style="margin-top:1rem">
+              <h3>Agents</h3>
+              <button type="button" id="agent-new" class="ghost">+ Agent</button>
+            </div>
+            <div id="agents-list" class="agents-list"></div>
+          </section>
+          <section class="teams-col teams-editor">
+            <h3 id="editor-title">Kies of maak een team</h3>
+            <p class="muted tiny" id="editor-blurb">Pipeline = na elkaar · Board = parallel + lead-synthese.</p>
+            <div id="team-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="tf-name" type="text" /></label>
+              <label class="field"><span>Omschrijving</span><input id="tf-blurb" type="text" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="tf-color" type="color" value="#8fbf2f" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="tf-studio">
+                    <option value="webdesign">Website</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="socials">Socials</option>
+                    <option value="seo">SEO / GEO</option>
+                    <option value="visual">Visual</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Code</option>
+                    <option value="ops">Ops</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                    <option value="self">Hub verbeteren</option>
+                  </select>
+                </label>
+                <label class="field"><span>Mode</span>
+                  <select id="tf-mode">
+                    <option value="pipeline">Pipeline</option>
+                    <option value="board">Board</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field"><span>Lead</span><select id="tf-lead"></select></label>
+              <div class="teams-head"><h4>Leden</h4></div>
+              <div id="tf-members" class="member-chips"></div>
+              <label class="field"><span>Agent toevoegen</span>
+                <div class="field-row">
+                  <select id="tf-add-agent"></select>
+                  <button type="button" id="tf-add-btn" class="ghost">Voeg toe</button>
+                </div>
+              </label>
+              <div class="wiz-actions">
+                <button type="button" id="tf-save" class="primary">Opslaan</button>
+                <button type="button" id="tf-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div id="agent-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="af-name" type="text" /></label>
+              <label class="field"><span>Rol</span><input id="af-role" type="text" placeholder="Frontend" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="af-color" type="color" value="#2a7ab8" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="af-studio">
+                    <option value="webdesign">Website</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="socials">Socials</option>
+                    <option value="seo">SEO / GEO</option>
+                    <option value="visual">Visual</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Code</option>
+                    <option value="ops">Ops</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                    <option value="self">Hub verbeteren</option>
+                  </select>
+                </label>
+                <label class="field"><span>Model</span><input id="af-model" type="text" value="vit/auto" /></label>
+              </div>
+              <label class="field checkbox"><input id="af-tools" type="checkbox" checked /><span>Tools</span></label>
+              <label class="field"><span>Systeemprompt</span><textarea id="af-system" rows="4"></textarea></label>
+              <div class="wiz-actions">
+                <button type="button" id="af-save" class="primary">Opslaan</button>
+                <button type="button" id="af-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div class="run-box">
+              <h4>Run</h4>
+              <label class="field"><span>Taak</span>
+                <textarea id="team-task" rows="3" placeholder="bijv. Landing voor VIT Backup"></textarea>
+              </label>
+              <button type="button" id="team-run" class="primary wiz-hero">Run team</button>
+              <p class="muted tiny" id="team-run-msg">Project uit de balk indien gezet.</p>
+            </div>
+            <div id="team-run-out" class="team-run-out"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div class="settings-backdrop" id="settings-backdrop"></div>
+    <aside class="settings-drawer" id="settings-drawer" aria-label="Instellingen">
+      <div class="settings-head">
+        <h2>Instellingen</h2>
+        <button type="button" class="icon-btn" id="close-settings" aria-label="Sluiten">✕</button>
+      </div>
+      <div class="side-block">
+        <label class="field">
+          <span>Alle modellen (geavanceerd)</span>
+          <input id="model-filter" type="search" placeholder="Zoek model…" />
+          <select id="model-select" size="7"></select>
+        </label>
+        <div class="meta" id="model-meta"></div>
+        <button type="button" id="refresh-models" class="ghost">Modellen vernieuwen</button>
+      </div>
+
+      <details class="side-fold" open id="fold-iphone">
+        <summary>iPhone / PWA</summary>
+        <div class="fold-body">
+          <p class="muted tiny" id="lan-hint">Zelfde wifi als je Mac. LAN-modus opent de hub voor je telefoon.</p>
+          <label class="field checkbox">
+            <input type="checkbox" id="lan-toggle" />
+            <span>LAN-modus (iPhone mag verbinden)</span>
+          </label>
+          <p class="muted tiny" id="lan-url">…</p>
+          <div id="lan-qr" class="lan-qr" hidden></div>
+          <div class="side-actions">
+            <button type="button" id="lan-copy" class="primary">Kopieer link</button>
+            <button type="button" id="lan-refresh" class="ghost">↻</button>
+          </div>
+          <p class="muted tiny">Safari → Deel → <strong>Zet op beginscherm</strong>. Token zit in de link.</p>
+        </div>
+      </details>
+
+      <details class="side-fold" open id="fold-vit-apps">
+        <summary>VIT-apps</summary>
+        <div class="fold-body">
+          <p class="muted tiny">Mail · Kluis (Bitwarden) · Backup · Office · PDF · Remote</p>
+          <div id="vit-apps-list" class="vit-apps-list"></div>
+          <button type="button" id="vit-apps-refresh" class="ghost">↻ Status</button>
+        </div>
+      </details>
+
+      <details class="side-fold" open id="fold-ext">
+        <summary>Uitbreidingen</summary>
+        <div class="fold-body">
+          <p class="muted tiny">Skills · MCP · apps — één klik of upload.</p>
+          <pre id="ext-overview" class="mac-profile-box muted">Laden…</pre>
+          <div class="ext-tabs" role="tablist">
+            <button type="button" class="ext-tab on" data-ext-tab="skills">Skills</button>
+            <button type="button" class="ext-tab" data-ext-tab="mcp">MCP</button>
+            <button type="button" class="ext-tab" data-ext-tab="apps">Apps</button>
+          </div>
+
+          <div class="ext-pane on" data-ext-pane="skills">
+            <p class="muted tiny">Templates of upload SKILL.md</p>
+            <div id="ext-skill-presets" class="ext-chips"></div>
+            <label class="field"><span>Of upload SKILL.md</span>
+              <input id="ext-skill-file" type="file" accept=".md,text/markdown,text/plain" /></label>
+            <label class="field"><span>Naam</span>
+              <input id="ext-skill-name" type="text" placeholder="mijn-skill" autocomplete="off" /></label>
+            <label class="field"><span>Beschrijving</span>
+              <input id="ext-skill-desc" type="text" placeholder="Wat doet deze skill?" autocomplete="off" /></label>
+            <label class="field"><span>Inhoud</span>
+              <textarea id="ext-skill-body" rows="3" placeholder="Instructies…"></textarea></label>
+            <div class="side-actions">
+              <button type="button" id="ext-skill-add" class="primary">Opslaan</button>
+              <button type="button" id="ext-skill-import" class="ghost">Importeer Claude/Cursor</button>
+              <button type="button" id="ext-skill-refresh" class="ghost">↻</button>
+            </div>
+            <pre id="ext-skills-list" class="meta tiny muted account-list"></pre>
+          </div>
+
+          <div class="ext-pane" data-ext-pane="mcp">
+            <p class="muted tiny">Preset of plak Cursor <code>mcp.json</code></p>
+            <div id="ext-mcp-presets" class="ext-chips"></div>
+            <label class="field"><span>Plak mcp.json</span>
+              <textarea id="ext-mcp-json" rows="3" placeholder='{"mcpServers":{"…":{"command":"npx","args":[]}}}'></textarea></label>
+            <div class="side-actions">
+              <button type="button" id="ext-mcp-json-add" class="primary">JSON importeren</button>
+            </div>
+            <h4 class="ext-h">Handmatig</h4>
+            <label class="field"><span>Naam</span>
+              <input id="ext-mcp-name" type="text" placeholder="filesystem" autocomplete="off" /></label>
+            <label class="field"><span>Command</span>
+              <input id="ext-mcp-cmd" type="text" placeholder="npx" autocomplete="off" /></label>
+            <label class="field"><span>Args</span>
+              <input id="ext-mcp-args" type="text" placeholder="-y @modelcontextprotocol/server-filesystem /pad" autocomplete="off" /></label>
+            <label class="field"><span>URL (SSE)</span>
+              <input id="ext-mcp-url" type="text" placeholder="https://…" autocomplete="off" /></label>
+            <div class="side-actions">
+              <button type="button" id="ext-mcp-add" class="primary">MCP toevoegen</button>
+              <button type="button" id="ext-mcp-refresh" class="ghost">↻</button>
+            </div>
+            <pre id="ext-mcp-list" class="meta tiny muted account-list"></pre>
+          </div>
+
+          <div class="ext-pane" data-ext-pane="apps">
+            <p class="muted tiny">Koppel Mac-apps die de agent mag openen</p>
+            <div id="ext-app-presets" class="ext-chips"></div>
+            <label class="field"><span>Weergavenaam</span>
+              <input id="ext-app-name" type="text" placeholder="Slack" autocomplete="off" /></label>
+            <label class="field"><span>macOS app-naam</span>
+              <input id="ext-app-launch" type="text" placeholder="Slack" autocomplete="off" /></label>
+            <label class="field"><span>Aliassen</span>
+              <input id="ext-app-aliases" type="text" placeholder="chat, slack" autocomplete="off" /></label>
+            <label class="field"><span>Web</span>
+              <input id="ext-app-web" type="url" placeholder="https://…" autocomplete="off" /></label>
+            <div class="side-actions">
+              <button type="button" id="ext-app-add" class="primary">App koppelen</button>
+            </div>
+          </div>
+          <p class="muted tiny" id="ext-msg"></p>
+        </div>
+      </details>
+
+      <details class="side-fold" open id="fold-mac">
+        <summary>Jouw Mac (M5 Max 128GB)</summary>
+        <div class="fold-body">
+          <p class="muted tiny">Aanbevolen lokale stack voor jouw hardware.</p>
+          <pre id="mac-profile-box" class="mac-profile-box muted">Laden…</pre>
+          <div class="side-actions">
+            <button type="button" id="mac-profile-refresh" class="ghost">↻ Profiel</button>
+            <a class="ghost" href="/docs/MAC_M5_MAX.md" target="_blank" rel="noreferrer" id="mac-profile-docs">Uitleg</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="side-fold" open>
+        <summary>Gedrag</summary>
+        <div class="fold-body">
+          <label class="field checkbox">
+            <input type="checkbox" id="tools-toggle" checked />
+            <span>Tools (web, files, ops)</span>
+          </label>
+          <label class="field checkbox">
+            <input type="checkbox" id="auto-team-toggle" checked />
+            <span>Auto-team bij complexe taken</span>
+          </label>
+          <label class="field">
+            <span>Voorkeur</span>
+            <select id="tradeoff-select">
+              <option value="quality" selected>Beste kwaliteit</option>
+              <option value="cost">Goedkoop</option>
+              <option value="latency">Snel</option>
+            </select>
+          </label>
+          <div class="side-actions">
+            <button type="button" id="export-continue" class="ghost">Continue→hub</button>
+            <button type="button" id="open-figcraft" class="ghost">FigCraft</button>
+            <button type="button" id="open-penpot" class="ghost">Penpot</button>
+            <button type="button" id="ops-status-btn" class="ghost">Ops</button>
+          </div>
+          <pre id="ops-status-box" class="meta tiny muted" hidden></pre>
+          <label class="field">
+            <span>Gateway token</span>
+            <input id="token" type="password" placeholder="meestal automatisch" autocomplete="off" />
+          </label>
+        </div>
+      </details>
+
+      <details class="side-fold" id="fold-accounts">
+        <summary>Abonnementen <span class="fold-badge" id="accounts-status">…</span></summary>
+        <div class="fold-body">
+          <p class="muted tiny">Meerdere Claude/GPT/Cursor-abos — hub wisselt automatisch.</p>
+          <label class="field"><span>Pool</span>
+            <select id="acc-pool">
+              <option value="bridge">bridge (Claude/ChatGPT)</option>
+              <option value="cursor">cursor</option>
+              <option value="openrouter">openrouter</option>
+              <option value="deepseek">deepseek</option>
+              <option value="grok">grok</option>
+            </select>
+          </label>
+          <label class="field"><span>Label</span>
+            <input id="acc-label" type="text" placeholder="Claude abo 2" autocomplete="off" /></label>
+          <label class="field"><span>URL</span>
+            <input id="acc-url" type="text" placeholder="http://127.0.0.1:8318/v1" autocomplete="off" /></label>
+          <label class="field"><span>Key</span>
+            <input id="acc-key" type="password" autocomplete="off" /></label>
+          <label class="field"><span>Tags</span>
+            <input id="acc-tags" type="text" placeholder="claude,chatgpt" autocomplete="off" /></label>
+          <div class="side-actions">
+            <button type="button" id="acc-add" class="primary">Toevoegen</button>
+            <button type="button" id="acc-refresh" class="ghost">↻</button>
+            <button type="button" id="acc-clear-cd" class="ghost">Reset</button>
+          </div>
+          <pre id="accounts-list" class="meta tiny muted account-list"></pre>
+        </div>
+      </details>
+
+      <details class="side-fold" id="fold-kennis">
+        <summary>Kennis &amp; migratie</summary>
+        <div class="fold-body">
+          <p class="muted" id="import-status">Nog niet geïmporteerd.</p>
+          <p class="muted tiny" id="local-detect">Mac-apps: …</p>
+          <button type="button" id="import-all" class="primary">Migreer ALLES</button>
+          <div class="btn-grid">
+            <button type="button" id="import-skills" class="ghost">Skills</button>
+            <button type="button" id="import-full" class="ghost">Mirror</button>
+            <button type="button" id="chatgpt-live" class="ghost">Lees GPT</button>
+            <button type="button" id="claude-live" class="ghost">Lees Claude</button>
+            <button type="button" id="sync-start" class="ghost">Sync aan</button>
+            <button type="button" id="sync-once" class="ghost">Sync nu</button>
+            <button type="button" id="request-exports" class="ghost">Export starten</button>
+            <button type="button" id="wait-exports" class="ghost">Wacht op zips</button>
+            <button type="button" id="import-zips-now" class="ghost">Zips nu</button>
+          </div>
+          <label class="field">
+            <span>Upload zip/json</span>
+            <input id="import-file" type="file" accept=".zip,.json,application/zip,application/json" />
+          </label>
+          <div class="side-actions">
+            <select id="import-source">
+              <option value="">Auto</option>
+              <option value="chatgpt">ChatGPT</option>
+              <option value="claude">Claude</option>
+            </select>
+            <button type="button" id="import-upload" class="ghost">Importeer</button>
+          </div>
+          <div class="knowledge-browser">
+            <label class="field">
+              <span>Geïmporteerde chats</span>
+              <input id="know-q" type="search" placeholder="Zoek titel of tekst…" autocomplete="off" />
+            </label>
+            <div id="know-list" class="know-list" aria-live="polite"></div>
+            <p class="muted tiny">Open = laad in huidige chat (Claude/ChatGPT-geschiedenis hergebruiken).</p>
+          </div>
+          <p class="muted tiny"><a href="/?wizard=1">Setup opnieuw</a></p>
+        </div>
+      </details>
+
+      <footer class="side-foot">
+        <a href="/api/capabilities" target="_blank" rel="noreferrer">API</a>
+        <span class="pill mini" id="privacy-pill-side">Privacy aan</span>
+      </footer>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script src="/static/teams.js"></script>
+  <script src="/static/wizard.js"></script>
+</body>
+</html>

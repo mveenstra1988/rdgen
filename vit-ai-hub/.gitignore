@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+*.jsonl
+.DS_Store
+dist/*
+!dist/*.zip
+!dist/*.pkg
+!dist/*.dmg
+packaging/dmgmod/
+node_modules/
+.ruff_cache/

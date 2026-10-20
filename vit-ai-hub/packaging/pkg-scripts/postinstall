@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+HUB="/Applications/VIT-AI-Hub/hub"
+if [[ -x "$HUB/scripts/one-shot-setup.sh" ]]; then
+  # Run as console user when possible
+  USER_ID=$(stat -f '%u' /dev/console 2>/dev/null || echo "")
+  if [[ -n "${USER_ID}" && "${USER_ID}" != "0" ]]; then
+    USER_NAME=$(id -un "$USER_ID")
+    sudo -u "$USER_NAME" bash "$HUB/scripts/one-shot-setup.sh" || true
+  else
+    bash "$HUB/scripts/one-shot-setup.sh" || true
+  fi
+fi
+exit 0

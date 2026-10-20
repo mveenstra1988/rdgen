@@ -1,0 +1,90 @@
+#!/bin/bash
+# VIT AI Hub.app — sync alleen bij nieuwe versie, start hub, open GUI.
+set -euo pipefail
+
+APP_BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
+PARENT="$(cd "$APP_BUNDLE/.." && pwd)"
+INSTALL_ROOT="${VIT_AI_HUB_DIR:-$HOME/AI-projecten/VIT-ai-hub}"
+LOG_DIR="$HOME/Library/Logs/VIT-AI-Hub"
+mkdir -p "$LOG_DIR" "$(dirname "$INSTALL_ROOT")"
+
+CANDIDATES=(
+  "$APP_BUNDLE/hub"
+  "$PARENT/hub"
+  "$INSTALL_ROOT"
+)
+
+BUNDLE_HUB=""
+for c in "${CANDIDATES[@]}"; do
+  if [[ -f "$c/scripts/app-session.sh" ]]; then
+    BUNDLE_HUB="$(cd "$c" && pwd)"
+    break
+  fi
+done
+
+if [[ -z "$BUNDLE_HUB" ]]; then
+  osascript -e 'display dialog "VIT AI Hub bestanden niet gevonden.\nSleep de app opnieuw vanuit de DMG, of run install-mac-clean.sh" buttons {"OK"} default button 1' || true
+  exit 1
+fi
+
+xattr -dr com.apple.quarantine "$APP_BUNDLE" 2>/dev/null || true
+
+ROOT="$INSTALL_ROOT"
+bundle_ver() {
+  local f="$1/src/vit_ai_hub/__init__.py"
+  if [[ -f "$f" ]]; then
+    grep -E '__version__\s*=' "$f" | head -1 | sed -E 's/.*"([^"]+)".*/\1/'
+  else
+    echo "unknown"
+  fi
+}
+
+NEED_SYNC=0
+if [[ "$BUNDLE_HUB" != "$ROOT" ]]; then
+  BV="$(bundle_ver "$BUNDLE_HUB")"
+  IV="$(bundle_ver "$ROOT" 2>/dev/null || echo "")"
+  if [[ ! -f "$ROOT/scripts/app-session.sh" ]]; then
+    NEED_SYNC=1
+  elif [[ "$BV" != "$IV" ]]; then
+    NEED_SYNC=1
+  fi
+fi
+
+if [[ "$NEED_SYNC" == "1" ]]; then
+  osascript -e 'display notification "Update klaarzetten…" with title "VIT AI Hub"' 2>/dev/null || true
+  mkdir -p "$ROOT"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a \
+      --exclude '.venv' \
+      --exclude 'data/' \
+      --exclude '__pycache__' \
+      --exclude '.pytest_cache' \
+      --exclude 'dist/dmg-stage-*' \
+      "$BUNDLE_HUB/" "$ROOT/"
+  else
+    (cd "$BUNDLE_HUB" && tar cf - \
+      --exclude='.venv' --exclude='data' --exclude='__pycache__' \
+      .) | (cd "$ROOT" && tar xf -)
+  fi
+  mkdir -p "$ROOT/data" "$ROOT/data/run"
+  # Force deps check na update
+  rm -f "$ROOT/data/.deps-ok"
+  xattr -dr com.apple.quarantine "$ROOT" 2>/dev/null || true
+fi
+
+chmod +x "$ROOT/scripts/"*.sh 2>/dev/null || true
+
+# Al online? meteen venster — geen sync/pip
+if curl -sf "http://127.0.0.1:8787/health" >/dev/null 2>&1; then
+  bash "$ROOT/scripts/open-gui.sh" "http://127.0.0.1:8787/"
+  # Blijf wachten zolang er een session is, anders direct exit (heropen)
+  if [[ -f "$ROOT/data/run/session.pid" ]]; then
+    OLD="$(cat "$ROOT/data/run/session.pid" 2>/dev/null || true)"
+    if [[ -n "$OLD" ]] && kill -0 "$OLD" 2>/dev/null; then
+      while kill -0 "$OLD" 2>/dev/null; do sleep 2; done
+      exit 0
+    fi
+  fi
+fi
+
+exec bash "$ROOT/scripts/app-session.sh"

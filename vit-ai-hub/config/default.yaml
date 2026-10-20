@@ -1,0 +1,166 @@
+gateway:
+  host: 127.0.0.1
+  port: 8787
+  bind_localhost_only: true
+
+memory_budget:
+  # Profiel: MacBook M5 Max 128GB / 2TB — zie docs/MAC_M5_MAX.md
+  profile: m5-max-128
+  reserve_apps_gb: 48
+  light_model_hint: "Qwen3.6-35B-A3B MLX 4/6-bit (~20-30GB) — daily"
+  heavy_model_hint: "Qwen3.8-27B MLX 6-bit of 120B MoE Q4 on-demand"
+  heavy_unload: true
+
+pii:
+  mode: fail_closed
+  cloud_action: block  # block | redact
+  local_action: allow  # allow | redact
+  patterns:
+    - name: email
+      regex: '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b'
+    - name: ipv4
+      regex: '\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b'
+    - name: iban
+      regex: '\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b'
+    - name: phone_nl
+      regex: '(?:\+31|0031|0)[\s\-]?[1-9](?:[\s\-]?\d){8}\b'
+    - name: api_keyish
+      regex: '(?i)\b(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})\b'
+    - name: password_assignment
+      regex: '(?i)\b(?:password|wachtwoord|passwd|pwd)\s*[:=]\s*\S+'
+    - name: ticket_vit
+      regex: '\b(?:TKT|TICKET|INC|SR)[-_]?\d{4,}\b'
+
+backends:
+  lmstudio:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:1234/v1
+    local: true
+    label: Lokaal (LM Studio)
+  ollama:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:11434/v1
+    local: true
+    label: Lokaal (Ollama)
+  bridge:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:8317/v1
+    local: false
+    label: Claude/ChatGPT (abo bridge)
+    prefix_hints: ["claude", "gpt-", "o1", "o3", "o4", "chatgpt"]
+  openrouter:
+    enabled: true
+    kind: openai
+    base_url: https://openrouter.ai/api/v1
+    local: false
+    label: OpenRouter
+    pinned_models:
+      - id: stealth/ox-alpha
+        name: Ox Alpha (stealth)
+      - id: z-ai/glm-5.3-flash
+        name: GLM-5.3-Flash (ex Ox Alpha)
+      - id: deepseek/deepseek-chat
+        name: DeepSeek Chat (via OpenRouter)
+      - id: deepseek/deepseek-r1
+        name: DeepSeek R1 (via OpenRouter)
+      - id: deepseek/deepseek-chat-v3-0324:free
+        name: DeepSeek Chat v3 (free)
+      - id: meta-llama/llama-3.3-70b-instruct:free
+        name: Llama 3.3 70B (free)
+      - id: google/gemma-3-27b-it:free
+        name: Gemma 3 27B (free)
+      - id: qwen/qwen3-32b:free
+        name: Qwen3 32B (free)
+      - id: mistralai/mistral-small-3.1-24b-instruct:free
+        name: Mistral Small 3.1 (free)
+  deepseek:
+    enabled: true
+    kind: openai
+    base_url: https://api.deepseek.com/v1
+    local: false
+    label: DeepSeek
+    pinned_models:
+      - id: deepseek-chat
+        name: DeepSeek Chat
+      - id: deepseek-reasoner
+        name: DeepSeek Reasoner (R1)
+    prefix_hints: ["deepseek"]
+  omniroute:
+    enabled: true
+    kind: openai
+    base_url: http://127.0.0.1:20128/v1
+    local: false
+    label: OmniRoute
+  cursor:
+    enabled: true
+    kind: openai
+    base_url: ""
+    local: false
+    label: Cursor
+  grok:
+    enabled: true
+    kind: openai
+    base_url: https://api.x.ai/v1
+    local: false
+    label: Grok (xAI)
+    pinned_models:
+      - id: grok-4
+        name: Grok 4
+      - id: grok-3
+        name: Grok 3
+      - id: grok-3-mini
+        name: Grok 3 Mini
+      - id: grok-2-vision-1212
+        name: Grok 2 Vision
+
+virtual_models:
+  - id: vit/auto
+    name: Auto smart (intent → beste model + team indien nodig)
+  - id: vit/smart
+    name: Smart (zelfde als Auto)
+  - id: vit/max
+    name: Max kwaliteit (lokaal-prep + auto + critic + second opinion)
+  - id: vit/local-light
+    name: "Lokaal light (M5 Qwen3.6-35B-A3B MLX)"
+  - id: vit/local-heavy
+    name: "Lokaal heavy (M5 27B of 120B MoE on-demand)"
+
+orchestrator:
+  enabled: true
+  auto_team: true
+  prefer_local_for: [ops, simple, privacy]
+  # quality | cost | latency (RouteLLM/NotDiamond-achtige tradeoff)
+  tradeoff: quality
+  # strength < weak_threshold → cheap/local (RouteLLM strong/weak)
+  weak_threshold: 0.35
+  # OpenRouter-style fallback chain length (excl. primary)
+  max_fallbacks: 4
+  fallback_extra: []
+  # Maker-checker / critic loop na single-model antwoorden
+  critic: true
+  critic_rounds: 2
+  # Tweede model verbetert concept (quality tradeoff)
+  second_opinion: true
+  # Lokaal voorbereiden (repo/kennis/geheugen → EXEC_BRIEF) vóór cloud = minder tokens
+  local_prep: true
+  local_prep_max_chars: 10000
+  telemetry: true
+  # Optionele vaste model-ids per intent (leeg = dynamisch kiezen)
+  models: {}
+
+tools:
+  web_search: true
+  fetch_url: true
+  memory: true
+  files: true
+  desktop: true
+  mcp: true
+  ops: true
+  code_sandbox: false
+
+sync:
+  interval_sec: 300
+  include_ax: false
