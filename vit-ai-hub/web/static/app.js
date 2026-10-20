@@ -5,11 +5,14 @@ const state = {
 
 const els = {
   modelSelect: document.getElementById("model-select"),
+  modelFriendly: document.getElementById("model-select-friendly"),
   modelFilter: document.getElementById("model-filter"),
   modelMeta: document.getElementById("model-meta"),
   studioSelect: document.getElementById("studio-select"),
   workspace: document.getElementById("workspace"),
   messages: document.getElementById("messages"),
+  emptyState: document.getElementById("empty-state"),
+  emptyPresets: document.getElementById("empty-presets"),
   prompt: document.getElementById("prompt"),
   form: document.getElementById("composer"),
   token: document.getElementById("token"),
@@ -38,7 +41,45 @@ const els = {
   claudeLive: document.getElementById("claude-live"),
   syncStart: document.getElementById("sync-start"),
   syncOnce: document.getElementById("sync-once"),
+  settingsDrawer: document.getElementById("settings-drawer"),
+  settingsBackdrop: document.getElementById("settings-backdrop"),
+  openSettings: document.getElementById("open-settings"),
+  closeSettings: document.getElementById("close-settings"),
+  appRoot: document.getElementById("app-root"),
 };
+
+function friendlyModelLabel(m) {
+  if (!m) return "Model";
+  if (m.id === "vit/auto" || m.virtual) return "Slim (kiest zelf)";
+  if (m.local && /heavy/i.test(m.id + m.name)) return "Lokaal · krachtig";
+  if (m.local) return "Lokaal · snel";
+  if (/claude/i.test(m.id + (m.name || ""))) return `Claude · ${(m.name || m.id).replace(/^.*\//, "").slice(0, 28)}`;
+  if (/deepseek/i.test(m.id)) return "DeepSeek";
+  if (/gpt|openai/i.test(m.id + (m.name || ""))) return `GPT · ${(m.name || m.id).slice(0, 24)}`;
+  const short = (m.name || m.id).replace(/^[^:]+:/, "").slice(0, 32);
+  return short;
+}
+
+function syncEmptyState() {
+  if (!els.emptyState) return;
+  const hasUser = state.messages.some((m) => m.role === "user" || m.role === "assistant");
+  els.emptyState.classList.toggle("on", !hasUser);
+  if (els.messages) els.messages.style.display = hasUser ? "flex" : "none";
+}
+
+function openSettings(on) {
+  els.settingsDrawer?.classList.toggle("on", on);
+  els.settingsBackdrop?.classList.toggle("on", on);
+}
+
+function popWindow(view) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("pop", "1");
+  url.searchParams.set("view", view || "chat");
+  const w = view === "teams" ? 1100 : 920;
+  const h = view === "teams" ? 800 : 720;
+  window.open(url.toString(), `vit-${view}-${Date.now()}`, `popup=yes,width=${w},height=${h}`);
+}
 
 try {
   const savedStudio = localStorage.getItem("vit_studio");
@@ -81,7 +122,9 @@ async function ensureLocalToken() {
 }
 
 function selectedModel() {
-  return els.modelSelect.value || "vit/auto";
+  const friendly = els.modelFriendly?.value;
+  if (friendly) return friendly;
+  return els.modelSelect?.value || "vit/auto";
 }
 
 function renderModels(filter = "") {
@@ -93,39 +136,79 @@ function renderModels(filter = "") {
       .includes(q);
   });
   const current = selectedModel();
-  els.modelSelect.innerHTML = "";
-  for (const m of models) {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    const kind = m.local ? "local" : m.virtual ? "vit" : "cloud";
-    opt.textContent = `[${m.label || m.backend || kind}] ${m.name || m.id}`;
-    els.modelSelect.appendChild(opt);
+  if (els.modelSelect) {
+    els.modelSelect.innerHTML = "";
+    for (const m of models) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      const kind = m.local ? "local" : m.virtual ? "vit" : "cloud";
+      opt.textContent = `[${m.label || m.backend || kind}] ${m.name || m.id}`;
+      els.modelSelect.appendChild(opt);
+    }
   }
-  if ([...els.modelSelect.options].some((o) => o.value === current)) {
-    els.modelSelect.value = current;
-  } else if (models.some((m) => m.id === "vit/auto")) {
-    els.modelSelect.value = "vit/auto";
+  // Friendly shortlist: auto + locals + top clouds
+  if (els.modelFriendly) {
+    const picks = [];
+    const auto = state.models.find((m) => m.id === "vit/auto");
+    if (auto) picks.push(auto);
+    for (const m of state.models) {
+      if (m.id === "vit/auto") continue;
+      if (m.local || m.virtual) picks.push(m);
+      if (picks.length >= 6) break;
+    }
+    for (const m of state.models) {
+      if (picks.includes(m)) continue;
+      if (/claude|deepseek|gpt-4|sonnet/i.test(m.id)) picks.push(m);
+      if (picks.length >= 10) break;
+    }
+    els.modelFriendly.innerHTML = "";
+    for (const m of picks) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = friendlyModelLabel(m);
+      els.modelFriendly.appendChild(opt);
+    }
+    // Always allow current even if not in shortlist
+    if (current && ![...els.modelFriendly.options].some((o) => o.value === current)) {
+      const m = state.models.find((x) => x.id === current);
+      const opt = document.createElement("option");
+      opt.value = current;
+      opt.textContent = friendlyModelLabel(m) || current;
+      els.modelFriendly.appendChild(opt);
+    }
   }
+  const setVal = (el) => {
+    if (!el) return;
+    if ([...el.options].some((o) => o.value === current)) el.value = current;
+    else if ([...el.options].some((o) => o.value === "vit/auto")) el.value = "vit/auto";
+  };
+  setVal(els.modelSelect);
+  setVal(els.modelFriendly);
   updateMeta();
 }
 
 function updateMeta() {
   const m = state.models.find((x) => x.id === selectedModel());
   if (!m) {
-    els.modelMeta.textContent = "";
+    if (els.modelMeta) els.modelMeta.textContent = "";
     return;
   }
-  els.modelMeta.textContent = [
-    `id: ${m.id}`,
-    `backend: ${m.backend || "?"}`,
-    `scope: ${m.local ? "lokaal" : m.virtual ? "virtueel" : "cloud"}`,
-  ].join("\n");
-  els.routeInfo.textContent = m.virtual
-    ? "vit/auto: intent → beste model (lokaal/Claude/DeepSeek/…) + auto-team bij complexe taken."
-    : `Direct: ${m.label || m.backend} · ${m.local ? "blijft op deze Mac" : "via privacyfilter"}`;
+  if (els.modelMeta) {
+    els.modelMeta.textContent = [
+      `id: ${m.id}`,
+      `backend: ${m.backend || "?"}`,
+      `scope: ${m.local ? "lokaal" : m.virtual ? "virtueel" : "cloud"}`,
+    ].join("\n");
+  }
+  if (els.routeInfo) {
+    els.routeInfo.textContent = m.virtual
+      ? "Slim: kiest model + team voor de beste output"
+      : `${friendlyModelLabel(m)} · ${m.local ? "op deze Mac" : "via privacyfilter"}`;
+  }
 }
 
 function addBubble(role, text, meta = null) {
+  if (!els.messages) return;
   const div = document.createElement("div");
   div.className = `bubble ${role}`;
   if (meta) {
@@ -134,11 +217,10 @@ function addBubble(role, text, meta = null) {
     if (meta.pii_forced_local) tag.classList.add("warn");
     const orch = meta.orchestrator;
     const bits = [
-      meta.auto_team ? "auto-team" : meta.backend,
-      meta.model,
-      orch?.intent?.kind ? `intent:${orch.intent.kind}` : null,
-      orch?.model_reason || null,
-      meta.pii_forced_local ? "PII→lokaal" : meta.pii_action,
+      meta.auto_team ? "team" : null,
+      orch?.intent?.kind || null,
+      meta.local ? "lokaal" : meta.backend,
+      meta.pii_forced_local ? "privacy→lokaal" : null,
     ];
     tag.textContent = bits.filter(Boolean).join(" · ");
     div.appendChild(tag);
@@ -148,6 +230,7 @@ function addBubble(role, text, meta = null) {
   div.appendChild(body);
   els.messages.appendChild(div);
   els.messages.scrollTop = els.messages.scrollHeight;
+  syncEmptyState();
 }
 
 async function loadModels() {
@@ -168,19 +251,22 @@ async function ping() {
   }
 }
 
-els.modelFilter.addEventListener("input", () => renderModels(els.modelFilter.value));
-els.modelSelect.addEventListener("change", updateMeta);
-els.refresh.addEventListener("click", () => loadModels().catch((e) => addBubble("system", String(e))));
-els.newChat.addEventListener("click", () => {
+els.modelFilter?.addEventListener("input", () => renderModels(els.modelFilter.value));
+els.modelSelect?.addEventListener("change", () => {
+  if (els.modelFriendly) els.modelFriendly.value = els.modelSelect.value;
+  updateMeta();
+});
+els.modelFriendly?.addEventListener("change", () => {
+  if (els.modelSelect) els.modelSelect.value = els.modelFriendly.value;
+  updateMeta();
+});
+els.refresh?.addEventListener("click", () => loadModels().catch((e) => addBubble("system", String(e))));
+els.newChat?.addEventListener("click", () => {
   state.messages = [];
-  els.messages.innerHTML = "";
-  const studio = els.studioSelect?.value || "chat";
-  addBubble(
-    "system",
-    `Nieuwe chat · studio=${studio}` +
-      (els.workspace?.value.trim() ? ` · ${els.workspace.value.trim()}` : "") +
-      ". Privacyfilter blijft actief."
-  );
+  if (els.messages) els.messages.innerHTML = "";
+  syncEmptyState();
+  if (els.routeInfo) els.routeInfo.textContent = "Nieuwe chat — privacyfilter blijft aan.";
+  els.prompt?.focus();
 });
 
 els.studioSelect?.addEventListener("change", () => {
@@ -189,8 +275,27 @@ els.studioSelect?.addEventListener("change", () => {
   } catch (_) {
     /* ignore */
   }
-  addBubble("system", `Studio: ${els.studioSelect.value}. Tools schrijven/lezen in je workspace.`);
+  const labels = {
+    chat: "Algemeen",
+    software: "Code",
+    webdesign: "Website",
+    marketing: "Marketing",
+    socials: "Socials",
+    seo: "SEO / GEO",
+    visual: "Visual",
+    ops: "Ops",
+    self: "Hub verbeteren",
+  };
+  if (els.routeInfo) {
+    els.routeInfo.textContent = `Modus: ${labels[els.studioSelect.value] || els.studioSelect.value}`;
+  }
 });
+
+els.openSettings?.addEventListener("click", () => openSettings(true));
+els.closeSettings?.addEventListener("click", () => openSettings(false));
+els.settingsBackdrop?.addEventListener("click", () => openSettings(false));
+document.getElementById("pop-chat")?.addEventListener("click", () => popWindow("chat"));
+document.getElementById("pop-teams")?.addEventListener("click", () => popWindow("teams"));
 
 els.workspace?.addEventListener("change", () => {
   try {
@@ -586,48 +691,82 @@ document.getElementById("acc-add")?.addEventListener("click", async () => {
   refreshAccounts();
 });
 
-addBubble(
-  "system",
-  "Welkom. Laat model op vit/auto staan, kies een studio, en typ je vraag.\n" +
-    "Growth: Marketing · Socials · SEO/GEO · Visual (Canva-alt) · Site pipeline.\n" +
-    "Open de Mac-app om de hub te starten; sluiten stopt alles.\n" +
-    "Abonnementen & migratie zitten ingeklapt links — open alleen als je ze nodig hebt."
-);
+function applyPreset(p) {
+  if (els.studioSelect && p.studio) {
+    els.studioSelect.value = p.studio;
+    try {
+      localStorage.setItem("vit_studio", p.studio);
+    } catch (_) {}
+  }
+  if (els.prompt) {
+    els.prompt.value = p.text || "";
+    els.prompt.focus();
+  }
+}
+
 async function loadPresets() {
-  const box = document.getElementById("presets");
-  if (!box) return;
+  const targets = [els.emptyPresets, document.getElementById("presets")].filter(Boolean);
+  if (!targets.length) return;
   try {
     const res = await fetch("/api/presets", { headers: headers() });
     const data = await res.json();
-    box.innerHTML = "";
-    for (const p of data.presets || []) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.textContent = p.label;
-      b.title = p.text;
-      b.addEventListener("click", () => {
-        if (els.studioSelect && p.studio) {
-          els.studioSelect.value = p.studio;
-          try {
-            localStorage.setItem("vit_studio", p.studio);
-          } catch (_) {}
+    const blurb = {
+      Pitch: "30s + 2min",
+      Landing: "site end-to-end",
+      LinkedIn: "5 posts",
+      Visual: "Canva-alt",
+      "SEO / GEO": "zoek + AI",
+      "SEO/GEO": "zoek + AI",
+    };
+    for (const box of targets) {
+      box.innerHTML = "";
+      for (const p of data.presets || []) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.title = p.text;
+        if (box === els.emptyPresets) {
+          b.innerHTML = `${p.label}<small>${blurb[p.label] || "start hier"}</small>`;
+        } else {
+          b.textContent = p.label;
         }
-        if (els.prompt) {
-          els.prompt.value = p.text || "";
-          els.prompt.focus();
-        }
-      });
-      box.appendChild(b);
+        b.addEventListener("click", () => applyPreset(p));
+        box.appendChild(b);
+      }
     }
   } catch (_) {
     /* ignore */
   }
 }
 
+function applyPopMode() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("pop") === "1") {
+    els.appRoot?.classList.add("pop-mode");
+    document.title = params.get("view") === "teams" ? "VIT Teams" : "VIT Chat";
+  }
+  const view = params.get("view");
+  if (view === "teams" || view === "chat") {
+    document.querySelectorAll(".view-tab").forEach((t) => {
+      t.classList.toggle("on", t.dataset.view === view);
+    });
+    document.querySelectorAll(".view-pane").forEach((p) => {
+      p.classList.toggle("on", p.id === `view-${view}`);
+    });
+  }
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
 ensureLocalToken().then(() => {
+  applyPopMode();
+  syncEmptyState();
   ping();
   refreshImportStatus();
   refreshAccounts();
   loadPresets();
-  loadModels().catch((e) => addBubble("system", `Kon modellen niet laden: ${e}`));
+  loadModels().catch((e) => {
+    if (els.routeInfo) els.routeInfo.textContent = `Modellen laden mislukt: ${e}`;
+  });
 });

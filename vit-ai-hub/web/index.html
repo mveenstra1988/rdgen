@@ -4,10 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VIT AI Hub</title>
+  <meta name="theme-color" content="#1a2e22" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="VIT AI" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <link rel="icon" type="image/png" href="/static/icon-192.png" />
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
   <div id="wizard" class="wizard hidden" aria-modal="true" role="dialog">
@@ -144,8 +151,8 @@
     </div>
   </div>
 
-  <div class="app">
-    <aside class="sidebar">
+  <div class="app" id="app-root">
+    <header class="chrome">
       <div class="brand">
         <div class="brand-mark">VIT</div>
         <div class="brand-text">
@@ -153,45 +160,187 @@
           <p class="muted" id="health">…</p>
         </div>
       </div>
+      <div class="chrome-center chrome-extra">
+        <div class="view-tabs" role="tablist">
+          <button type="button" class="view-tab on" data-view="chat">Chat</button>
+          <button type="button" class="view-tab" data-view="teams">Teams</button>
+        </div>
+      </div>
+      <div class="chrome-actions">
+        <span class="pill" id="privacy-pill" title="Klantgegevens blijven lokaal">Privacy aan</span>
+        <button type="button" class="icon-btn" id="pop-chat" title="Chat in nieuw venster">⧉</button>
+        <button type="button" class="icon-btn" id="pop-teams" title="Teams in nieuw venster">▦</button>
+        <button type="button" class="icon-btn" id="open-settings" title="Instellingen" aria-label="Instellingen">⚙</button>
+      </div>
+    </header>
 
-      <div class="side-block">
-        <label class="field">
-          <span>Studio</span>
-          <select id="studio-select">
-            <option value="chat">Chat</option>
-            <option value="software">Software</option>
-            <option value="webdesign">Webdesign</option>
-            <option value="apps">Apps</option>
-            <option value="design">Design (Penpot)</option>
-            <option value="marketing">Marketing</option>
-            <option value="socials">Socials</option>
-            <option value="seo">SEO / GEO</option>
-            <option value="visual">Visual (Canva-alt)</option>
-            <option value="ops">Ops / Infra</option>
-            <option value="self">Self-improve</option>
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Model</span>
-          <input id="model-filter" type="search" placeholder="Zoek… claude, free, local" />
-          <select id="model-select" size="8"></select>
-        </label>
-        <div class="meta" id="model-meta"></div>
-
-        <label class="field">
-          <span>Workspace</span>
-          <input id="workspace" type="text" placeholder="~/Projects/…" autocomplete="off" />
-        </label>
+    <main class="main">
+      <div id="view-chat" class="view-pane on">
+        <div class="status-bar">
+          <h2 id="chat-title">Chat</h2>
+          <p class="muted" id="route-info">Klaar — typ je vraag, of kies een starter.</p>
+        </div>
+        <section id="messages" class="messages" aria-live="polite"></section>
+        <div id="empty-state" class="empty-state on">
+          <h3>Wat wil je maken?</h3>
+          <p>Één plek voor chat, pitches, sites, socials en visuals. De hub kiest het beste model en team.</p>
+          <div id="empty-presets" class="empty-presets" aria-label="Starters"></div>
+        </div>
+        <div id="presets" class="presets" hidden aria-hidden="true"></div>
+        <div class="composer-shell">
+          <div class="composer-meta">
+            <label class="chip-select" title="Werkmodus">
+              <span>Modus</span>
+              <select id="studio-select">
+                <option value="chat">Algemeen</option>
+                <option value="software">Code</option>
+                <option value="webdesign">Website</option>
+                <option value="apps">Apps</option>
+                <option value="design">Design (Penpot)</option>
+                <option value="marketing">Marketing</option>
+                <option value="socials">Socials</option>
+                <option value="seo">SEO / GEO</option>
+                <option value="visual">Visual</option>
+                <option value="ops">Ops</option>
+                <option value="self">Hub verbeteren</option>
+              </select>
+            </label>
+            <label class="chip-select" title="Model — Slim kiest automatisch">
+              <span>Model</span>
+              <select id="model-select-friendly"></select>
+            </label>
+            <label class="chip-select chrome-extra" title="Projectmap (optioneel)">
+              <span>Project</span>
+              <input id="workspace" type="text" placeholder="optioneel…" autocomplete="off" />
+            </label>
+            <button type="button" id="new-chat" class="ghost" style="border-radius:999px;padding:0.35rem 0.75rem;font-size:0.78rem">Nieuw</button>
+          </div>
+          <form id="composer" class="composer">
+            <textarea id="prompt" rows="2" placeholder="Vraag of opdracht… (privacyfilter staat aan)"></textarea>
+            <button type="submit" id="send">Stuur</button>
+          </form>
+        </div>
       </div>
 
-      <div class="side-actions side-actions-main">
-        <button type="button" id="new-chat" class="primary">Nieuwe chat</button>
-        <button type="button" id="refresh-models" class="ghost" title="Modellen vernieuwen">↻</button>
+      <div id="view-teams" class="view-pane teams-view">
+        <div class="teams-layout">
+          <section class="teams-col">
+            <div class="teams-head">
+              <h3>Teams</h3>
+              <button type="button" id="team-new" class="primary">+ Team</button>
+            </div>
+            <div id="teams-list" class="teams-list"></div>
+            <div class="teams-head" style="margin-top:1rem">
+              <h3>Agents</h3>
+              <button type="button" id="agent-new" class="ghost">+ Agent</button>
+            </div>
+            <div id="agents-list" class="agents-list"></div>
+          </section>
+          <section class="teams-col teams-editor">
+            <h3 id="editor-title">Kies of maak een team</h3>
+            <p class="muted tiny" id="editor-blurb">Pipeline = na elkaar · Board = parallel + lead-synthese.</p>
+            <div id="team-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="tf-name" type="text" /></label>
+              <label class="field"><span>Omschrijving</span><input id="tf-blurb" type="text" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="tf-color" type="color" value="#8fbf2f" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="tf-studio">
+                    <option value="webdesign">Website</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="socials">Socials</option>
+                    <option value="seo">SEO / GEO</option>
+                    <option value="visual">Visual</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Code</option>
+                    <option value="ops">Ops</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                    <option value="self">Hub verbeteren</option>
+                  </select>
+                </label>
+                <label class="field"><span>Mode</span>
+                  <select id="tf-mode">
+                    <option value="pipeline">Pipeline</option>
+                    <option value="board">Board</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field"><span>Lead</span><select id="tf-lead"></select></label>
+              <div class="teams-head"><h4>Leden</h4></div>
+              <div id="tf-members" class="member-chips"></div>
+              <label class="field"><span>Agent toevoegen</span>
+                <div class="field-row">
+                  <select id="tf-add-agent"></select>
+                  <button type="button" id="tf-add-btn" class="ghost">Voeg toe</button>
+                </div>
+              </label>
+              <div class="wiz-actions">
+                <button type="button" id="tf-save" class="primary">Opslaan</button>
+                <button type="button" id="tf-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div id="agent-form" class="team-form hidden">
+              <label class="field"><span>Naam</span><input id="af-name" type="text" /></label>
+              <label class="field"><span>Rol</span><input id="af-role" type="text" placeholder="Frontend" /></label>
+              <div class="field-row">
+                <label class="field"><span>Kleur</span><input id="af-color" type="color" value="#2a7ab8" /></label>
+                <label class="field"><span>Studio</span>
+                  <select id="af-studio">
+                    <option value="webdesign">Website</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="socials">Socials</option>
+                    <option value="seo">SEO / GEO</option>
+                    <option value="visual">Visual</option>
+                    <option value="apps">Apps</option>
+                    <option value="software">Code</option>
+                    <option value="ops">Ops</option>
+                    <option value="design">Design</option>
+                    <option value="chat">Chat</option>
+                    <option value="self">Hub verbeteren</option>
+                  </select>
+                </label>
+                <label class="field"><span>Model</span><input id="af-model" type="text" value="vit/auto" /></label>
+              </div>
+              <label class="field checkbox"><input id="af-tools" type="checkbox" checked /><span>Tools</span></label>
+              <label class="field"><span>Systeemprompt</span><textarea id="af-system" rows="4"></textarea></label>
+              <div class="wiz-actions">
+                <button type="button" id="af-save" class="primary">Opslaan</button>
+                <button type="button" id="af-delete" class="ghost">Verwijderen</button>
+              </div>
+            </div>
+            <div class="run-box">
+              <h4>Run</h4>
+              <label class="field"><span>Taak</span>
+                <textarea id="team-task" rows="3" placeholder="bijv. Landing voor VIT Backup"></textarea>
+              </label>
+              <button type="button" id="team-run" class="primary wiz-hero">Run team</button>
+              <p class="muted tiny" id="team-run-msg">Project uit de balk indien gezet.</p>
+            </div>
+            <div id="team-run-out" class="team-run-out"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div class="settings-backdrop" id="settings-backdrop"></div>
+    <aside class="settings-drawer" id="settings-drawer" aria-label="Instellingen">
+      <div class="settings-head">
+        <h2>Instellingen</h2>
+        <button type="button" class="icon-btn" id="close-settings" aria-label="Sluiten">✕</button>
+      </div>
+      <div class="side-block">
+        <label class="field">
+          <span>Alle modellen (geavanceerd)</span>
+          <input id="model-filter" type="search" placeholder="Zoek model…" />
+          <select id="model-select" size="7"></select>
+        </label>
+        <div class="meta" id="model-meta"></div>
+        <button type="button" id="refresh-models" class="ghost">Modellen vernieuwen</button>
       </div>
 
       <details class="side-fold" open>
-        <summary>Opties</summary>
+        <summary>Gedrag</summary>
         <div class="fold-body">
           <label class="field checkbox">
             <input type="checkbox" id="tools-toggle" checked />
@@ -202,22 +351,22 @@
             <span>Auto-team bij complexe taken</span>
           </label>
           <label class="field">
-            <span>Tradeoff</span>
+            <span>Voorkeur</span>
             <select id="tradeoff-select">
-              <option value="quality">Quality</option>
-              <option value="cost">Cost</option>
-              <option value="latency">Latency</option>
+              <option value="quality" selected>Beste kwaliteit</option>
+              <option value="cost">Goedkoop</option>
+              <option value="latency">Snel</option>
             </select>
           </label>
           <div class="side-actions">
-            <button type="button" id="export-continue" class="ghost">Continue</button>
+            <button type="button" id="export-continue" class="ghost">Continue→hub</button>
             <button type="button" id="open-penpot" class="ghost">Penpot</button>
             <button type="button" id="ops-status-btn" class="ghost">Ops</button>
           </div>
           <pre id="ops-status-box" class="meta tiny muted" hidden></pre>
           <label class="field">
             <span>Gateway token</span>
-            <input id="token" type="password" placeholder="optioneel" autocomplete="off" />
+            <input id="token" type="password" placeholder="meestal automatisch" autocomplete="off" />
           </label>
         </div>
       </details>
@@ -225,7 +374,7 @@
       <details class="side-fold" id="fold-accounts">
         <summary>Abonnementen <span class="fold-badge" id="accounts-status">…</span></summary>
         <div class="fold-body">
-          <p class="muted tiny">Meerdere Claude/GPT/Cursor-abos — hub wisselt bij uitputting.</p>
+          <p class="muted tiny">Meerdere Claude/GPT/Cursor-abos — hub wisselt automatisch.</p>
           <label class="field"><span>Pool</span>
             <select id="acc-pool">
               <option value="bridge">bridge (Claude/ChatGPT)</option>
@@ -289,132 +438,8 @@
         <span class="pill mini" id="privacy-pill-side">Privacy aan</span>
       </footer>
     </aside>
-
-    <main class="main">
-      <header class="top">
-        <div class="top-left">
-          <h2 id="chat-title">Chat</h2>
-          <p class="muted" id="route-info">Kies vit/auto en typ — of wissel van studio.</p>
-        </div>
-        <div class="top-right">
-          <div class="view-tabs" role="tablist">
-            <button type="button" class="view-tab on" data-view="chat">Chat</button>
-            <button type="button" class="view-tab" data-view="teams">Teams</button>
-          </div>
-          <div class="pill" id="privacy-pill">Privacyfilter</div>
-        </div>
-      </header>
-
-      <div id="view-chat" class="view-pane on">
-        <section id="messages" class="messages" aria-live="polite"></section>
-        <div id="presets" class="presets" aria-label="Snelle starters"></div>
-        <form id="composer" class="composer">
-          <textarea id="prompt" rows="2" placeholder="Vraag iets… klantgegevens worden gefilterd vóór cloud"></textarea>
-          <button type="submit" id="send">Stuur</button>
-        </form>
-      </div>
-
-      <div id="view-teams" class="view-pane teams-view">
-        <div class="teams-layout">
-          <section class="teams-col">
-            <div class="teams-head">
-              <h3>Teams</h3>
-              <button type="button" id="team-new" class="primary">+ Team</button>
-            </div>
-            <div id="teams-list" class="teams-list"></div>
-            <div class="teams-head" style="margin-top:1rem">
-              <h3>Agents</h3>
-              <button type="button" id="agent-new" class="ghost">+ Agent</button>
-            </div>
-            <div id="agents-list" class="agents-list"></div>
-          </section>
-          <section class="teams-col teams-editor">
-            <h3 id="editor-title">Kies of maak een team</h3>
-            <p class="muted tiny" id="editor-blurb">Pipeline = na elkaar · Board = parallel + lead-synthese.</p>
-            <div id="team-form" class="team-form hidden">
-              <label class="field"><span>Naam</span><input id="tf-name" type="text" /></label>
-              <label class="field"><span>Omschrijving</span><input id="tf-blurb" type="text" /></label>
-              <div class="field-row">
-                <label class="field"><span>Kleur</span><input id="tf-color" type="color" value="#c4f04d" /></label>
-                <label class="field"><span>Studio</span>
-                  <select id="tf-studio">
-                    <option value="webdesign">Webdesign</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="socials">Socials</option>
-                    <option value="seo">SEO / GEO</option>
-                    <option value="visual">Visual</option>
-                    <option value="apps">Apps</option>
-                    <option value="software">Software</option>
-                    <option value="ops">Ops</option>
-                    <option value="design">Design</option>
-                    <option value="chat">Chat</option>
-                    <option value="self">Self-improve</option>
-                  </select>
-                </label>
-                <label class="field"><span>Mode</span>
-                  <select id="tf-mode">
-                    <option value="pipeline">Pipeline</option>
-                    <option value="board">Board</option>
-                  </select>
-                </label>
-              </div>
-              <label class="field"><span>Lead</span><select id="tf-lead"></select></label>
-              <div class="teams-head"><h4>Leden</h4></div>
-              <div id="tf-members" class="member-chips"></div>
-              <label class="field"><span>Agent toevoegen</span>
-                <div class="field-row">
-                  <select id="tf-add-agent"></select>
-                  <button type="button" id="tf-add-btn" class="ghost">Voeg toe</button>
-                </div>
-              </label>
-              <div class="wiz-actions">
-                <button type="button" id="tf-save" class="primary">Opslaan</button>
-                <button type="button" id="tf-delete" class="ghost">Verwijderen</button>
-              </div>
-            </div>
-            <div id="agent-form" class="team-form hidden">
-              <label class="field"><span>Naam</span><input id="af-name" type="text" /></label>
-              <label class="field"><span>Rol</span><input id="af-role" type="text" placeholder="Frontend" /></label>
-              <div class="field-row">
-                <label class="field"><span>Kleur</span><input id="af-color" type="color" value="#7ec8ff" /></label>
-                <label class="field"><span>Studio</span>
-                  <select id="af-studio">
-                    <option value="webdesign">Webdesign</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="socials">Socials</option>
-                    <option value="seo">SEO / GEO</option>
-                    <option value="visual">Visual</option>
-                    <option value="apps">Apps</option>
-                    <option value="software">Software</option>
-                    <option value="ops">Ops</option>
-                    <option value="design">Design</option>
-                    <option value="chat">Chat</option>
-                    <option value="self">Self-improve</option>
-                  </select>
-                </label>
-                <label class="field"><span>Model</span><input id="af-model" type="text" value="vit/auto" /></label>
-              </div>
-              <label class="field checkbox"><input id="af-tools" type="checkbox" checked /><span>Tools</span></label>
-              <label class="field"><span>Systeemprompt</span><textarea id="af-system" rows="4"></textarea></label>
-              <div class="wiz-actions">
-                <button type="button" id="af-save" class="primary">Opslaan</button>
-                <button type="button" id="af-delete" class="ghost">Verwijderen</button>
-              </div>
-            </div>
-            <div class="run-box">
-              <h4>Run</h4>
-              <label class="field"><span>Taak</span>
-                <textarea id="team-task" rows="3" placeholder="bijv. Landing voor VIT Backup"></textarea>
-              </label>
-              <button type="button" id="team-run" class="primary wiz-hero">Run team</button>
-              <p class="muted tiny" id="team-run-msg">Workspace uit de sidebar indien gezet.</p>
-            </div>
-            <div id="team-run-out" class="team-run-out"></div>
-          </section>
-        </div>
-      </div>
-    </main>
   </div>
+
   <script src="/static/app.js"></script>
   <script src="/static/teams.js"></script>
   <script src="/static/wizard.js"></script>

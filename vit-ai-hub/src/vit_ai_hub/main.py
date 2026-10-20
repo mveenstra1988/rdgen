@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -77,6 +77,27 @@ async def index() -> HTMLResponse:
     if not index_path.is_file():
         return HTMLResponse("<h1>VIT AI Hub</h1><p>GUI ontbreekt.</p>")
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
+
+
+@app.get("/manifest.webmanifest")
+async def pwa_manifest() -> JSONResponse:
+    path = WEB_DIR / "manifest.webmanifest"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="manifest ontbreekt")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return JSONResponse(data, media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+async def pwa_sw() -> FileResponse:
+    path = WEB_DIR / "static" / "sw.js"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="sw ontbreekt")
+    return FileResponse(
+        path,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    )
 
 
 @app.get("/health")
@@ -322,7 +343,7 @@ async def api_presets() -> dict[str, Any]:
             },
             {
                 "id": "seo",
-                "label": "SEO/GEO",
+                "label": "SEO / GEO",
                 "studio": "seo",
                 "text": "SEO + GEO plan met keyword clusters en FAQ schema voor ",
             },

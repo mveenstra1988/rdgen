@@ -17,14 +17,19 @@ OpenAI- én Anthropic-compat endpoints.
 
 ## Morgen / één pakket (Mac)
 
-1. Open `dist/VIT-AI-Hub-1.7.0-mac.dmg` → sleep **VIT AI Hub** naar Applications  
-   (of unzip `VIT-AI-Hub-1.7.0-mac.zip`)
+1. Open `dist/VIT-AI-Hub-1.8.0-mac.dmg` → sleep **VIT AI Hub** naar Applications  
+   (of unzip `VIT-AI-Hub-1.8.0-mac.zip`)
 2. Eventueel: `xattr -dr com.apple.quarantine "/Applications/VIT AI Hub.app"`
 3. Dubbelklik **VIT AI Hub** → hub start + browser (wizard alleen eerste keer)
 4. **Sluiten (Cmd+Q)** stopt de hub — één app, geen losse tools
 5. Chat: **vit/auto** · Growth/Visual/Site via studio of auto-router
 
 Echte `.pkg` op de Mac: `bash hub/packaging/build-mac-pkg.sh`
+
+## iPhone (PWA) & multi-venster
+
+- Safari op iPhone: Deel → **Zet op beginscherm** (werkt tegen je Mac-hub in hetzelfde netwerk, of via VPN/tunnel).
+- Desktop: knoppen **⧉** (chat) en **▦** (teams) openen aparte vensters naast elkaar.
 
 ## vit/auto (slimmer dan Cursor Auto)
 

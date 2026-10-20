@@ -17,7 +17,17 @@ def critic_enabled(intent: Intent) -> bool:
     # alleen bij hogere inzet — kosten/latency sparen
     if intent.kind in {"simple", "chat", "ops"} and intent.complexity == "low":
         return False
-    return intent.complexity in {"medium", "high"} or intent.kind in {"code", "design", "complex", "self"}
+    return intent.complexity in {"medium", "high"} or intent.kind in {
+        "code",
+        "design",
+        "complex",
+        "self",
+        "marketing",
+        "socials",
+        "seo",
+        "visual",
+        "write",
+    }
 
 
 def max_rounds() -> int:
